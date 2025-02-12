@@ -47,9 +47,14 @@ const result = gassma.sheets.sheet1.createMany({
     },
   ],
 });
-
-// OUTPUT => { count: 2 }
-console.log(result);
 ```
 
-戻り値は作成された行の数です。
+戻り値は以下の形式です。
+
+```ts
+{
+  count: 1;
+}
+```
+
+作成された行の数が返されます。

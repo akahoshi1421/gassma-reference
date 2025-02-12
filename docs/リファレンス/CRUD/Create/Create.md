@@ -23,7 +23,7 @@ sidebar_position: 1
 
 ```ts
 // gassma.sheets.{{TARGET_SHEET_NAME}}.create
-gassma.sheets.sheet1.create({
+const result = gassma.sheets.sheet1.create({
   data: {
     name: "Shibata",
     age: 23,
@@ -33,7 +33,18 @@ gassma.sheets.sheet1.create({
 });
 ```
 
-`data` のキーの中に追加したい列名に対応する値を入力します。
+戻り値は以下の形式です。
+
+```ts
+{
+  name: 'Shibata',
+  age: 23,
+  pref: 'Shimane',
+  postNumber: '690-8540'
+}
+```
+
+作成された行のデータが返されます。
 
 また、以下のように年齢を省くとその行の`age`列部分が空になります。
 
@@ -46,4 +57,15 @@ gassma.sheets.sheet1.create({
     postNumber: "690-8540",
   },
 });
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  name: 'Shibata',
+  age: null,
+  pref: 'Shimane',
+  postNumber: '690-8540'
+}
 ```
