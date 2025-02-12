@@ -30,6 +30,8 @@ sidebar_position: 2
 この場合以下のコードとなります。
 
 ```ts
+const gassma = new Gassma.GassmaClient();
+
 // gassma.sheets.{{TARGET_SHEET_NAME}}.findFirst
 const result = gassma.sheets.sheet1.findFirst({
   where: {

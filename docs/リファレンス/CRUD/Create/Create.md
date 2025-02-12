@@ -28,6 +28,8 @@ sidebar_position: 1
 この場合以下のコードとなります。
 
 ```ts
+const gassma = new Gassma.GassmaClient();
+
 // gassma.sheets.{{TARGET_SHEET_NAME}}.create
 const result = gassma.sheets.sheet1.create({
   data: {
@@ -55,6 +57,8 @@ const result = gassma.sheets.sheet1.create({
 また、以下のように年齢を省くとその行の`age`列部分が空になります。
 
 ```ts
+const gassma = new Gassma.GassmaClient();
+
 // gassma.sheets.{{TARGET_SHEET_NAME}}.create
 gassma.sheets.sheet1.create({
   data: {
