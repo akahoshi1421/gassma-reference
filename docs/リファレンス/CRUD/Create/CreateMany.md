@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# CreateMany()
+# createMany()
 
 該当シートに複数行を同時に追加したい場合に利用します。
 

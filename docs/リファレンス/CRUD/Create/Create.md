@@ -2,7 +2,7 @@
 sidebar_position: 1
 ---
 
-# Create()
+# create()
 
 該当シートに新しい 1 行を追加したい場合に利用します。
 
