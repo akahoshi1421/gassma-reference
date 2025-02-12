@@ -1,50 +1,51 @@
-import type {ReactNode} from 'react';
-import clsx from 'clsx';
-import Heading from '@theme/Heading';
-import styles from './styles.module.css';
+import type { ReactNode } from "react";
+import clsx from "clsx";
+import Heading from "@theme/Heading";
+import styles from "./styles.module.css";
 
 type FeatureItem = {
   title: string;
-  Svg: React.ComponentType<React.ComponentProps<'svg'>>;
+  Svg: React.ComponentType<React.ComponentProps<"svg">>;
   description: ReactNode;
 };
 
 const FeatureList: FeatureItem[] = [
   {
-    title: 'Easy to Use',
-    Svg: require('@site/static/img/undraw_docusaurus_mountain.svg').default,
+    title: "より易しく",
+    Svg: require("@site/static/img/jsAndTs.svg").default,
     description: (
       <>
-        Docusaurus was designed from the ground up to be easily installed and
-        used to get your website up and running quickly.
+        スプレッドシートは様々な人が使います。ですが、全員が普段からJavaScriptを書いている訳ではなりません。
+        GASsmaを使えば複雑な処理を書きこともなくデータを抽出したり更新したりすることができます。
       </>
     ),
   },
   {
-    title: 'Focus on What Matters',
-    Svg: require('@site/static/img/undraw_docusaurus_tree.svg').default,
+    title: "より管理しやすく",
+    Svg: require("@site/static/img/GoogleAppsScript.svg").default,
     description: (
       <>
-        Docusaurus lets you focus on your docs, and we&apos;ll do the chores. Go
-        ahead and move your docs into the <code>docs</code> directory.
+        スプレッドシートのここの行を取得したり、取得したものを条件付きでソートを行ったり...と言ったことをしたい場合、複雑な配列処理を行わないといけません。
+        するとコードが膨大化し、可読性が低下します。GASsmaはこれらの問題を解決し、コード量を抑えます。
       </>
     ),
   },
   {
-    title: 'Powered by React',
-    Svg: require('@site/static/img/undraw_docusaurus_react.svg').default,
+    title: "よりミスを減らす",
+    Svg: require("@site/static/img/GoogleSheets.svg").default,
     description: (
       <>
-        Extend or customize your website layout by reusing React. Docusaurus can
-        be extended while reusing the same header and footer.
+        スプレッドシートをGASで扱う際、<code>getRange()</code>
+        を利用して行番号や列番号を指定します。これは数え間違えのリスクが発生します。
+        しかし、GASsmaは列名やシートの範囲も自動で読んでくれます。あなたはシートの範囲を数える必要がありません。
       </>
     ),
   },
 ];
 
-function Feature({title, Svg, description}: FeatureItem) {
+function Feature({ title, Svg, description }: FeatureItem) {
   return (
-    <div className={clsx('col col--4')}>
+    <div className={clsx("col col--4")}>
       <div className="text--center">
         <Svg className={styles.featureSvg} role="img" />
       </div>
