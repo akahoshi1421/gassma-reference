@@ -15,8 +15,8 @@ const FeatureList: FeatureItem[] = [
     Svg: require("@site/static/img/jsAndTs.svg").default,
     description: (
       <>
-        スプレッドシートは様々な人が使います。ですが、全員が普段からJavaScriptを書いている訳ではなりません。
-        GASsmaを使えば複雑な処理を書きこともなくデータを抽出したり更新したりすることができます。
+        スプレッドシートは様々な人が使います。ですが、全員が普段からJavaScriptを書いている訳ではありません。
+        GASsmaを使えば複雑な処理を書くこともなくデータを抽出したり更新したりすることができます。
       </>
     ),
   },
