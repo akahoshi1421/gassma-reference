@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+slug: /reference/crud/read/findMany
 ---
 
 # findMany()

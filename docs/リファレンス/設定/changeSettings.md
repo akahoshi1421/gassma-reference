@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+slug: /reference/settings/changeSettings
 ---
 
 # changeSettings()

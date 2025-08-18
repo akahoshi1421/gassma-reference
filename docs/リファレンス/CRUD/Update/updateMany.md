@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+slug: /reference/crud/update/updateMany
 ---
 
 # updateMany()
@@ -49,4 +50,4 @@ const result = gassma.sheets.sheet1.updateMany({
 
 更新された行の数が返されます。
 
-また`where`の仕様は[findMany()の記事](../Read/findMany)の記事に準拠します。
+また`where`の仕様は[findMany()の記事](../read/findMany)の記事に準拠します。
