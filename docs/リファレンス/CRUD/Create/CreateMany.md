@@ -67,3 +67,7 @@ const result = gassma.sheets.sheet1.createMany({
 ```
 
 作成された行の数が返されます。
+
+:::note
+`createMany` では [Nested Write](/docs/reference/relation/nested-write) は利用できません。リレーション先を同時に操作したい場合は `create` を使用してください。
+:::

@@ -1,11 +1,11 @@
 ---
-sidebar_position: 2
-slug: /reference/crud/read/findFirst
+sidebar_position: 3
+slug: /reference/crud/read/findFirstOrThrow
 ---
 
-# findFirst()
+# findFirstOrThrow()
 
-特定の条件に合致した最初の行を取り出したい場合に利用します。
+特定の条件に合致した最初の行を取り出したい場合に利用します。`findFirst` と同じ動作ですが、レコードが見つからない場合に `null` ではなくエラーをスローします。
 
 ## 使用できるキー
 
@@ -35,8 +35,8 @@ slug: /reference/crud/read/findFirst
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.findFirst
-const result = gassma.sheets.sheet1.findFirst({
+// gassma.sheets.{{TARGET_SHEET_NAME}}.findFirstOrThrow
+const result = gassma.sheets.sheet1.findFirstOrThrow({
   where: {
     age: {
       gte: 20,
@@ -56,4 +56,22 @@ const result = gassma.sheets.sheet1.findFirst({
 }
 ```
 
-また、key のオプション等それ以外の仕様については[findMany()](./findMany)に準拠します。
+## findFirst との違い
+
+レコードが見つからない場合の動作が異なります。
+
+```ts
+// findFirst の場合 → null が返る
+const result = gassma.sheets.sheet1.findFirst({
+  where: { name: "存在しない名前" },
+});
+// => null
+
+// findFirstOrThrow の場合 → NotFoundError がスローされる
+const result = gassma.sheets.sheet1.findFirstOrThrow({
+  where: { name: "存在しない名前" },
+});
+// => NotFoundError: No record found
+```
+
+それ以外の仕様については [findMany()](./findMany) に準拠します。

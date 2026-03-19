@@ -9,9 +9,10 @@ slug: /reference/crud/delete/deleteMany
 
 ## 使用できるキー
 
-| キー名 | 内容           | 省略 |
-| ------ | -------------- | ---- |
-| where  | 取得条件の指定 | 不可 |
+| キー名 | 内容                       | 省略 | 備考                                     |
+| ------ | -------------------------- | ---- | ---------------------------------------- |
+| where  | 削除条件の指定             | 可   | 書かない場合は全ての行が対象になります   |
+| limit  | 削除する最大件数           | 可   | 負数を指定するとエラーになります         |
 
 ## 説明例用のシート
 
@@ -46,4 +47,24 @@ const result = gassma.sheets.sheet1.deleteMany({
 
 削除された行の数が返されます。
 
-また`where`の仕様は[findMany()の記事](../read/findMany)の記事に準拠します。
+## limit
+
+削除する最大件数を指定できます。
+
+```ts
+// 最大 3 件のみ削除
+const result = gassma.sheets.sheet1.deleteMany({
+  where: {
+    pref: "Tokyo",
+  },
+  limit: 3,
+});
+```
+
+`limit: 0` を指定すると 0 件削除（何も削除しない）となります。
+
+:::caution
+`limit` に負数を指定すると `GassmaLimitNegativeError` がスローされます。
+:::
+
+また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。

@@ -12,10 +12,35 @@ GASsma transforms Google Sheets into powerful data storage solutions without req
 - Flexible querying with select, omit, orderBy, pagination
 - Automatic type inference and validation
 - Support for multiple data types (string, number, boolean, Date, null)
+- **Relations**: oneToMany, oneToOne, manyToOne, manyToMany with include and where filters
+- **Nested Write**: create/connect/connectOrCreate within create method
+- **Nested Write (update)**: update/delete/deleteMany/disconnect/set within update method
+- **Referential Actions**: onDelete/onUpdate (Cascade, SetNull, Restrict, NoAction)
+- **Atomic Number Operations**: increment/decrement/multiply/divide for update data
+- **Case-insensitive filtering**: mode: "insensitive" for equals/not/contains/startsWith/endsWith
+- **OrderBy nulls control**: { sort: "asc", nulls: "first" | "last" } syntax
+- **Relation counting**: _count support in include and select
+- **limit option**: limit parameter for updateMany/deleteMany
+- **Negative take**: take negative values to get records from end
+- **Relation orderBy**: sort by manyToOne/oneToOne fields or _count
+- **Cursor pagination**: cursor-based pagination in findMany
+- **Column-to-column comparison**: fields property (FieldRef) for comparing columns in where
+- **Global omit**: default field exclusion per sheet via GassmaClient constructor
+- **defaults**: auto-set field values on create (static values or functions)
+- **updatedAt**: auto-timestamp on create/update
+- **ignore**: complete field exclusion from all operations (read, write, where)
+- **ignoreSheets**: complete sheet exclusion from gassma.sheets
+- **map**: field name mapping (code name ↔ spreadsheet header)
+- **mapSheets**: sheet name mapping (code name ↔ spreadsheet sheet name)
+- **autoincrement**: auto-increment using LockService + PropertiesService (GAS only)
+- **CLI tools**: generate (--watch), init, validate, format, version commands
+- **gassma.config.ts**: configuration file with schema path and datasource.url
+- **datasource block**: schema-level datasource url for auto spreadsheet ID embedding
+- **enum @map**: enum member name mapping for spreadsheet values
 
 **Installation:** `npm i gassma`
 **Script ID for GAS:** `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH`
-**Current Version:** 0.8.0
+**Current Version:** 0.9.0
 
 ## Client Initialization
 
@@ -27,6 +52,23 @@ const gassma = new Gassma.GassmaClient("your-spreadsheet-id");
 
 // Or use active spreadsheet in GAS environment
 const gassma = new Gassma.GassmaClient();
+
+// With options
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    Users: {
+      posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId" }
+    }
+  },
+  omit: { Users: { password: true } },         // Global omit
+  defaults: { Users: { role: "USER" } },        // Default values on create
+  updatedAt: { Users: "updatedAt" },            // Auto-timestamp
+  ignore: { Users: ["secret"] },                // Exclude field entirely
+  ignoreSheets: ["Logs"],                       // Exclude sheet entirely
+  map: { Users: { firstName: "名前" } },        // Field name mapping
+  mapSheets: { Users: "ユーザー一覧" },          // Sheet name mapping
+  autoincrement: { Users: "id" },               // Auto-increment
+});
 
 // Access specific sheet
 const userSheet = gassma.sheets.Users;
@@ -48,6 +90,17 @@ const user = userSheet.findFirst({
 // Returns: Record<string, any> | null
 ```
 
+**findFirstOrThrow(findData: FindData)** - Find single record or throw
+```typescript
+const user = userSheet.findFirstOrThrow({
+  where: { email: "john@example.com" }
+});
+// Returns: Record<string, any>
+// Throws NotFoundError if no record found
+```
+
+**Note**: `take` accepts negative values to get records from the end. `skip` with negative values throws `GassmaSkipNegativeError`.
+
 **findMany(findData: FindData)** - Find multiple records
 ```typescript
 const adults = userSheet.findMany({
@@ -64,7 +117,9 @@ const adults = userSheet.findMany({
 **create(createData: CreateData)** - Create single record
 ```typescript
 const newUser = userSheet.create({
-  data: { name: "John Doe", age: 25, email: "john@example.com" }
+  data: { name: "John Doe", age: 25, email: "john@example.com" },
+  select: { name: true, age: true },  // Optional: shape returned fields
+  // omit: { email: true },           // Or exclude fields (cannot use with select)
 });
 ```
 
@@ -79,16 +134,58 @@ const result = userSheet.createMany({
 // Returns: { count: number }
 ```
 
+**createManyAndReturn(createManyData: CreateManyData)** - Create multiple records and return them
+```typescript
+const result = userSheet.createManyAndReturn({
+  data: [
+    { name: "Alice", age: 30 },
+    { name: "Bob", age: 25 }
+  ]
+});
+// Returns: Record<string, any>[]
+```
+
+**update(updateData: UpdateData)** - Update single record
+```typescript
+const result = userSheet.update({
+  where: { name: "John" },
+  data: { salary: 80000 },
+  select: { name: true, salary: true },  // Optional
+  // omit: { password: true },           // Or exclude fields
+});
+// Returns: Record<string, any> | null
+```
+
 **updateMany(updateData: UpdateData)** - Update records
 ```typescript
 const result = userSheet.updateMany({
   where: { department: "Engineering" },
-  data: { salary: 80000 }
+  data: { salary: 80000 },
+  limit: 10  // Optional: limit affected records
 });
 // Returns: { count: number }
 ```
 
-**upsertMany(upsertData: UpsertData)** - Update or create
+**updateManyAndReturn(updateData: UpdateData)** - Update records and return them
+```typescript
+const result = userSheet.updateManyAndReturn({
+  where: { department: "Engineering" },
+  data: { salary: 80000 }
+});
+// Returns: Record<string, any>[]
+```
+
+**upsert(upsertData: UpsertData)** - Update or create single record
+```typescript
+const result = userSheet.upsert({
+  where: { email: "john@example.com" },
+  update: { lastLogin: new Date() },
+  create: { name: "John", email: "john@example.com", age: 25 }
+});
+// Returns: Record<string, any>
+```
+
+**upsertMany(upsertData: UpsertData)** - Update or create multiple records
 ```typescript
 const result = userSheet.upsertMany({
   where: { email: "john@example.com" },
@@ -98,10 +195,20 @@ const result = userSheet.upsertMany({
 // Returns: { count: number }
 ```
 
+**delete(deleteData: DeleteData)** - Delete single record
+```typescript
+const result = userSheet.delete({
+  where: { name: "John" },
+  select: { name: true, email: true }
+});
+// Returns: Record<string, any> | null
+```
+
 **deleteMany(deleteData: DeleteData)** - Delete records
 ```typescript
 const result = userSheet.deleteMany({
-  where: { active: false }
+  where: { active: false },
+  limit: 5  // Optional: limit affected records
 });
 // Returns: { count: number }
 ```
@@ -178,6 +285,21 @@ where: {
 - `contains`: String contains substring
 - `startsWith`: String starts with
 - `endsWith`: String ends with
+- `mode`: `"insensitive"` for case-insensitive matching (works with equals/not/contains/startsWith/endsWith)
+- Filter values can use `FieldRef` for column-to-column comparison (equals/lt/lte/gt/gte/contains/startsWith/endsWith)
+
+### Column-to-Column Comparison (fields)
+```typescript
+// Compare columns within the same row using controller.fields
+userSheet.findMany({
+  where: { firstName: { equals: userSheet.fields.lastName } }
+});
+
+// With comparison operators
+userSheet.findMany({
+  where: { age: { lt: userSheet.fields.maxAge } }
+});
+```
 
 ### Select and Omit
 ```typescript
@@ -186,6 +308,13 @@ select: { name: true, email: true }
 
 // Omit specific fields (cannot use with select)
 omit: { password: true, internalId: true }
+
+// Global omit (per-sheet default exclusion)
+const gassma = new Gassma.GassmaClient({
+  omit: { Users: { password: true } }
+});
+// Override global omit with omit: { password: false }
+// select overrides global omit entirely
 ```
 
 ### Ordering and Pagination
@@ -199,8 +328,21 @@ orderBy: [
   { salary: "desc" }
 ]
 
+// Null positioning control
+orderBy: { age: { sort: "asc", nulls: "last" } }
+
+// Relation field ordering (manyToOne/oneToOne only)
+orderBy: { author: { name: "asc" } }
+
+// Relation _count ordering (oneToMany/manyToMany only)
+orderBy: { posts: { _count: "desc" } }
+
+// Cursor-based pagination
+cursor: { id: 10 },
+take: 5,     // 5 records starting from cursor
+
 // Pagination
-take: 20,    // Limit results
+take: 20,    // Limit results (negative: from end)
 skip: 40,    // Offset results
 ```
 
@@ -226,6 +368,114 @@ distinct: ["department", "level"]
 ```typescript
 type GassmaAny = string | number | boolean | Date | null;
 type AnyUse = { [key: string]: GassmaAny };
+```
+
+## Relations
+
+### Relation Types
+- `oneToMany`: One parent has many children (e.g., User → Posts). Include returns array.
+- `manyToOne`: Many children belong to one parent (e.g., Post → User). Include returns object or null.
+- `oneToOne`: One-to-one relationship (e.g., User → Profile). Include returns object or null.
+- `manyToMany`: Many-to-many via junction table (e.g., Post → Tags). Include returns array.
+
+### Include (findMany / findFirst)
+```typescript
+userSheet.findMany({
+  include: {
+    posts: true,                    // All related posts
+    posts: {                        // With options
+      where: { published: true },
+      orderBy: { id: "desc" },
+      skip: 0, take: 5,
+      select: { title: true },
+      include: { tags: true },      // Nested include
+    },
+    _count: true,                   // Count all relations
+    _count: {                       // Count specific relations
+      select: { posts: true },
+      select: { posts: { where: { published: true } } },  // With filter
+    },
+  }
+});
+```
+
+### Where Relation Filters (all query methods)
+```typescript
+// List relations (oneToMany, manyToMany): some, every, none
+userSheet.findMany({ where: { posts: { some: { published: true } } } });
+userSheet.findMany({ where: { posts: { every: { published: true } } } });
+userSheet.findMany({ where: { posts: { none: { published: false } } } });
+
+// Single relations (oneToOne, manyToOne): is, isNot
+postSheet.findMany({ where: { author: { is: { name: "Alice" } } } });
+postSheet.findMany({ where: { author: { isNot: null } } });
+```
+
+### Nested Write (create)
+```typescript
+// create: Create related record
+postSheet.create({
+  data: { title: "New", author: { create: { name: "Dave", email: "d@e.com" } } }
+});
+
+// connect: Link existing record
+postSheet.create({
+  data: { title: "New", author: { connect: { name: "Alice" } } }
+});
+
+// connectOrCreate: Link if exists, create if not
+postSheet.create({
+  data: { title: "New", author: { connectOrCreate: { where: { name: "Alice" }, create: { name: "Alice", email: "a@e.com" } } } }
+});
+```
+
+### Nested Write (update)
+```typescript
+// update: Update related record
+userSheet.update({
+  where: { name: "Alice" },
+  data: { posts: { update: { where: { id: 1 }, data: { title: "Updated" } } } }
+});
+
+// delete: Delete related record
+userSheet.update({
+  where: { name: "Alice" },
+  data: { posts: { delete: { id: 3 } } }
+});
+
+// disconnect: Remove association (set FK to null)
+postSheet.update({
+  where: { id: 1 },
+  data: { author: { disconnect: true } }
+});
+
+// set: Replace all associations
+userSheet.update({
+  where: { name: "Alice" },
+  data: { posts: { set: [{ id: 1 }, { id: 2 }] } }
+});
+```
+
+### Atomic Number Operations (update data)
+```typescript
+// increment, decrement, multiply, divide
+userSheet.update({
+  where: { name: "Alice" },
+  data: { age: { increment: 1 } }
+});
+```
+
+### onDelete (deleteMany) / onUpdate (update)
+```typescript
+// Cascade: Delete/update related records
+// SetNull: Set FK to null
+// Restrict: Error if related records exist
+// NoAction: Do nothing (default)
+relations: {
+  Users: {
+    posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId", onDelete: "Cascade", onUpdate: "Cascade" }
+  }
+}
 ```
 
 ## Error Handling
