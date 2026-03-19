@@ -251,6 +251,12 @@ const result = gassma.sheets.sheet1.findMany({
 });
 ```
 
+### where でのリレーションフィルタ
+
+リレーション定義がある場合、`where` 内でリレーション先の条件を使ってフィルタリングできます（`some`、`every`、`none`、`is`、`isNot`）。
+
+詳しくは [where リレーションフィルタのリファレンス](/docs/reference/relation/where-relation-filter)を参照してください。
+
 ## select
 
 戻り値に返るデータを制限することができます。
@@ -572,6 +578,8 @@ const result = gassma.sheets.sheet1.findMany({
 :::caution
 `select` と `omit` は同時に使用できません。両方指定すると `GassmaFindSelectOmitConflictError` がスローされます。
 :::
+
+[グローバル omit](/docs/reference/config/global-omit) を設定している場合、クエリの `omit` で `{ field: false }` を指定することでグローバル omit を上書きできます。詳しくは[クエリ omit でグローバル omit を上書き](/docs/reference/config/global-omit#クエリ-omit-でグローバル-omit-を上書き)を参照してください。
 
 ## distinct
 
