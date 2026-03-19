@@ -46,6 +46,16 @@ const config: Config = {
     ],
   ],
 
+  themes: [
+    [
+      "@cmfcmf/docusaurus-search-local",
+      {
+        language: "ja",
+        indexBlog: false,
+      },
+    ],
+  ],
+
   themeConfig: {
     // Replace with your project's social card
     image: "img/GASsma-social-card.jpg",
@@ -60,12 +70,13 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
-          label: "チュートリアル",
+          label: "Docs",
         },
         {
           href: "https://github.com/akahoshi1421/gassma",
-          label: "GitHub",
           position: "right",
+          className: "header-github-link",
+          "aria-label": "GitHub repository",
         },
       ],
     },
