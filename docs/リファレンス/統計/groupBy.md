@@ -23,6 +23,10 @@ slug: /reference/statistics/groupBy
 | by      | グループ化条件の指定           | 不可 |
 | having  | グループ化した後の取得条件指定 | 可   | 書かない場合は全てのデータを取得します        |
 
+:::tip
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../img/exampleSheet.png)

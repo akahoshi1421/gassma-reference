@@ -21,6 +21,10 @@ slug: /reference/statistics/aggregate
 | \_min   | 最小値表示の設定   | 可   |
 | \_sum   | 合計表示の設定     | 可   |
 
+:::tip
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../img/exampleSheet.png)

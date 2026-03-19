@@ -16,6 +16,10 @@ slug: /reference/statistics/count
 | take    | 取得数の設定     | 可   |
 | skip    | スキップ数の設定 | 可   |
 
+:::tip
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../img/exampleSheet.png)
