@@ -1712,8 +1712,11 @@ Uses `@prisma/internals` formatSchema (same engine as Prisma CLI).
 
 ### gassma.config.ts
 
-Configuration file support (like Prisma v7's `prisma.config.ts`).
+Configuration file support (like Prisma's `prisma.config.ts`).
 
+Two ways to define the configuration:
+
+**1. `defineConfig` helper (recommended):**
 ```typescript
 import { defineConfig } from "gassma/config";
 
@@ -1725,7 +1728,43 @@ export default defineConfig({
 });
 ```
 
-`datasource.url`: Spreadsheet URL or ID. Auto-embedded into generated client so `new GassmaClient()` connects without explicit ID. Supports full URL and raw spreadsheet ID.
+**2. `satisfies GassmaConfig`:**
+```typescript
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+Configuration options:
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `schema` | `string` | No | Schema file or directory path (default: `./gassma`) |
+| `datasource.url` | `string` | No | Spreadsheet URL or ID |
+
+`datasource.url`: Auto-embedded into generated client so `new GassmaClient()` connects without explicit ID. Supports full URL and raw spreadsheet ID.
+
+### env() helper
+
+`env()` function retrieves environment variables for spreadsheet URL (like Prisma's `env()`). Available from `gassma/config`.
+
+```typescript
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+`env()` throws an error if the environment variable is unset or empty. Use `process.env` directly for optional variables.
 
 Schema resolution priority: `--schema` flag > `gassma.config.ts` > default `./gassma` directory.
 
@@ -1819,7 +1858,8 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - ✅ mapSheets (sheet name mapping: code ↔ spreadsheet sheet name)
 - ✅ autoincrement (auto-increment with LockService, GAS only)
 - ✅ CLI: generate (--watch), init, validate, format, version commands
-- ✅ gassma.config.ts configuration file with datasource.url support
+- ✅ gassma.config.ts configuration file (defineConfig/satisfies GassmaConfig) with datasource.url
+- ✅ env() helper for environment variable-based configuration
 - ✅ datasource block in schema for spreadsheet URL
 - ✅ enum @map (enum member name-to-value mapping)
 
@@ -1860,7 +1900,8 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - mapSheets: sheet name mapping (code name ↔ spreadsheet sheet name)
 - autoincrement: auto-increment using LockService + PropertiesService
 - CLI commands: generate (--schema, --watch), init (--output, --with-model), validate, format (--check), version
-- gassma.config.ts: defineConfig() with schema path and datasource.url
+- gassma.config.ts: defineConfig()/satisfies GassmaConfig with schema path and datasource.url
+- env() helper: environment variable retrieval for config (throws on unset/empty)
 - datasource block: schema-level datasource url for auto spreadsheet ID embedding
 - enum @map: enum member name-to-value mapping and constant generation
 

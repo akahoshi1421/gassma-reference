@@ -34,7 +34,7 @@ GASsma transforms Google Sheets into powerful data storage solutions without req
 - **mapSheets**: sheet name mapping (code name ↔ spreadsheet sheet name)
 - **autoincrement**: auto-increment using LockService + PropertiesService (GAS only)
 - **CLI tools**: generate (--watch), init, validate, format, version commands
-- **gassma.config.ts**: configuration file with schema path and datasource.url
+- **gassma.config.ts**: configuration file with defineConfig/satisfies GassmaConfig, env() helper, schema path and datasource.url
 - **datasource block**: schema-level datasource url for auto spreadsheet ID embedding
 - **enum @map**: enum member name mapping for spreadsheet values
 
