@@ -23,7 +23,7 @@ GASsma transforms Google Sheets into powerful data storage solutions without req
 - **limit option**: limit parameter for updateMany/deleteMany
 - **Negative take**: take negative values to get records from end
 - **Relation orderBy**: sort by manyToOne/oneToOne fields or _count
-- **Cursor pagination**: cursor-based pagination in findMany
+- **Cursor pagination**: cursor-based pagination in findMany, count, aggregate
 - **Column-to-column comparison**: fields property (FieldRef) for comparing columns in where
 - **Global omit**: default field exclusion per sheet via GassmaClient constructor
 - **defaults**: auto-set field values on create (static values or functions)

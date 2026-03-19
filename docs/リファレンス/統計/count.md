@@ -11,10 +11,11 @@ slug: /reference/statistics/count
 
 | キー名  | 内容             | 省略 | 備考                                          |
 | ------- | ---------------- | ---- | --------------------------------------------- |
-| where   | 取得条件の指定   | 可   | 書かない場合は全ての行を取得します            |
-| orderBy | ソート設定       | 可   | 指定する列が 1 つの場合、配列の省略が可能です |
-| take    | 取得数の設定     | 可   |
-| skip    | スキップ数の設定 | 可   |
+| where   | 取得条件の指定           | 可   | 書かない場合は全ての行を取得します            |
+| orderBy | ソート設定               | 可   | 指定する列が 1 つの場合、配列の省略が可能です |
+| take    | 取得数の設定             | 可   |
+| skip    | スキップ数の設定         | 可   |
+| cursor  | カーソルベースページネーション | 可   | 詳細は [findMany の cursor](/docs/reference/crud/read/findMany#cursor) を参照 |
 
 :::tip
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。

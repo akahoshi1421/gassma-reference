@@ -1846,7 +1846,7 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - ✅ Negative take (get records from end)
 - ✅ Relation orderBy (field sort for manyToOne/oneToOne)
 - ✅ Relation orderBy _count (count sort for oneToMany/manyToMany)
-- ✅ Cursor-based pagination
+- ✅ Cursor-based pagination (findMany, count, aggregate)
 - ✅ Column-to-column comparison (fields/FieldRef)
 - ✅ Global omit (per-sheet default field exclusion)
 - ✅ Query-level select/omit for create/update
@@ -1887,7 +1887,7 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - Skip/limit negative validation: GassmaSkipNegativeError, GassmaLimitNegativeError
 - Relation orderBy: sort by manyToOne/oneToOne field values
 - Relation orderBy _count: sort by oneToMany/manyToMany record count
-- Cursor-based pagination: cursor option in findMany
+- Cursor-based pagination: cursor option in findMany, count, aggregate (groupBy is not supported, same as Prisma)
 - Null FK fix: null values excluded from relation key matching
 - Column-to-column comparison: fields property with FieldRef for where conditions
 - Global omit: per-sheet default field exclusion in GassmaClient constructor
