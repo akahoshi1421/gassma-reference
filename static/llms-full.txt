@@ -101,27 +101,29 @@ type GassmaSheet = { [key: string]: GassmaController };
 
 ## Query Operations - Complete Reference
 
-### findFirst(findData: FindData)
+### findFirst(findData: FindFirstData)
 
 Returns single record or `null`.
 
 **Parameters:**
 ```typescript
-interface FindData {
+interface FindFirstData {
   where?: WhereUse;
   select?: Select;
   omit?: Omit;
+  include?: IncludeData;
   orderBy?: OrderBy | OrderBy[];
-  skip?: number;
+  cursor?: Record<string, unknown>;
 }
 ```
 
+Note: findFirst does not support `take`, `skip`, or `distinct` (use findMany for those).
+
 **Edge Cases:**
-- With `skip`: Applies skip first, then returns first of remaining
 - Empty result: Returns `null`
 - No where clause: Returns first record in sheet
 
-### findFirstOrThrow(findData: FindData)
+### findFirstOrThrow(findData: FindFirstData)
 
 Same as `findFirst` but throws `NotFoundError` instead of returning `null`.
 
@@ -337,7 +339,7 @@ where: {
 - Missing fields in data: Returned as `null`, stored as `""` in sheet
 - Non-existent columns: Ignored (not added to sheet)
 - Returns: Complete object with all fields
-- Supports `select` and `omit` for result shaping
+- Supports `select`, `omit`, and `include` for result shaping
 
 ```typescript
 const result = sheet.create({
@@ -367,12 +369,13 @@ sheet.createMany({
 // Returns: { count: 2 }
 ```
 
-### createManyAndReturn(createManyData: CreateManyData)
+### createManyAndReturn(createManyData: CreateManyAndReturnData)
 
 Same as `createMany` but returns created records instead of count.
 
 - Empty array: Returns `[]` (not `undefined`)
 - Missing fields: Returned as `null`
+- Supports `select`, `omit`, and `include` for result shaping
 - Returns: `Record<string, unknown>[]`
 
 ```typescript
@@ -392,7 +395,7 @@ Returns single updated record or `null`.
 - Returns `null` if no match
 - Supports nested write operations (create/update/delete/disconnect/set)
 - Supports atomic number operations (increment/decrement/multiply/divide)
-- Supports `select` and `omit` for result shaping
+- Supports `select`, `omit`, and `include` for result shaping
 
 ```typescript
 const result = sheet.update({
@@ -445,20 +448,6 @@ const result = sheet.upsert({
 - If no match: create new record with create data, return created record
 - Supports select/include/omit for result shaping
 - Supports nested write in both create and update paths
-
-### upsertMany(upsertData: UpsertData)
-
-**Logic:**
-1. If where condition matches: Apply update
-2. If no match: Create new record with create data
-
-```typescript
-sheet.upsertMany({
-  where: { email: "john@example.com" },
-  update: { lastLogin: new Date() },
-  create: { email: "john@example.com", name: "John", lastLogin: new Date() }
-});
-```
 
 ### updateManyAndReturn(updateData: UpdateData)
 
@@ -763,7 +752,7 @@ userSheet.findMany({
 
 ## Where Relation Filters
 
-Available in **all query methods** (findMany, findFirst, updateMany, upsertMany, deleteMany, aggregate, count, groupBy).
+Available in **all query methods** (findMany, findFirst, update, updateMany, deleteMany, upsert, aggregate, count, groupBy).
 
 ### List Relation Filters (oneToMany / manyToMany)
 
@@ -1849,7 +1838,7 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - ✅ Cursor-based pagination (findMany, count, aggregate)
 - ✅ Column-to-column comparison (fields/FieldRef)
 - ✅ Global omit (per-sheet default field exclusion)
-- ✅ Query-level select/omit for create/update
+- ✅ Query-level select/omit/include for create/update/createManyAndReturn
 - ✅ defaults (auto-set field values on create)
 - ✅ updatedAt (auto-timestamp on create/update)
 - ✅ ignore (complete field exclusion from all operations)
@@ -1862,6 +1851,8 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - ✅ env() helper for environment variable-based configuration
 - ✅ datasource block in schema for spreadsheet URL
 - ✅ enum @map (enum member name-to-value mapping)
+- ✅ Formula injection prevention (write operations)
+- ✅ Regex injection fix (literal string matching in contains/startsWith/endsWith)
 
 ---
 
@@ -1904,6 +1895,12 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - env() helper: environment variable retrieval for config (throws on unset/empty)
 - datasource block: schema-level datasource url for auto spreadsheet ID embedding
 - enum @map: enum member name-to-value mapping and constant generation
+- Removed upsertMany (not in Prisma API)
+- findFirst: removed take/skip/distinct (Prisma alignment), added cursor support
+- create/update: added include support
+- createManyAndReturn: added select/omit/include support
+- Security: formula injection prevention (escape `=`, `+`, `-`, `@` prefixed strings in write operations)
+- Security: regex injection fix (contains/startsWith/endsWith now use literal string matching)
 
 **v0.8.0**
 - Full CRUD + analytics feature set

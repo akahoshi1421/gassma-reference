@@ -78,13 +78,6 @@ const result = gassma.sheets.sheet1.upsert({
 // => { name: "newuser", age: 30, pref: "Tokyo", postNumber: "100-0001" }
 ```
 
-## upsertMany との違い
-
-| メソッド | 対象 | 戻り値 |
-| --- | --- | --- |
-| `upsert` | 最初の 1 件 | 作成または更新されたレコード |
-| `upsertMany` | 全件 | `{ count: number }` |
-
 ## Nested Write
 
 リレーション定義がある場合、`create` / `update` 内で Nested Write が利用できます。

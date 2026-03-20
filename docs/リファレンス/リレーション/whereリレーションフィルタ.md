@@ -18,7 +18,7 @@ slug: /reference/relation/where-relation-filter
 where リレーションフィルタは以下の全メソッドで利用できます。
 
 - `findMany` / `findFirst`
-- `updateMany` / `upsertMany` / `deleteMany`
+- `update` / `updateMany` / `deleteMany`
 - `aggregate` / `count` / `groupBy`
 
 ## フィルタの種類

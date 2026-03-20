@@ -99,7 +99,7 @@ const user = userSheet.findFirstOrThrow({
 // Throws NotFoundError if no record found
 ```
 
-**Note**: `take` accepts negative values to get records from the end. `skip` with negative values throws `GassmaSkipNegativeError`.
+**Note**: findFirst does not support `take`, `skip`, or `distinct` (use findMany for those). `findMany`'s `take` accepts negative values to get records from the end. `skip` with negative values throws `GassmaSkipNegativeError`.
 
 **findMany(findData: FindData)** - Find multiple records
 ```typescript
@@ -120,6 +120,7 @@ const newUser = userSheet.create({
   data: { name: "John Doe", age: 25, email: "john@example.com" },
   select: { name: true, age: true },  // Optional: shape returned fields
   // omit: { email: true },           // Or exclude fields (cannot use with select)
+  // include: { posts: true },        // Optional: include related records
 });
 ```
 
@@ -134,13 +135,16 @@ const result = userSheet.createMany({
 // Returns: { count: number }
 ```
 
-**createManyAndReturn(createManyData: CreateManyData)** - Create multiple records and return them
+**createManyAndReturn(createManyData: CreateManyAndReturnData)** - Create multiple records and return them
 ```typescript
 const result = userSheet.createManyAndReturn({
   data: [
     { name: "Alice", age: 30 },
     { name: "Bob", age: 25 }
-  ]
+  ],
+  // select: { name: true },       // Optional
+  // omit: { email: true },        // Optional
+  // include: { posts: true },     // Optional
 });
 // Returns: Record<string, any>[]
 ```
@@ -152,6 +156,7 @@ const result = userSheet.update({
   data: { salary: 80000 },
   select: { name: true, salary: true },  // Optional
   // omit: { password: true },           // Or exclude fields
+  // include: { posts: true },           // Optional: include related records
 });
 // Returns: Record<string, any> | null
 ```
@@ -183,16 +188,6 @@ const result = userSheet.upsert({
   create: { name: "John", email: "john@example.com", age: 25 }
 });
 // Returns: Record<string, any>
-```
-
-**upsertMany(upsertData: UpsertData)** - Update or create multiple records
-```typescript
-const result = userSheet.upsertMany({
-  where: { email: "john@example.com" },
-  update: { lastLogin: new Date() },
-  create: { name: "John", email: "john@example.com", age: 25 }
-});
-// Returns: { count: number }
 ```
 
 **delete(deleteData: DeleteData)** - Delete single record

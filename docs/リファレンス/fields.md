@@ -103,7 +103,7 @@ const result = userSheet.findMany({
 - `findMany` / `findFirst` / `findFirstOrThrow`
 - `update` / `updateMany` / `updateManyAndReturn`
 - `delete` / `deleteMany`
-- `upsert` / `upsertMany`
+- `upsert`
 - `count` / `aggregate` / `groupBy`
 
 ## 参照先の列が存在しない場合
