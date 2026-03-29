@@ -108,17 +108,33 @@ function myFunction() {
 
 等複雑な要件があるとコードが複雑になり、管理が難しくなります。
 
-### 2. 非 JSer に優しくない
-
-さらに **「GAS を触る人全員が JavaScript に慣れているとは限らない点」** も挙げられます。 スプレッドシートは多くの人が使用します。
-
-ですが、全員が普段から JavaScript や TypeScript を書いている訳ではありません。 複雑な条件をコードで書こうとすると躓く人が現れることは想像でき、簡単に書けるに越したことはありません。
-
-### 3. コードのミスを起こしやすい性質
+### 2. コードのミスを起こしやすい性質
 
 GAS のスプレッドシート操作はコードのミスを起こしやすい性質を持っています。 スプレッドシートから指定した範囲のデータを取り出す際、`getRange()`を利用します。 `getRange()` は引数に行番号や列番号を指定することで指定した範囲のセルを取り出すことができるメソッドです。
 
 つまり、`getRange()` を利用する際は、その度にスプレッドシート上のセルの行番号や列番号を確認する必要があります。要するに数え間違いのリスクが発生します。これは `getRange()`をコード内で使えば使うほどそのリスクは上がります。
+
+### 3. ある程度セキュリティを意識しないといけない
+
+GoogleFormから提出されたデータをスプレッドシートに挿入する場合を考えます。
+例えば以下のコードには問題があります。なんでしょうか？
+
+```ts
+function myFunction(e) {
+  // Google Formから提出された値を取得
+  const values = e.namedValues;
+  const newValues = [values["名前"], values["年齢"], values["都道府県"], values["郵便番号"]];
+
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+  const hogeSheet = sheet.getSheetByName("シート名");
+  const newRow = hogeSheet.getLastRow() + 1;
+
+  // シート挿入
+  hogeSheet.getRange(newRow, 1, 1, 4).setValues([newValues]);
+}
+```
+
+正解は悪意のあるユーザがフォームの解答欄に`=C1`のようなスプレッドシート関数を入れた時、任意の不正な処理ができてしまいます。(フォーミュラ・インジェクション)
 
 <hr/>
 これらの問題を解決してくれるのが本ライブラリ、**「GASsma」** です。
