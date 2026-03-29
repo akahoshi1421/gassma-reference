@@ -11,16 +11,6 @@ type FeatureItem = {
 
 const FeatureList: FeatureItem[] = [
   {
-    title: "より易しく",
-    Svg: require("@site/static/img/jsAndTs.svg").default,
-    description: (
-      <>
-        スプレッドシートは様々な人が使います。ですが、全員が普段からJavaScriptを書いている訳ではありません。
-        GASsmaを使えば複雑な処理を書くこともなくデータを抽出したり更新したりすることができます。
-      </>
-    ),
-  },
-  {
     title: "より管理しやすく",
     Svg: require("@site/static/img/GoogleAppsScript.svg").default,
     description: (
@@ -38,6 +28,17 @@ const FeatureList: FeatureItem[] = [
         スプレッドシートをGASで扱う際、<code>getRange()</code>
         を利用して行番号や列番号を指定します。これは数え間違えのリスクが発生します。
         しかし、GASsmaは列名やシートの範囲も自動で読んでくれます。あなたはシートの範囲を数える必要がありません。
+      </>
+    ),
+  },
+  {
+    title: "より安全に",
+    Svg: require("@site/static/img/shield.svg").default,
+    description: (
+      <>
+        スプレッドシートをGASで扱う際、ある程度セキュリティを意識しないといけません。
+        例えばGoogleForm等と連携した場合、悪意のあるユーザがスプレッドシート関数を回答に入力したとしても、実行できないようにしなければなりません。
+        GASsmaはこのようなセキュリティ対策もしており、安全な開発が可能です。
       </>
     ),
   },
