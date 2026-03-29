@@ -19,11 +19,11 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // 読み取り結果から除外される
-gassma.sheets.Users.findMany({});
+gassma.Users.findMany({});
 // => [{ id: 1, name: "Alice" }]（secretColumn, internalData は含まれない）
 
 // 書き込みデータからも除外される
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Alice", secretColumn: "xxx" },
 });
 // => secretColumn は無視される
@@ -53,15 +53,15 @@ ignore: {
 
 ## ignoreSheets（モデルレベル）
 
-指定したシートを `gassma.sheets` から完全に除外します。
+指定したシートをクライアントから完全に除外します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
   ignoreSheets: ["Logs", "Temp"],
 });
 
-// gassma.sheets.Logs → undefined（除外済み）
-// gassma.sheets.Users → 通常通り利用可能
+// gassma.Logs → undefined（除外済み）
+// gassma.Users → 通常通り利用可能
 ```
 
 単一シートの場合は文字列で指定できます。

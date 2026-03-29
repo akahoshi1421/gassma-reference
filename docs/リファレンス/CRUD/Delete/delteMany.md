@@ -29,8 +29,8 @@ slug: /reference/crud/delete/deleteMany
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.deleteMany
-const result = gassma.sheets.sheet1.deleteMany({
+// gassma.{{TARGET_SHEET_NAME}}.deleteMany
+const result = gassma.sheet1.deleteMany({
   where: {
     age: 20,
   },
@@ -53,7 +53,7 @@ const result = gassma.sheets.sheet1.deleteMany({
 
 ```ts
 // 最大 3 件のみ削除
-const result = gassma.sheets.sheet1.deleteMany({
+const result = gassma.sheet1.deleteMany({
   where: {
     pref: "Tokyo",
   },

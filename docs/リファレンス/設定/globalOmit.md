@@ -23,7 +23,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Users シートから取得時、password と secret が自動的に除外される
-const users = gassma.sheets.Users.findMany({});
+const users = gassma.Users.findMany({});
 // => [{ id: 1, name: "Alice", email: "alice@example.com" }, ...]
 // password と secret フィールドは含まれない
 ```
@@ -44,7 +44,7 @@ const users = gassma.sheets.Users.findMany({});
 
 ```ts
 // グローバル omit: { password: true }
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   select: { name: true, password: true },
 });
 // => [{ name: "Alice", password: "secret123" }]
@@ -57,7 +57,7 @@ const result = gassma.sheets.Users.findMany({
 
 ```ts
 // グローバル omit: { password: true, secret: true }
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   omit: { password: false },
 });
 // => [{ id: 1, name: "Alice", password: "secret123" }]
@@ -68,7 +68,7 @@ const result = gassma.sheets.Users.findMany({
 
 ```ts
 // グローバル omit: { password: true }
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   omit: { email: true },
 });
 // => [{ id: 1, name: "Alice" }]
@@ -109,7 +109,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // リレーションと一緒に使用できる
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: { posts: true },
 });
 // => [{ id: 1, name: "Alice", posts: [...] }]

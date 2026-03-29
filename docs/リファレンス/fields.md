@@ -13,7 +13,7 @@ slug: /reference/fields
 
 ```ts
 const gassma = new Gassma.GassmaClient();
-const userSheet = gassma.sheets.Users;
+const userSheet = gassma.Users;
 
 // firstName と lastName が同じ値のユーザーを検索
 const result = userSheet.findMany({

@@ -31,8 +31,8 @@ slug: /reference/crud/delete/delete
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.delete
-const result = gassma.sheets.sheet1.delete({
+// gassma.{{TARGET_SHEET_NAME}}.delete
+const result = gassma.sheet1.delete({
   where: {
     name: "akahoshi",
   },
@@ -55,7 +55,7 @@ const result = gassma.sheets.sheet1.delete({
 条件に合致するレコードがない場合は `null` が返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.delete({
+const result = gassma.sheet1.delete({
   where: { name: "存在しない名前" },
 });
 // => null
@@ -68,7 +68,7 @@ const result = gassma.sheets.sheet1.delete({
 戻り値のフィールドを制御できます。
 
 ```ts
-const result = gassma.sheets.sheet1.delete({
+const result = gassma.sheet1.delete({
   where: { name: "akahoshi" },
   select: { name: true, age: true },
 });

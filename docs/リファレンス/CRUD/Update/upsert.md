@@ -34,8 +34,8 @@ slug: /reference/crud/update/upsert
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.upsert
-const result = gassma.sheets.sheet1.upsert({
+// gassma.{{TARGET_SHEET_NAME}}.upsert
+const result = gassma.sheet1.upsert({
   where: {
     name: "akahoshi",
   },
@@ -65,7 +65,7 @@ const result = gassma.sheets.sheet1.upsert({
 レコードが存在しない場合、`create` データで新規作成され、作成されたレコードが返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.upsert({
+const result = gassma.sheet1.upsert({
   where: { name: "newuser" },
   update: { age: 30 },
   create: {

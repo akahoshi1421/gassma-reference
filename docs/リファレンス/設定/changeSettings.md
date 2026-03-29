@@ -28,9 +28,9 @@ slug: /reference/settings/changeSettings
 ```ts
 const gassma = new Gassma.GassmaClient();
 // シートの操作をする前に必ず記述
-gassma.sheets.sheet1.changeSettings(4, "B", "E");
+gassma.sheet1.changeSettings(4, "B", "E");
 
-const result = gassma.sheets.sheet1.findMany({});
+const result = gassma.sheet1.findMany({});
 ```
 
 ### 2. 右側にメモ書き等別のデータがあるとき
@@ -40,7 +40,7 @@ const result = gassma.sheets.sheet1.findMany({});
 ```ts
 const gassma = new Gassma.GassmaClient();
 // シートの操作をする前に必ず記述
-gassma.sheets.sheet1.changeSettings(1, "A", "D");
+gassma.sheet1.changeSettings(1, "A", "D");
 
-const result = gassma.sheets.sheet1.findMany({});
+const result = gassma.sheet1.findMany({});
 ```

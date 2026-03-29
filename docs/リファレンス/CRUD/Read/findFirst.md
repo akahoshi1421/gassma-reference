@@ -12,7 +12,7 @@ slug: /reference/crud/read/findFirst
 | キー名   | 内容             | 省略 | 備考                                          |
 | -------- | ---------------- | ---- | --------------------------------------------- |
 | where    | 取得条件の指定       | 可   | 書かない場合は全ての行を取得します            |
-| select   | 取得列の表示設定     | 可   | `omit` / `include` と同時に使用できません     |
+| select   | 取得列の表示設定     | 可   | `omit` / `include` と同時に使用できません。リレーションフィールドにオプション指定可 |
 | omit     | 取得列の除外設定     | 可   | `select` と同時に使用できません               |
 | include  | リレーション先の取得 | 可   | [詳細はこちら](/docs/reference/relation/include) |
 | orderBy  | ソート設定           | 可   | 指定する列が 1 つの場合、配列の省略が可能です |
@@ -33,8 +33,8 @@ slug: /reference/crud/read/findFirst
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.findFirst
-const result = gassma.sheets.sheet1.findFirst({
+// gassma.{{TARGET_SHEET_NAME}}.findFirst
+const result = gassma.sheet1.findFirst({
   where: {
     age: {
       gte: 20,

@@ -32,8 +32,8 @@ slug: /reference/crud/update/update
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.update
-const result = gassma.sheets.sheet1.update({
+// gassma.{{TARGET_SHEET_NAME}}.update
+const result = gassma.sheet1.update({
   where: {
     name: "akahoshi",
   },
@@ -59,7 +59,7 @@ const result = gassma.sheets.sheet1.update({
 条件に合致するレコードがない場合は `null` が返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.update({
+const result = gassma.sheet1.update({
   where: { name: "存在しない名前" },
   data: { age: 99 },
 });
@@ -74,7 +74,7 @@ const result = gassma.sheets.sheet1.update({
 
 ```ts
 // age を 1 加算する
-const result = gassma.sheets.sheet1.update({
+const result = gassma.sheet1.update({
   where: { name: "akahoshi" },
   data: {
     age: { increment: 1 },
@@ -95,7 +95,7 @@ const result = gassma.sheets.sheet1.update({
 通常の値指定と組み合わせることもできます。
 
 ```ts
-const result = gassma.sheets.sheet1.update({
+const result = gassma.sheet1.update({
   where: { name: "akahoshi" },
   data: {
     age: { increment: 1 },

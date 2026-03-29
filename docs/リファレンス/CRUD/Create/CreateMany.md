@@ -39,8 +39,8 @@ slug: /reference/crud/create/createMany
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.createMany
-const result = gassma.sheets.sheet1.createMany({
+// gassma.{{TARGET_SHEET_NAME}}.createMany
+const result = gassma.sheet1.createMany({
   data: [
     {
       name: "Shibata",

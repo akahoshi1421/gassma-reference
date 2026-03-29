@@ -33,7 +33,7 @@
 
 **NPM Installation:** `npm i gassma`
 **Script ID for GAS:** `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH`
-**Current Version:** 0.9.0
+**Current Version:** 1.0.0
 
 ### Environment Support
 - Google Apps Script (native)
@@ -69,7 +69,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Access sheet
-const sheet = gassma.sheets.SheetName;
+const sheet = gassma.SheetName;
 
 // Configure data range
 sheet.changeSettings(startRow, startCol, endCol);
@@ -740,6 +740,44 @@ userSheet.findMany({
 - Returns 0 for no matching related records
 - Can be combined with other include options
 
+### Select with Relation Options
+
+Relation fields in `select` can accept include-like options (alternative to using `include` separately).
+
+```typescript
+// Select specific fields with relation options
+userSheet.findMany({
+  select: {
+    id: true,
+    name: true,
+    posts: {                          // Relation field with options
+      select: { id: true, title: true },
+      where: { published: true },
+      orderBy: { createdAt: "desc" },
+      include: { comments: true },
+    },
+    _count: true,
+  },
+});
+
+// Deep nesting (select → select → select)
+userSheet.findMany({
+  select: {
+    id: true,
+    posts: {
+      select: {
+        id: true,
+        comments: {
+          select: { id: true, text: true },
+        },
+      },
+    },
+  },
+});
+```
+
+**Supported options for relation fields in select:** select, where, orderBy, include, _count, omit, take, skip
+
 ### Constraints
 
 - Top-level `select` and `include` cannot be used together → `GassmaIncludeSelectConflictError`
@@ -922,7 +960,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Deleting Alice: Posts with authorId=1 deleted, Profiles.userId set to null
-gassma.sheets.Users.deleteMany({ where: { name: "Alice" } });
+gassma.Users.deleteMany({ where: { name: "Alice" } });
 ```
 
 ---
@@ -957,7 +995,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Changing Alice's id from 1 to 10: Posts.authorId=1 automatically updated to 10
-gassma.sheets.Users.updateMany({ where: { name: "Alice" }, data: { id: 10 } });
+gassma.Users.updateMany({ where: { name: "Alice" }, data: { id: 10 } });
 ```
 
 ---
@@ -1038,7 +1076,7 @@ Compare column values within the same row using the `fields` property.
 
 ```typescript
 // Access FieldRef via controller.fields
-const userSheet = gassma.sheets.Users;
+const userSheet = gassma.Users;
 
 // Compare firstName with lastName (same row)
 userSheet.findMany({
@@ -1108,7 +1146,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // All Users queries automatically exclude password and secret
-const users = gassma.sheets.Users.findMany({});
+const users = gassma.Users.findMany({});
 ```
 
 ### Priority Rules
@@ -1123,19 +1161,19 @@ const users = gassma.sheets.Users.findMany({});
 // Global omit: { password: true, secret: true }
 
 // Override with omit: false → password visible again
-gassma.sheets.Users.findMany({
+gassma.Users.findMany({
   omit: { password: false }
 });
 // Result: secret still excluded, password included
 
 // Override with select → global omit ignored
-gassma.sheets.Users.findMany({
+gassma.Users.findMany({
   select: { name: true, password: true }
 });
 // Result: only name and password returned
 
 // Add extra omit
-gassma.sheets.Users.findMany({
+gassma.Users.findMany({
   omit: { email: true }
 });
 // Result: password, secret, AND email excluded
@@ -1168,11 +1206,11 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // create without specifying role → role is automatically "USER"
-gassma.sheets.Users.create({ data: { name: "Alice" } });
+gassma.Users.create({ data: { name: "Alice" } });
 // => { name: "Alice", role: "USER", isActive: true, score: 0, createdAt: 2026-03-14T... }
 
 // Explicit value overrides default
-gassma.sheets.Users.create({ data: { name: "Bob", role: "ADMIN" } });
+gassma.Users.create({ data: { name: "Bob", role: "ADMIN" } });
 // => { name: "Bob", role: "ADMIN", ... }
 ```
 
@@ -1234,7 +1272,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Code uses English names, spreadsheet uses Japanese names
-gassma.sheets.Users.create({ data: { firstName: "Alice" } });
+gassma.Users.create({ data: { firstName: "Alice" } });
 // → Written to "名前" column in "ユーザー一覧" sheet
 ```
 
@@ -1252,14 +1290,14 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 
-gassma.sheets.Users.create({ data: { name: "Alice" } });
+gassma.Users.create({ data: { name: "Alice" } });
 // => { id: 1, name: "Alice" }
 
-gassma.sheets.Users.create({ data: { name: "Bob" } });
+gassma.Users.create({ data: { name: "Bob" } });
 // => { id: 2, name: "Bob" }
 
 // Explicit value skips auto-increment
-gassma.sheets.Users.create({ data: { id: 100, name: "Charlie" } });
+gassma.Users.create({ data: { id: 100, name: "Charlie" } });
 // => { id: 100, name: "Charlie" }
 ```
 
@@ -1843,6 +1881,8 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - ✅ updatedAt (auto-timestamp on create/update)
 - ✅ ignore (complete field exclusion from all operations)
 - ✅ ignoreSheets (complete sheet exclusion)
+- ✅ Direct property access (gassma.User instead of gassma.sheets.User)
+- ✅ Select relation options (specify options on relation fields within select)
 - ✅ map (field name mapping: code ↔ spreadsheet header)
 - ✅ mapSheets (sheet name mapping: code ↔ spreadsheet sheet name)
 - ✅ autoincrement (auto-increment with LockService, GAS only)
@@ -1858,7 +1898,7 @@ The library provides complete CRUD + analytics + relation operations matching mo
 
 ## Version History
 
-**v0.9.0** (Current)
+**v1.0.0** (Current)
 - Relations: oneToMany, oneToOne, manyToOne, manyToMany with include
 - Where relation filters: some/every/none/is/isNot
 - Nested write for create: create/connect/connectOrCreate
@@ -1886,7 +1926,9 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - defaults: auto-set field values on create (static values or functions)
 - updatedAt: auto-timestamp on create/update
 - ignore: complete field exclusion from all operations
-- ignoreSheets: complete sheet exclusion from gassma.sheets
+- ignoreSheets: complete sheet exclusion from gassma client
+- Direct property access: gassma.User instead of gassma.sheets.User
+- Select relation options: specify select/where/orderBy/include on relation fields within select
 - map: field name mapping (code name ↔ spreadsheet header)
 - mapSheets: sheet name mapping (code name ↔ spreadsheet sheet name)
 - autoincrement: auto-increment using LockService + PropertiesService
@@ -1901,6 +1943,8 @@ The library provides complete CRUD + analytics + relation operations matching mo
 - createManyAndReturn: added select/omit/include support
 - Security: formula injection prevention (escape `=`, `+`, `-`, `@` prefixed strings in write operations)
 - Security: regex injection fix (contains/startsWith/endsWith now use literal string matching)
+- Direct property access: removed sheets property (gassma.User instead of gassma.sheets.User)
+- Select relation options: select with relation field options (select/where/orderBy/include/_count/omit/take/skip)
 
 **v0.8.0**
 - Full CRUD + analytics feature set

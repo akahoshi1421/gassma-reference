@@ -20,7 +20,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // create 時にデフォルト値が自動適用
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Alice" },
 });
 // => { name: "Alice", role: "USER", createdAt: 2026-03-14T... }
@@ -48,7 +48,7 @@ gassma.sheets.Users.create({
 フィールドが明示的に指定されている場合（`null` を含む）、デフォルト値は適用されません。
 
 ```ts
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Alice", role: "ADMIN" },
 });
 // => role は "ADMIN"（デフォルト値 "USER" は適用されない）

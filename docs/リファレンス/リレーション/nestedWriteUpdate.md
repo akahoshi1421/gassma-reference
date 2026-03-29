@@ -33,7 +33,7 @@ slug: /reference/relation/nested-write-update
 
 ```ts
 // oneToMany: ユーザー更新時に新しい投稿を作成
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -49,7 +49,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // manyToOne: 投稿の著者を既存ユーザーに変更
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     author: {
@@ -65,7 +65,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // manyToOne: 著者が存在すれば接続、なければ作成
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     author: {
@@ -88,7 +88,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // manyToOne: 投稿の著者名を更新
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     author: {
@@ -104,7 +104,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // oneToMany: 特定の投稿を更新
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -117,7 +117,7 @@ gassma.sheets.Users.update({
 });
 
 // 複数の投稿を同時に更新
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -140,7 +140,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // manyToOne: 投稿の著者を削除（投稿の authorId は null になる）
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     author: { delete: true },
@@ -154,7 +154,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // oneToMany: 特定の投稿を削除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -164,7 +164,7 @@ gassma.sheets.Users.update({
 });
 
 // 複数削除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -180,7 +180,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // oneToMany: 未公開の投稿を全て削除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -190,7 +190,7 @@ gassma.sheets.Users.update({
 });
 
 // 複数条件で削除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -213,7 +213,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // manyToOne: 投稿と著者の関連付けを解除
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     author: { disconnect: true },
@@ -228,7 +228,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // oneToMany: 特定の投稿の関連付けを解除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -239,7 +239,7 @@ gassma.sheets.Users.update({
 // => Posts の id: 1 の authorId が null になる
 
 // 複数の関連付けを解除
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -255,7 +255,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // manyToMany: タグの関連付けを解除
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     tags: {
@@ -276,7 +276,7 @@ gassma.sheets.Posts.update({
 
 ```ts
 // oneToMany: Alice の投稿を id: 1 と id: 2 のみに置換
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     posts: {
@@ -294,7 +294,7 @@ gassma.sheets.Users.update({
 
 ```ts
 // manyToMany: 投稿のタグを完全に入れ替え
-gassma.sheets.Posts.update({
+gassma.Posts.update({
   where: { id: 1 },
   data: {
     tags: {
@@ -311,7 +311,7 @@ gassma.sheets.Posts.update({
 1 つの update 内で複数のリレーション操作を組み合わせることも可能です。
 
 ```ts
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: {
     name: "Alice Updated",

@@ -44,8 +44,8 @@ slug: /reference/crud/create/createManyAndReturn
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.createManyAndReturn
-const result = gassma.sheets.sheet1.createManyAndReturn({
+// gassma.{{TARGET_SHEET_NAME}}.createManyAndReturn
+const result = gassma.sheet1.createManyAndReturn({
   data: [
     {
       name: "Shibata",
@@ -85,18 +85,18 @@ const result = gassma.sheets.sheet1.createManyAndReturn({
 
 ```ts
 // createMany の場合
-gassma.sheets.sheet1.createMany({ data: [] });
+gassma.sheet1.createMany({ data: [] });
 // => undefined
 
 // createManyAndReturn の場合
-gassma.sheets.sheet1.createManyAndReturn({ data: [] });
+gassma.sheet1.createManyAndReturn({ data: [] });
 // => []
 ```
 
 data に指定しなかったフィールドは `null` として返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.createManyAndReturn({
+const result = gassma.sheet1.createManyAndReturn({
   data: [{ name: "Shibata" }],
 });
 // => [{ name: "Shibata", age: null, pref: null, postNumber: null }]

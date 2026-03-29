@@ -32,8 +32,8 @@ slug: /reference/crud/update/updateManyAndReturn
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.updateManyAndReturn
-const result = gassma.sheets.sheet1.updateManyAndReturn({
+// gassma.{{TARGET_SHEET_NAME}}.updateManyAndReturn
+const result = gassma.sheet1.updateManyAndReturn({
   where: {
     pref: "Tokyo",
   },
@@ -64,7 +64,7 @@ const result = gassma.sheets.sheet1.updateManyAndReturn({
 条件に合致するレコードがない場合は空配列が返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.updateManyAndReturn({
+const result = gassma.sheet1.updateManyAndReturn({
   where: { name: "存在しない名前" },
   data: { age: 99 },
 });
@@ -74,7 +74,7 @@ const result = gassma.sheets.sheet1.updateManyAndReturn({
 `where` を省略すると全行が更新対象となり、全レコードが返されます。
 
 ```ts
-const result = gassma.sheets.sheet1.updateManyAndReturn({
+const result = gassma.sheet1.updateManyAndReturn({
   data: { age: 99 },
 });
 // => 全レコードが age: 99 で返される

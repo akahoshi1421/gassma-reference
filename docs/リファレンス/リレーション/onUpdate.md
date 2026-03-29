@@ -60,7 +60,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice の id を 1 → 10 に変更すると、Posts の authorId: 1 も authorId: 10 に更新される
-gassma.sheets.Users.updateMany({
+gassma.Users.updateMany({
   where: { name: "Alice" },
   data: { id: 10 },
 });
@@ -97,7 +97,7 @@ relations: {
 }
 
 // 投稿の id を 1 → 100 に変更すると、PostTags の postId: 1 も postId: 100 に更新される
-gassma.sheets.Posts.updateMany({
+gassma.Posts.updateMany({
   where: { id: 1 },
   data: { id: 100 },
 });
@@ -123,7 +123,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice の id を変更すると、Alice の投稿の authorId が null になる
-gassma.sheets.Users.updateMany({
+gassma.Users.updateMany({
   where: { name: "Alice" },
   data: { id: 10 },
 });
@@ -161,14 +161,14 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice は投稿を持っているため、id の変更はエラーになる
-gassma.sheets.Users.updateMany({
+gassma.Users.updateMany({
   where: { name: "Alice" },
   data: { id: 10 },
 });
 // => RelationOnUpdateRestrictError
 
 // Charlie は投稿を持たないため、正常に更新される
-gassma.sheets.Users.updateMany({
+gassma.Users.updateMany({
   where: { name: "Charlie" },
   data: { id: 10 },
 });

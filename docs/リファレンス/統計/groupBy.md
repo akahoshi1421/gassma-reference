@@ -40,8 +40,8 @@ slug: /reference/statistics/groupBy
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.groupBy
-const result = gassma.sheets.sheet1.groupBy({
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
   by: "pref",
 });
 ```
@@ -69,8 +69,8 @@ const result = gassma.sheets.sheet1.groupBy({
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.groupBy
-const result = gassma.sheets.sheet1.groupBy({
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
   by: ["pref", "age"],
 });
 ```
@@ -103,8 +103,8 @@ const result = gassma.sheets.sheet1.groupBy({
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.groupBy
-const result = gassma.sheets.sheet1.groupBy({
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
   by: ["pref"],
   having: {
     age: {
@@ -139,8 +139,8 @@ AND, OR, NOT を利用することも可能です。
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.groupBy
-const result = gassma.sheets.sheet1.groupBy({
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
   by: ["pref"],
   having: {
     NOT: {
@@ -174,8 +174,8 @@ aggregate のように平均などを表示することもできます。
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.groupBy
-const result = gassma.sheets.sheet1.groupBy({
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
   by: ["pref"],
   _avg: { age: true },
 });

@@ -22,12 +22,12 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // コード上は英語名で操作
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { firstName: "Alice", lastName: "Smith" },
 });
 // → スプレッドシートの「名前」「名字」カラムに書き込まれる
 
-gassma.sheets.Users.findFirst({
+gassma.Users.findFirst({
   where: { firstName: "Alice" },
 });
 // => \{ firstName: "Alice", lastName: "Smith" \}
@@ -52,7 +52,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // コード上は英語名でアクセス
-gassma.sheets.Users.findMany({});
+gassma.Users.findMany({});
 // → 内部ではシート名「ユーザー一覧」に対して操作
 ```
 

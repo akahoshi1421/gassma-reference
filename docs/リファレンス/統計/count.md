@@ -34,8 +34,8 @@ slug: /reference/statistics/count
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.count
-const result = gassma.sheets.sheet1.count({
+// gassma.{{TARGET_SHEET_NAME}}.count
+const result = gassma.sheet1.count({
   where: {
     age: {
       gte: 20,

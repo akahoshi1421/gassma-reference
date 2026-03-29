@@ -17,12 +17,12 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // create 時に自動で id が振られる
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Alice" },
 });
 // => \{ id: 1, name: "Alice" \}
 
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Bob" },
 });
 // => \{ id: 2, name: "Bob" \}
@@ -43,7 +43,7 @@ autoincrement: {
 `createMany` では全行分のカウンターを一括確保してから各行に割り当てます。
 
 ```ts
-gassma.sheets.Users.createMany({
+gassma.Users.createMany({
   data: [{ name: "Alice" }, { name: "Bob" }],
 });
 // => id: 1, 2 がそれぞれ割り当てられる
@@ -65,7 +65,7 @@ GAS の `LockService` と `PropertiesService` を使用するため、GAS 環境
 フィールドに明示的に値を指定した場合、自動採番はスキップされます。
 
 ```ts
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { id: 100, name: "Alice" },
 });
 // => id は 100（自動採番されない）

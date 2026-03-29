@@ -60,7 +60,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice を削除すると、Alice の投稿も全て削除される
-gassma.sheets.Users.deleteMany({
+gassma.Users.deleteMany({
   where: { name: "Alice" },
 });
 ```
@@ -90,7 +90,7 @@ relations: {
 }
 
 // 投稿を削除すると、PostTags の関連行が削除される（Tags は残る）
-gassma.sheets.Posts.deleteMany({
+gassma.Posts.deleteMany({
   where: { id: 1 },
 });
 ```
@@ -115,7 +115,7 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice を削除すると、Alice の投稿の authorId が null になる
-gassma.sheets.Users.deleteMany({
+gassma.Users.deleteMany({
   where: { name: "Alice" },
 });
 ```
@@ -152,13 +152,13 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // Alice は投稿を持っているため、エラーがスローされる
-gassma.sheets.Users.deleteMany({
+gassma.Users.deleteMany({
   where: { name: "Alice" },
 });
 // => RelationOnDeleteRestrictError
 
 // Charlie は投稿を持たないため、正常に削除される
-gassma.sheets.Users.deleteMany({
+gassma.Users.deleteMany({
   where: { name: "Charlie" },
 });
 ```

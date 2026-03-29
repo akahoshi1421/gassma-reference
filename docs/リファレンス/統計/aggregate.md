@@ -41,8 +41,8 @@ slug: /reference/statistics/aggregate
 この場合以下のコードとなります。
 
 ```ts
-// gassma.sheets.{{TARGET_SHEET_NAME}}.aggregate
-const result = gassma.sheets.sheet1.aggregate({
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
   _avg: {
     age: true,
   },

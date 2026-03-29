@@ -35,8 +35,8 @@ slug: /reference/crud/read/findFirstOrThrow
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.findFirstOrThrow
-const result = gassma.sheets.sheet1.findFirstOrThrow({
+// gassma.{{TARGET_SHEET_NAME}}.findFirstOrThrow
+const result = gassma.sheet1.findFirstOrThrow({
   where: {
     age: {
       gte: 20,
@@ -62,13 +62,13 @@ const result = gassma.sheets.sheet1.findFirstOrThrow({
 
 ```ts
 // findFirst の場合 → null が返る
-const result = gassma.sheets.sheet1.findFirst({
+const result = gassma.sheet1.findFirst({
   where: { name: "存在しない名前" },
 });
 // => null
 
 // findFirstOrThrow の場合 → NotFoundError がスローされる
-const result = gassma.sheets.sheet1.findFirstOrThrow({
+const result = gassma.sheet1.findFirstOrThrow({
   where: { name: "存在しない名前" },
 });
 // => NotFoundError: No record found

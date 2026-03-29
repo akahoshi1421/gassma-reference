@@ -17,12 +17,12 @@ const gassma = new Gassma.GassmaClient({
 });
 
 // create / update 時に自動で現在時刻がセットされる
-gassma.sheets.Users.create({
+gassma.Users.create({
   data: { name: "Alice" },
 });
 // => { name: "Alice", updatedAt: 2026-03-14T... }
 
-gassma.sheets.Users.update({
+gassma.Users.update({
   where: { name: "Alice" },
   data: { name: "Bob" },
 });

@@ -18,7 +18,7 @@ slug: /reference/relation/include
 `include` にリレーション名を指定し、値に `true` を渡すと、リレーション先のデータが全て取得されます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: true,
   },
@@ -67,7 +67,7 @@ const result = gassma.sheets.Users.findMany({
 ### manyToOne の例
 
 ```ts
-const result = gassma.sheets.Posts.findMany({
+const result = gassma.Posts.findMany({
   include: {
     author: true,
   },
@@ -117,7 +117,7 @@ const result = gassma.sheets.Posts.findMany({
 リレーション先のデータに条件を付けて取得できます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       where: { published: true },
@@ -154,7 +154,7 @@ const result = gassma.sheets.Users.findMany({
 リレーション先のデータをソートできます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       orderBy: { title: "desc" },
@@ -168,7 +168,7 @@ const result = gassma.sheets.Users.findMany({
 リレーション先のデータをページネーションできます。`skip` と `take` を組み合わせて使用します。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       orderBy: { id: "asc" },
@@ -190,7 +190,7 @@ const result = gassma.sheets.Users.findMany({
 リレーション先のデータの取得列を指定できます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       select: { title: true },
@@ -221,7 +221,7 @@ const result = gassma.sheets.Users.findMany({
 リレーション先のデータの特定列を除外できます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       omit: { authorId: true },
@@ -267,7 +267,7 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: {
       include: {
@@ -325,7 +325,7 @@ const result = gassma.sheets.Users.findMany({
 `_count: true` を指定すると、定義されている全リレーションのレコード件数を取得します。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     _count: true,
   },
@@ -357,7 +357,7 @@ const result = gassma.sheets.Users.findMany({
 `_count: { select: { ... } }` でカウントするリレーションを指定できます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     _count: {
       select: { posts: true },
@@ -371,7 +371,7 @@ const result = gassma.sheets.Users.findMany({
 カウント対象に条件を付けることもできます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     _count: {
       select: {
@@ -403,7 +403,7 @@ const result = gassma.sheets.Users.findMany({
 トップレベルの `select` と `_count` を組み合わせることもできます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   select: {
     name: true,
     _count: {
@@ -432,7 +432,7 @@ const result = gassma.sheets.Users.findMany({
 1 回のクエリで複数のリレーションを同時に取得できます。
 
 ```ts
-const result = gassma.sheets.Users.findMany({
+const result = gassma.Users.findMany({
   include: {
     posts: true,
     profile: true,
@@ -446,7 +446,7 @@ const result = gassma.sheets.Users.findMany({
 
 ```ts
 // これはエラーになります
-gassma.sheets.Users.findMany({
+gassma.Users.findMany({
   select: { name: true },
   include: { posts: true },
 });

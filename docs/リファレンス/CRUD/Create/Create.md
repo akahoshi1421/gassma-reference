@@ -34,8 +34,8 @@ slug: /reference/crud/create/create
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.create
-const result = gassma.sheets.sheet1.create({
+// gassma.{{TARGET_SHEET_NAME}}.create
+const result = gassma.sheet1.create({
   data: {
     name: "Shibata",
     age: 23,
@@ -63,8 +63,8 @@ const result = gassma.sheets.sheet1.create({
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.create
-gassma.sheets.sheet1.create({
+// gassma.{{TARGET_SHEET_NAME}}.create
+gassma.sheet1.create({
   data: {
     name: "Shibata",
     pref: "Shimane",

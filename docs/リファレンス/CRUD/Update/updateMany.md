@@ -30,8 +30,8 @@ slug: /reference/crud/update/updateMany
 ```ts
 const gassma = new Gassma.GassmaClient();
 
-// gassma.sheets.{{TARGET_SHEET_NAME}}.updateMany
-const result = gassma.sheets.sheet1.updateMany({
+// gassma.{{TARGET_SHEET_NAME}}.updateMany
+const result = gassma.sheet1.updateMany({
   where: {
     age: 20,
   },
@@ -59,7 +59,7 @@ const result = gassma.sheets.sheet1.updateMany({
 
 ```ts
 // 最大 2 件のみ更新
-const result = gassma.sheets.sheet1.updateMany({
+const result = gassma.sheet1.updateMany({
   where: {
     pref: "Tokyo",
   },
@@ -82,7 +82,7 @@ const result = gassma.sheets.sheet1.updateMany({
 
 ```ts
 // 全員の age を 1 加算する
-const result = gassma.sheets.sheet1.updateMany({
+const result = gassma.sheet1.updateMany({
   data: {
     age: { increment: 1 },
   },

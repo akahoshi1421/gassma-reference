@@ -29,7 +29,8 @@ GASsma transforms Google Sheets into powerful data storage solutions without req
 - **defaults**: auto-set field values on create (static values or functions)
 - **updatedAt**: auto-timestamp on create/update
 - **ignore**: complete field exclusion from all operations (read, write, where)
-- **ignoreSheets**: complete sheet exclusion from gassma.sheets
+- **ignoreSheets**: complete sheet exclusion from gassma client
+- **Select relation options**: specify select/where/orderBy/include on relation fields within select
 - **map**: field name mapping (code name ↔ spreadsheet header)
 - **mapSheets**: sheet name mapping (code name ↔ spreadsheet sheet name)
 - **autoincrement**: auto-increment using LockService + PropertiesService (GAS only)
@@ -40,7 +41,7 @@ GASsma transforms Google Sheets into powerful data storage solutions without req
 
 **Installation:** `npm i gassma`
 **Script ID for GAS:** `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH`
-**Current Version:** 0.9.0
+**Current Version:** 1.0.0
 
 ## Client Initialization
 
@@ -70,8 +71,8 @@ const gassma = new Gassma.GassmaClient({
   autoincrement: { Users: "id" },               // Auto-increment
 });
 
-// Access specific sheet
-const userSheet = gassma.sheets.Users;
+// Access specific sheet (direct property access)
+const userSheet = gassma.Users;
 
 // Configure data range (optional)
 userSheet.changeSettings(2, 1, 10); // Start row 2, columns A-J
@@ -300,6 +301,18 @@ userSheet.findMany({
 ```typescript
 // Select specific fields
 select: { name: true, email: true }
+
+// Select with relation options (like include inside select)
+select: {
+  id: true,
+  name: true,
+  posts: {                          // Relation field with options
+    select: { title: true },
+    where: { published: true },
+    orderBy: { createdAt: "desc" },
+  },
+  _count: true,                     // Count all relations
+}
 
 // Omit specific fields (cannot use with select)
 omit: { password: true, internalId: true }

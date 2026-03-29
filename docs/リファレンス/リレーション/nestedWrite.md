@@ -38,7 +38,7 @@ slug: /reference/relation/nested-write
 ユーザーを作成しながら、そのユーザーに紐づく投稿も同時に作成する例です。ただし manyToOne は逆方向（投稿側から著者を作成）として使います。
 
 ```ts
-const result = gassma.sheets.Posts.create({
+const result = gassma.Posts.create({
   data: {
     id: 4,
     title: "新しい記事",
@@ -76,7 +76,7 @@ const result = gassma.sheets.Posts.create({
 ユーザー作成と同時に投稿も作成します。
 
 ```ts
-const result = gassma.sheets.Users.create({
+const result = gassma.Users.create({
   data: {
     id: 4,
     name: "Dave",
@@ -109,7 +109,7 @@ posts: {
 投稿作成と同時にタグも作成し、中間テーブルに関連付けます。
 
 ```ts
-const result = gassma.sheets.Posts.create({
+const result = gassma.Posts.create({
   data: {
     id: 4,
     title: "新しい記事",
@@ -133,7 +133,7 @@ const result = gassma.sheets.Posts.create({
 oneToMany で複数の子レコードを一括作成します。
 
 ```ts
-const result = gassma.sheets.Users.create({
+const result = gassma.Users.create({
   data: {
     id: 4,
     name: "Dave",
@@ -161,7 +161,7 @@ const result = gassma.sheets.Users.create({
 既存のユーザーと紐づけて投稿を作成します。
 
 ```ts
-const result = gassma.sheets.Posts.create({
+const result = gassma.Posts.create({
   data: {
     id: 4,
     title: "新しい記事",
@@ -188,7 +188,7 @@ const result = gassma.sheets.Posts.create({
 ユーザー作成と同時に、既存の投稿を紐づけます。
 
 ```ts
-const result = gassma.sheets.Users.create({
+const result = gassma.Users.create({
   data: {
     id: 4,
     name: "Dave",
@@ -209,7 +209,7 @@ const result = gassma.sheets.Users.create({
 既存のタグと投稿を関連付けます。
 
 ```ts
-const result = gassma.sheets.Posts.create({
+const result = gassma.Posts.create({
   data: {
     id: 4,
     title: "新しい記事",
@@ -237,7 +237,7 @@ Tags シートのレコード自体は変更されません。
 既存のレコードがあれば関連付け、なければ新規作成して関連付けます。
 
 ```ts
-const result = gassma.sheets.Posts.create({
+const result = gassma.Posts.create({
   data: {
     id: 4,
     title: "新しい記事",
@@ -308,7 +308,7 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 
-const result = gassma.sheets.Users.create({
+const result = gassma.Users.create({
   data: {
     id: 4,
     name: "Dave",
