@@ -630,7 +630,7 @@ The return value would be:
 `select` and `omit` cannot be used simultaneously. Specifying both throws `GassmaFindSelectOmitConflictError`.
 :::
 
-When [global omit](/docs/reference/config/global-omit) is configured, you can override it with `{ field: false }` in the query's `omit`. For details, see [overriding global omit with query omit](/docs/reference/config/global-omit#クエリ-omit-でグローバル-omit-を上書き).
+When [global omit](/docs/reference/config/global-omit) is configured, you can override it with `{ field: false }` in the query's `omit`. For details, see [overriding global omit with query omit](/docs/reference/config/global-omit#overriding-global-omit-with-query-omit).
 
 ## distinct
 
