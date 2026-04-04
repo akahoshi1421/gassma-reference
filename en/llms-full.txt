@@ -1,0 +1,1961 @@
+# GASsma - Complete Technical Specification
+
+> GASsma is a Google Apps Script (GAS) spreadsheet library that provides Prisma-like syntax for treating Google Sheets as databases. This document contains the complete technical specification including all edge cases, special behaviors, and implementation details derived from extensive test analysis.
+
+## Table of Contents
+
+1. [Installation and Setup](#installation-and-setup)
+2. [Client Initialization](#client-initialization)
+3. [Data Types and Type System](#data-types-and-type-system)
+4. [Query Operations - Complete Reference](#query-operations---complete-reference)
+5. [Filter Conditions - Detailed Behaviors](#filter-conditions---detailed-behaviors)
+6. [Logical Operators - Advanced Usage](#logical-operators---advanced-usage)
+7. [Data Manipulation Operations](#data-manipulation-operations)
+8. [Aggregation and Analytics](#aggregation-and-analytics)
+9. [GroupBy Operations](#groupby-operations)
+10. [Relations](#relations)
+11. [Include](#include)
+12. [Where Relation Filters](#where-relation-filters)
+13. [Nested Write](#nested-write)
+14. [onDelete Referential Actions](#ondelete-referential-actions)
+15. [onUpdate Referential Actions](#onupdate-referential-actions)
+16. [Nested Write (update)](#nested-write-update)
+17. [Atomic Number Operations](#atomic-number-operations)
+18. [Column-to-Column Comparison (fields)](#column-to-column-comparison-fields)
+19. [Global Omit](#global-omit)
+20. [Configuration Options](#configuration-options)
+21. [Error Handling and Edge Cases](#error-handling-and-edge-cases)
+22. [Special Behaviors and Gotchas](#special-behaviors-and-gotchas)
+
+---
+
+## Installation and Setup
+
+**NPM Installation:** `npm i gassma`
+**Script ID for GAS:** `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH`
+**Current Version:** 1.0.0
+
+### Environment Support
+- Google Apps Script (native)
+- TypeScript (full type safety)
+- JavaScript (vanilla)
+- Node.js (via Clasp)
+
+---
+
+## Client Initialization
+
+```typescript
+import { Gassma } from "gassma";
+
+// Option 1: Specific spreadsheet ID
+const gassma = new Gassma.GassmaClient("spreadsheet-id");
+
+// Option 2: Active spreadsheet (GAS environment)
+const gassma = new Gassma.GassmaClient();
+
+// Option 3: With options
+const gassma = new Gassma.GassmaClient({
+  id: "spreadsheet-id",  // Optional
+  relations: { /* ... */ },
+  omit: { Users: { password: true } },         // Global omit
+  defaults: { Users: { role: "USER" } },        // Default values on create
+  updatedAt: { Users: "updatedAt" },            // Auto-timestamp
+  ignore: { Users: ["secret"] },                // Exclude field entirely
+  ignoreSheets: ["Logs"],                       // Exclude sheet entirely
+  map: { Users: { firstName: "名前" } },        // Field name mapping
+  mapSheets: { Users: "ユーザー一覧" },          // Sheet name mapping
+  autoincrement: { Users: "id" },               // Auto-increment
+});
+
+// Access sheet
+const sheet = gassma.SheetName;
+
+// Configure data range
+sheet.changeSettings(startRow, startCol, endCol);
+```
+
+### changeSettings Parameters
+- `startRowNumber`: number - Row to start reading data (1-based)
+- `startColumnValue`: number | string - Starting column (1-based number or letter)
+- `endColumnValue`: number | string - Ending column (1-based number or letter)
+
+---
+
+## Data Types and Type System
+
+### Core Type Definitions
+```typescript
+type GassmaAny = string | number | boolean | Date | null;
+type AnyUse = { [key: string]: GassmaAny };
+type GassmaSheet = { [key: string]: GassmaController };
+```
+
+### Type Handling Rules
+1. **Supported primitive types**: string, number, boolean, Date, null
+2. **Null handling**: `null` and `undefined` are distinct
+3. **Type preservation**: Original types maintained in results
+4. **Type coercion**: Automatic in certain contexts (documented per operation)
+
+---
+
+## Query Operations - Complete Reference
+
+### findFirst(findData: FindFirstData)
+
+Returns single record or `null`.
+
+**Parameters:**
+```typescript
+interface FindFirstData {
+  where?: WhereUse;
+  select?: Select;
+  omit?: Omit;
+  include?: IncludeData;
+  orderBy?: OrderBy | OrderBy[];
+  cursor?: Record<string, unknown>;
+}
+```
+
+Note: findFirst does not support `take`, `skip`, or `distinct` (use findMany for those).
+
+**Edge Cases:**
+- Empty result: Returns `null`
+- No where clause: Returns first record in sheet
+
+### findFirstOrThrow(findData: FindFirstData)
+
+Same as `findFirst` but throws `NotFoundError` instead of returning `null`.
+
+```typescript
+const user = sheet.findFirstOrThrow({
+  where: { email: "john@example.com" }
+});
+// Throws NotFoundError if no record found
+```
+
+### findMany(findData: FindData)
+
+Returns array of records.
+
+**Additional Parameters:**
+```typescript
+{
+  take?: number;      // Limit results
+  distinct?: string | string[];  // Unique values
+}
+```
+
+**Edge Cases:**
+- Empty result: Returns `[]`
+- `take: 0`: Returns `[]`
+- `take` negative: Returns last N records from end (e.g., `take: -2` returns last 2 records)
+- `take` negative + `skip`: Skip removes records from the END, then take from end (e.g., `take: -2, skip: 1` removes last 1, then takes last 2)
+- Negative `skip`: Throws `GassmaSkipNegativeError`
+- Decimal `skip`: Floored to integer
+- `skip` exceeding total: Returns `[]`
+
+### Query Execution Order
+
+**CRITICAL**: Operations execute in this specific order:
+1. `where` - Filter records
+2. `orderBy` - Sort filtered results
+3. `skip` - Skip N records
+4. `take` - Limit to N records
+5. `select`/`omit` - Shape output fields
+6. `distinct` - Remove duplicates
+
+---
+
+## Filter Conditions - Detailed Behaviors
+
+### equals
+
+**Behavior:**
+- Exact match comparison
+- **Special**: Empty string `""` converted to `null` before comparison
+
+```typescript
+where: { field: "value" }        // Shorthand
+where: { field: { equals: "value" } }  // Explicit
+where: { field: { equals: "" } }  // Matches null values
+```
+
+### not
+
+**Behavior:**
+- Negation of equals
+- **Special**: Empty string `""` converted to `null` before negation
+
+```typescript
+where: { field: { not: "value" } }
+where: { field: { not: "" } }  // Excludes null values
+```
+
+### in / notIn
+
+**Critical Edge Case**: When cell value is `null`, both return `false`
+
+```typescript
+// If cell value is null:
+where: { field: { in: ["a", "b"] } }     // Returns false
+where: { field: { notIn: ["a", "b"] } }  // Also returns false!
+```
+
+**Normal Behavior:**
+- `in`: Value must be in array
+- `notIn`: Value must not be in array
+
+### mode: "insensitive"
+
+Case-insensitive matching for string filter conditions:
+
+```typescript
+// Works with: equals, not, contains, startsWith, endsWith
+where: { name: { equals: "alice", mode: "insensitive" } }
+// Matches "Alice", "ALICE", "alice"
+
+where: { title: { contains: "hello", mode: "insensitive" } }
+// Matches "Hello World", "HELLO WORLD"
+```
+
+**Behavior:**
+- Only applies to string values
+- Non-string filter values fall back to normal comparison
+- `mode: "default"` or omitting mode gives case-sensitive behavior
+
+### String Matchers (contains, startsWith, endsWith)
+
+**Type Conversion**: Numbers automatically converted to strings
+
+```typescript
+// With numeric field value 123:
+where: { field: { contains: "2" } }    // Matches (123 → "123")
+where: { field: { startsWith: "1" } }  // Matches
+where: { field: { endsWith: "3" } }    // Matches
+```
+
+**Null Handling**: All return `false` when field is `null`
+
+### Comparison Operators (lt, lte, gt, gte)
+
+**Boundaries:**
+- `lt`: Strictly less than (excludes equal)
+- `lte`: Less than or equal (includes equal)
+- `gt`: Strictly greater than (excludes equal)
+- `gte`: Greater than or equal (includes equal)
+
+**Null Handling**: All return `false` when field is `null`
+
+### Multiple Conditions
+
+**Implicit AND**: Multiple conditions in same object
+
+```typescript
+where: { 
+  age: 28,           // AND
+  city: "Tokyo"      // Must both be true
+}
+```
+
+---
+
+## Logical Operators - Advanced Usage
+
+### AND Operator
+
+**Format Flexibility:**
+```typescript
+// Array format (recommended)
+where: {
+  AND: [
+    { field1: "value1" },
+    { field2: "value2" }
+  ]
+}
+
+// Object format (auto-converted to array internally)
+where: {
+  AND: { field1: "value1", field2: "value2" }
+}
+```
+
+### OR Operator
+
+**Important**: When combined with AND, OR intersects with AND results
+
+```typescript
+where: {
+  AND: [{ city: "Tokyo" }],      // First: Find Tokyo residents
+  OR: [{ job: "Engineer" }]      // Then: Find Engineers ONLY among Tokyo residents
+}
+// Result: Tokyo Engineers (not all Engineers)
+```
+
+### NOT Operator
+
+**Array Processing**: Sequential evaluation
+
+```typescript
+where: {
+  NOT: [
+    { status: "deleted" },
+    { archived: true }
+  ]
+}
+```
+
+**Intersection Behavior**: When combined with AND, intersects with existing results
+
+### Complex Nesting
+
+Fully supports nested logical operations:
+
+```typescript
+where: {
+  AND: [
+    {
+      OR: [
+        { department: "Engineering" },
+        { department: "Design" }
+      ]
+    },
+    {
+      NOT: {
+        status: "inactive"
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Data Manipulation Operations
+
+### create(createData: CreateData)
+
+**Field Handling:**
+- Missing fields in data: Returned as `null`, stored as `""` in sheet
+- Non-existent columns: Ignored (not added to sheet)
+- Returns: Complete object with all fields
+- Supports `select`, `omit`, and `include` for result shaping
+
+```typescript
+const result = sheet.create({
+  data: { name: "John", age: 25 },
+  select: { name: true },  // Optional: shape returned fields
+  // omit: { email: true }, // Or exclude fields (cannot use with select)
+});
+// If sheet has columns [name, age, email]:
+// Returns: { name: "John" } (with select)
+// Stored: ["John", 25, ""]
+```
+
+### createMany(createManyData: CreateManyData)
+
+**Edge Cases:**
+- Empty array: Returns `undefined`
+- Returns: `{ count: number }`
+
+```typescript
+sheet.createMany({
+  data: []  // Returns undefined
+});
+
+sheet.createMany({
+  data: [{ name: "John" }, { name: "Jane" }]
+});
+// Returns: { count: 2 }
+```
+
+### createManyAndReturn(createManyData: CreateManyAndReturnData)
+
+Same as `createMany` but returns created records instead of count.
+
+- Empty array: Returns `[]` (not `undefined`)
+- Missing fields: Returned as `null`
+- Supports `select`, `omit`, and `include` for result shaping
+- Returns: `Record<string, unknown>[]`
+
+```typescript
+sheet.createManyAndReturn({
+  data: [{ name: "John" }, { name: "Jane" }]
+});
+// Returns: [{ name: "John", age: null, ... }, { name: "Jane", age: null, ... }]
+```
+
+### update(updateData: UpdateData)
+
+Returns single updated record or `null`.
+
+**Behavior:**
+- Updates first matching record only
+- Returns updated record with all fields
+- Returns `null` if no match
+- Supports nested write operations (create/update/delete/disconnect/set)
+- Supports atomic number operations (increment/decrement/multiply/divide)
+- Supports `select`, `omit`, and `include` for result shaping
+
+```typescript
+const result = sheet.update({
+  where: { name: "John" },
+  data: { salary: 50000 },
+  select: { name: true, salary: true },  // Optional
+  // omit: { password: true },           // Or exclude fields
+});
+// Returns: { name: "John", salary: 50000 } or null
+```
+
+### updateMany(updateData: UpdateData)
+
+**Behavior:**
+- Partial updates: Only specified fields changed
+- Non-existent fields: Ignored
+- Returns: `{ count: number }` of affected records
+- Supports atomic number operations
+- `limit` option to cap affected records
+
+```typescript
+sheet.updateMany({
+  where: { department: "Sales" },
+  data: { salary: 50000 },
+  limit: 10  // Only update first 10 matches
+});
+```
+
+**limit Edge Cases:**
+- `limit: 0`: Updates 0 records
+- Negative `limit`: Throws `GassmaLimitNegativeError`
+
+### upsert(upsertData: UpsertData)
+
+Single record upsert. Returns created or updated record.
+
+```typescript
+const result = sheet.upsert({
+  where: { email: "john@example.com" },
+  update: { lastLogin: new Date() },
+  create: { name: "John", email: "john@example.com", age: 25 },
+  select: { name: true },  // Optional
+  include: { posts: true },  // Optional
+});
+// Returns: Record<string, unknown>
+```
+
+**Behavior:**
+- If where matches: apply update data, return updated record
+- If no match: create new record with create data, return created record
+- Supports select/include/omit for result shaping
+- Supports nested write in both create and update paths
+
+### updateManyAndReturn(updateData: UpdateData)
+
+Same as `updateMany` but returns updated records instead of count.
+
+- No matches: Returns `[]`
+- Unchanged fields preserved in returned records
+- Returns: `Record<string, unknown>[]`
+
+```typescript
+sheet.updateManyAndReturn({
+  where: { department: "Sales" },
+  data: { salary: 50000 }
+});
+// Returns: [{ name: "John", department: "Sales", salary: 50000, ... }, ...]
+```
+
+### delete(deleteData: DeleteData)
+
+Single record deletion. Returns deleted record or `null`.
+
+```typescript
+const result = sheet.delete({
+  where: { name: "John" },
+  select: { name: true, email: true },  // Optional
+  include: { posts: true },  // Optional
+});
+// Returns: Record<string, unknown> | null
+```
+
+**Behavior:**
+- Deletes first matching record only
+- Returns deleted record (or null if no match)
+- Supports select/include/omit for result shaping
+- Triggers onDelete referential actions
+
+### deleteMany(deleteData: DeleteData)
+
+**Behavior:**
+- Deletes all matching records (or limited by `limit`)
+- `where` is optional (omitting deletes all records)
+- `limit` option to cap deleted records
+- Returns: `{ count: number }` of deleted records
+- No matches: Returns `{ count: 0 }`
+- Negative `limit`: Throws `GassmaLimitNegativeError`
+
+---
+
+## Aggregation and Analytics
+
+### aggregate(aggregateData: AggregateData)
+
+**Available Functions:**
+- `_avg`: Average (numbers only)
+- `_count`: Count of records
+- `_max`: Maximum value
+- `_min`: Minimum value
+- `_sum`: Sum (numbers only)
+
+### Data Type Requirements
+
+**_avg and _sum:**
+- **Requirement**: All non-null values must be numeric
+- **Error Cases:**
+  - Mixed types → `GassmaAggregateAvgError` / `GassmaAggregateSumError`
+  - Non-numeric uniform type → `GassmaAggregateAvgTypeError` / `GassmaAggregateSumTypeError`
+- **Null handling**: Automatically filtered out
+
+**_max and _min:**
+- Work with: numbers, strings, booleans, Dates
+- String comparison: Alphabetical
+- Boolean: false < true
+- Date: Earlier < Later
+
+**_count:**
+- Always returns number (never null)
+- Empty dataset: Returns 0
+
+### Edge Cases
+
+**Empty Results:**
+```typescript
+// All return null except _count
+sheet.aggregate({
+  where: { nonExistentField: "value" },
+  _avg: { salary: true },    // Returns null
+  _count: { id: true }       // Returns 0
+});
+```
+
+**Null Value Filtering:**
+```typescript
+// Data: [10, null, 20, null, 30]
+sheet.aggregate({
+  _avg: { value: true }  // Returns 20 (average of 10, 20, 30)
+});
+```
+
+---
+
+## GroupBy Operations
+
+### Basic GroupBy
+
+```typescript
+sheet.groupBy({
+  by: ["department"],  // Can be string or string[]
+  _count: { id: true },
+  _avg: { salary: true }
+});
+```
+
+### Having Clause
+
+Filters groups after aggregation:
+
+```typescript
+sheet.groupBy({
+  by: ["department"],
+  _count: { id: true },
+  having: {
+    _count: {
+      id: { gte: 5 }  // Only departments with 5+ employees
+    }
+  }
+});
+```
+
+### Complex Having Conditions
+
+Supports logical operators in having:
+
+```typescript
+having: {
+  OR: [
+    { _count: { id: { gte: 10 } } },
+    { _avg: { salary: { gte: 50000 } } }
+  ]
+}
+```
+
+### GroupBy Processing Order
+
+1. Apply where filter
+2. Apply orderBy
+3. Apply skip/take to input data (not groups!)
+4. Group remaining records
+5. Calculate aggregations per group
+6. Apply having filter
+7. Return filtered groups
+
+**Important**: `skip` and `take` affect input records, not final groups
+
+---
+
+## Relations
+
+### Relation Definition
+
+Define relations in the `GassmaClient` constructor:
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    Users: {
+      posts: {
+        type: "oneToMany",    // "oneToMany" | "oneToOne" | "manyToOne" | "manyToMany"
+        to: "Posts",           // Target sheet name
+        field: "id",           // Source sheet column (PK or FK)
+        reference: "authorId", // Target sheet column
+        onDelete: "Cascade",   // Optional: "Cascade" | "SetNull" | "Restrict" | "NoAction"
+      },
+      profile: {
+        type: "oneToOne",
+        to: "Profiles",
+        field: "id",
+        reference: "userId",
+      },
+    },
+    Posts: {
+      author: {
+        type: "manyToOne",
+        to: "Users",
+        field: "authorId",
+        reference: "id",
+      },
+      tags: {
+        type: "manyToMany",
+        to: "Tags",
+        field: "id",
+        reference: "id",
+        through: {              // Required for manyToMany
+          sheet: "PostTags",    // Junction table sheet name
+          field: "postId",      // Junction column referencing source
+          reference: "tagId",   // Junction column referencing target
+        },
+      },
+    },
+  },
+});
+```
+
+### Relation Types and Include Return Values
+
+| Type | Include Returns | FK Location |
+|------|----------------|-------------|
+| oneToMany | Array `[]` | Child has FK pointing to parent PK |
+| manyToOne | Object or `null` | Parent has FK pointing to target PK |
+| oneToOne | Object or `null` | Target has FK pointing to source PK |
+| manyToMany | Array `[]` | Junction table has both FKs |
+
+### Validation Errors
+
+- `RelationSheetNotFoundError`: Sheet name in relations/to/through.sheet doesn't exist
+- `RelationMissingPropertyError`: Required property (type/to/field/reference/through) missing
+- `RelationInvalidPropertyTypeError`: Property is not a string
+- `RelationInvalidTypeError`: type is not one of the 4 valid values
+- `RelationInvalidOnDeleteError`: onDelete is not one of the 4 valid values
+- `RelationColumnNotFoundError`: field/reference column doesn't exist in sheet headers
+
+---
+
+## Include
+
+Available in `findMany` and `findFirst` only.
+
+### Basic Usage
+
+```typescript
+// Simple: get all related records
+userSheet.findMany({ include: { posts: true } });
+
+// With options
+userSheet.findMany({
+  include: {
+    posts: {
+      where: { published: true },
+      orderBy: { id: "desc" },
+      skip: 0,
+      take: 5,
+      select: { title: true },   // Cannot use with omit or include
+      omit: { authorId: true },  // Cannot use with select
+      include: { tags: true },   // Nested include (cannot use with select)
+    },
+  },
+});
+```
+
+### Include Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| where | WhereUse | Filter related records |
+| orderBy | OrderBy or OrderBy[] | Sort related records |
+| skip | number | Skip N related records (oneToMany/manyToMany only) |
+| take | number | Limit related records (oneToMany/manyToMany only) |
+| select | Select | Select specific fields (cannot use with omit or include) |
+| omit | Omit | Exclude specific fields (cannot use with select) |
+| include | IncludeData | Nested relation include (cannot use with select) |
+
+### _count (Relation Counting)
+
+Count related records without fetching them.
+
+```typescript
+// Count all relations
+userSheet.findMany({ include: { _count: true } });
+// Returns: [{ id: 1, name: "Alice", _count: { posts: 2, profile: 1 } }, ...]
+
+// Count specific relations
+userSheet.findMany({
+  include: { _count: { select: { posts: true } } }
+});
+// Returns: [{ ..., _count: { posts: 2 } }, ...]
+
+// Count with filter
+userSheet.findMany({
+  include: { _count: { select: { posts: { where: { published: true } } } } }
+});
+
+// With select (top-level)
+userSheet.findMany({
+  select: { name: true, _count: { select: { posts: true } } }
+});
+// Returns: [{ name: "Alice", _count: { posts: 2 } }, ...]
+```
+
+**Behavior:**
+- Works with all relation types (oneToMany, oneToOne, manyToOne, manyToMany)
+- Returns 0 for no matching related records
+- Can be combined with other include options
+
+### Select with Relation Options
+
+Relation fields in `select` can accept include-like options (alternative to using `include` separately).
+
+```typescript
+// Select specific fields with relation options
+userSheet.findMany({
+  select: {
+    id: true,
+    name: true,
+    posts: {                          // Relation field with options
+      select: { id: true, title: true },
+      where: { published: true },
+      orderBy: { createdAt: "desc" },
+      include: { comments: true },
+    },
+    _count: true,
+  },
+});
+
+// Deep nesting (select → select → select)
+userSheet.findMany({
+  select: {
+    id: true,
+    posts: {
+      select: {
+        id: true,
+        comments: {
+          select: { id: true, text: true },
+        },
+      },
+    },
+  },
+});
+```
+
+**Supported options for relation fields in select:** select, where, orderBy, include, _count, omit, take, skip
+
+### Constraints
+
+- Top-level `select` and `include` cannot be used together → `GassmaIncludeSelectConflictError`
+- Within include options: `select` + `omit` → `IncludeSelectOmitConflictError`
+- Within include options: `select` + `include` → `IncludeSelectIncludeConflictError`
+- Using include without relations → `IncludeWithoutRelationsError`
+- oneToOne/manyToOne with duplicate reference values → `GassmaRelationDuplicateError`
+
+---
+
+## Where Relation Filters
+
+Available in **all query methods** (findMany, findFirst, update, updateMany, deleteMany, upsert, aggregate, count, groupBy).
+
+### List Relation Filters (oneToMany / manyToMany)
+
+```typescript
+// some: At least one related record matches
+userSheet.findMany({ where: { posts: { some: { published: true } } } });
+
+// every: ALL related records match (0 records = true)
+userSheet.findMany({ where: { posts: { every: { published: true } } } });
+
+// none: NO related records match
+userSheet.findMany({ where: { posts: { none: { published: false } } } });
+```
+
+### Single Relation Filters (oneToOne / manyToOne)
+
+```typescript
+// is: Related record matches condition (null = no related record)
+postSheet.findMany({ where: { author: { is: { name: "Alice" } } } });
+postSheet.findMany({ where: { author: { is: null } } }); // FK is null
+
+// isNot: Related record does NOT match (null = has related record)
+postSheet.findMany({ where: { author: { isNot: { name: "Alice" } } } });
+postSheet.findMany({ where: { author: { isNot: null } } }); // FK is not null
+```
+
+### Combinable with AND/OR/NOT
+
+```typescript
+userSheet.findMany({
+  where: {
+    OR: [
+      { posts: { some: { published: true } } },
+      { name: "Charlie" },
+    ],
+  },
+});
+```
+
+### Validation
+
+- Using list filters (some/every/none) on oneToOne/manyToOne → `WhereRelationInvalidFilterError`
+- Using single filters (is/isNot) on oneToMany/manyToMany → `WhereRelationInvalidFilterError`
+- Using relation filters without relations → `WhereRelationWithoutContextError`
+
+---
+
+## Nested Write
+
+Available in `create` method only.
+
+### Operations
+
+| Operation | manyToOne/oneToOne | oneToMany | manyToMany |
+|-----------|-------------------|-----------|------------|
+| create | Single only | Single/Array | Single/Array |
+| createMany | - | Supported | - |
+| connect | Supported | Single/Array | Single/Array |
+| connectOrCreate | Supported | Single/Array | Single/Array |
+
+### Processing Order
+
+1. **Before parent create**: manyToOne/oneToOne operations (FK goes into parent)
+2. **Parent record created**
+3. **After parent create**: oneToMany operations (parent's PK goes into children's FK)
+4. **ManyToMany**: Create target records and junction table rows
+
+### Examples
+
+```typescript
+// create: Create related record
+postSheet.create({
+  data: {
+    id: 4, title: "New Post", published: true,
+    author: { create: { id: 4, name: "Dave", email: "dave@example.com" } }
+  }
+});
+// Result: Users record created first, then Posts record with authorId auto-set
+
+// connect: Link to existing record
+postSheet.create({
+  data: {
+    id: 4, title: "New Post", published: true,
+    author: { connect: { name: "Alice" } }
+  }
+});
+// Result: Finds Alice, sets authorId to Alice's id
+
+// connectOrCreate: Link if exists, create if not
+postSheet.create({
+  data: {
+    id: 4, title: "New Post", published: true,
+    author: {
+      connectOrCreate: {
+        where: { name: "Alice" },
+        create: { id: 4, name: "Alice", email: "alice@new.com" }
+      }
+    }
+  }
+});
+
+// createMany: Bulk create children
+userSheet.create({
+  data: {
+    id: 4, name: "Dave", email: "dave@example.com",
+    posts: {
+      createMany: {
+        data: [
+          { id: 4, title: "Post 1", published: true },
+          { id: 5, title: "Post 2", published: false }
+        ]
+      }
+    }
+  }
+});
+
+// Deep nesting: Users → Posts → Tags
+userSheet.create({
+  data: {
+    id: 4, name: "Dave", email: "dave@example.com",
+    posts: {
+      create: {
+        id: 4, title: "Post", published: true,
+        tags: { create: { id: 3, name: "TypeScript" } }
+      }
+    }
+  }
+});
+```
+
+### Important Notes
+
+- FKs are auto-set, but PKs (id) must be explicitly provided (no auto-increment)
+- `NestedWriteConnectNotFoundError` thrown when connect/connectOrCreate where finds nothing
+- `NestedWriteWithoutRelationsError` thrown when using nested write without relations
+
+---
+
+## onDelete Referential Actions
+
+Triggered during `deleteMany` when relations with `onDelete` are defined.
+
+### Actions
+
+| Action | Behavior |
+|--------|----------|
+| Cascade | Delete related records (manyToMany: deletes junction table rows only) |
+| SetNull | Set related FK to null (manyToMany: no-op) |
+| Restrict | Error if any related records exist (checked BEFORE any side effects) |
+| NoAction | Do nothing (default when onDelete not specified) |
+
+### Execution Order
+
+1. **Phase 1 - Restrict check**: All Restrict relations checked first (no side effects if any fail)
+2. **Phase 2 - Cascade/SetNull**: Execute Cascade and SetNull actions
+
+### Example
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    Users: {
+      posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId", onDelete: "Cascade" },
+      profile: { type: "oneToOne", to: "Profiles", field: "id", reference: "userId", onDelete: "SetNull" },
+    },
+  },
+});
+
+// Deleting Alice: Posts with authorId=1 deleted, Profiles.userId set to null
+gassma.Users.deleteMany({ where: { name: "Alice" } });
+```
+
+---
+
+## onUpdate Referential Actions
+
+Triggered during `update` / `updateMany` / `updateManyAndReturn` when PK values change and relations with `onUpdate` are defined.
+
+### Actions
+
+| Action | Behavior |
+|--------|----------|
+| Cascade | Update related FK values to match new PK (manyToMany: updates junction table) |
+| SetNull | Set related FK to null (manyToMany: no-op) |
+| Restrict | Error if any related records exist (checked BEFORE any side effects) |
+| NoAction | Do nothing (default when onUpdate not specified) |
+
+### Execution Order
+
+1. **Phase 1 - Restrict check**: All Restrict relations checked first (no side effects if any fail)
+2. **Phase 2 - Cascade/SetNull**: Execute Cascade and SetNull actions
+
+### Example
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    Users: {
+      posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId", onUpdate: "Cascade" },
+    },
+  },
+});
+
+// Changing Alice's id from 1 to 10: Posts.authorId=1 automatically updated to 10
+gassma.Users.updateMany({ where: { name: "Alice" }, data: { id: 10 } });
+```
+
+---
+
+## Nested Write (update)
+
+Available in `update` method. Extends create's nested write with additional operations.
+
+### Operations
+
+| Operation | manyToOne/oneToOne | oneToMany | manyToMany |
+|-----------|-------------------|-----------|------------|
+| create | Single only | Single/Array | Single/Array |
+| createMany | - | Supported | - |
+| connect | Supported | Single/Array | Single/Array |
+| connectOrCreate | Supported | Single/Array | Single/Array |
+| update | Supported | Single/Array (where+data) | - |
+| delete | `true` | Single/Array (where) | - |
+| deleteMany | - | Single/Array (where) | - |
+| disconnect | `true` | Single/Array (where) | Single/Array (where) |
+| set | - | Array | Array |
+
+### Examples
+
+```typescript
+// update related record (manyToOne)
+postSheet.update({
+  where: { id: 1 },
+  data: { author: { update: { name: "Updated Name" } } }
+});
+
+// update related records (oneToMany)
+userSheet.update({
+  where: { name: "Alice" },
+  data: {
+    posts: {
+      update: [
+        { where: { id: 1 }, data: { title: "New Title A" } },
+        { where: { id: 2 }, data: { title: "New Title B" } }
+      ]
+    }
+  }
+});
+
+// delete related record (manyToOne: sets FK to null)
+postSheet.update({
+  where: { id: 1 },
+  data: { author: { delete: true } }
+});
+
+// disconnect (manyToOne: sets FK to null, record preserved)
+postSheet.update({
+  where: { id: 1 },
+  data: { author: { disconnect: true } }
+});
+
+// set: replace all associations (oneToMany)
+userSheet.update({
+  where: { name: "Alice" },
+  data: { posts: { set: [{ id: 1 }, { id: 2 }] } }
+});
+// All existing posts' FK set to null, then id:1 and id:2 linked
+
+// deleteMany (oneToMany: bulk delete by condition)
+userSheet.update({
+  where: { name: "Alice" },
+  data: { posts: { deleteMany: { published: false } } }
+});
+```
+
+---
+
+## Column-to-Column Comparison (fields)
+
+Compare column values within the same row using the `fields` property.
+
+### Usage
+
+```typescript
+// Access FieldRef via controller.fields
+const userSheet = gassma.Users;
+
+// Compare firstName with lastName (same row)
+userSheet.findMany({
+  where: { firstName: { equals: userSheet.fields.lastName } }
+});
+
+// Numeric comparison between columns
+userSheet.findMany({
+  where: { age: { lt: userSheet.fields.maxAge } }
+});
+
+// String comparison
+userSheet.findMany({
+  where: { fullName: { contains: userSheet.fields.firstName } }
+});
+
+// With mode: "insensitive"
+userSheet.findMany({
+  where: {
+    firstName: {
+      equals: userSheet.fields.lastName,
+      mode: "insensitive"
+    }
+  }
+});
+
+// In AND/OR/NOT
+userSheet.findMany({
+  where: {
+    OR: [
+      { firstName: { equals: userSheet.fields.lastName } },
+      { age: { gt: userSheet.fields.minAge } }
+    ]
+  }
+});
+```
+
+### Supported Operators
+
+| Operator | FieldRef Support |
+|----------|-----------------|
+| equals | ✅ |
+| lt, lte, gt, gte | ✅ |
+| contains, startsWith, endsWith | ✅ (value converted to string) |
+| not, in, notIn | ❌ |
+
+### Behavior
+- `fields` returns a `FieldRef` via Proxy (any property name generates a FieldRef)
+- If referenced column doesn't exist, condition doesn't match (no error)
+- String operators (contains/startsWith/endsWith) convert the referenced value to string
+- Works in all methods that use `where` (find, update, delete, count, aggregate, groupBy, upsert)
+
+---
+
+## Global Omit
+
+Default field exclusion per sheet, configured in the GassmaClient constructor.
+
+### Configuration
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  omit: {
+    Users: { password: true, secret: true },
+    Posts: { internalNotes: true },
+  },
+});
+
+// All Users queries automatically exclude password and secret
+const users = gassma.Users.findMany({});
+```
+
+### Priority Rules
+
+1. **select** (highest): Overrides both global omit and query omit → returns only selected fields
+2. **query omit**: Merges with global omit. `{ field: false }` overrides global omit for that field
+3. **global omit** (lowest): Applied when no select or query omit specified
+
+### Override Examples
+
+```typescript
+// Global omit: { password: true, secret: true }
+
+// Override with omit: false → password visible again
+gassma.Users.findMany({
+  omit: { password: false }
+});
+// Result: secret still excluded, password included
+
+// Override with select → global omit ignored
+gassma.Users.findMany({
+  select: { name: true, password: true }
+});
+// Result: only name and password returned
+
+// Add extra omit
+gassma.Users.findMany({
+  omit: { email: true }
+});
+// Result: password, secret, AND email excluded
+```
+
+### Affected Methods
+
+Global omit applies to: `findMany`, `findFirst`, `findFirstOrThrow`, `create`, `update`, `upsert`, `delete`, `createManyAndReturn`, `updateManyAndReturn`.
+
+Does NOT affect: `createMany`, `updateMany`, `deleteMany` (these return `{ count }`, not records).
+
+---
+
+## Configuration Options
+
+### defaults (@default)
+
+Auto-set field values on create. Static values or functions.
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  defaults: {
+    Users: {
+      role: "USER",                    // Static string
+      isActive: true,                  // Static boolean
+      score: 0,                       // Static number
+      createdAt: () => new Date(),    // Function (evaluated at create time)
+    },
+  },
+});
+
+// create without specifying role → role is automatically "USER"
+gassma.Users.create({ data: { name: "Alice" } });
+// => { name: "Alice", role: "USER", isActive: true, score: 0, createdAt: 2026-03-14T... }
+
+// Explicit value overrides default
+gassma.Users.create({ data: { name: "Bob", role: "ADMIN" } });
+// => { name: "Bob", role: "ADMIN", ... }
+```
+
+Applies to: `create`, `createMany`, `createManyAndReturn`, `upsert` (create part).
+
+### updatedAt (@updatedAt)
+
+Auto-set current timestamp on create and update.
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  updatedAt: {
+    Users: "updatedAt",       // Single column
+    Posts: ["updatedAt", "lastModified"],  // Multiple columns
+  },
+});
+```
+
+Applies to: `create`, `createMany`, `createManyAndReturn`, `update`, `updateMany`, `updateManyAndReturn`, `upsert`.
+
+Note: Not applied during onDelete/onUpdate cascade operations (same as Prisma).
+
+### ignore (@ignore) / ignoreSheets (@@ignore)
+
+Complete exclusion from all operations.
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  ignore: {
+    Users: ["secretColumn", "internalData"],  // Array or single string
+  },
+  ignoreSheets: ["Logs", "Temp"],  // Array or single string
+});
+```
+
+**ignore vs global omit:**
+
+| | ignore | global omit |
+|---|---|---|
+| Override | Not possible | `omit: { field: false }` to disable |
+| Write exclusion | Yes | No (read only) |
+| Where exclusion | Yes | No |
+
+### map (@map) / mapSheets (@@map)
+
+Map code names to spreadsheet names.
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  map: {
+    Users: {
+      firstName: "名前",
+      lastName: "名字",
+    },
+  },
+  mapSheets: {
+    Users: "ユーザー一覧",
+  },
+});
+
+// Code uses English names, spreadsheet uses Japanese names
+gassma.Users.create({ data: { firstName: "Alice" } });
+// → Written to "名前" column in "ユーザー一覧" sheet
+```
+
+When `mapSheets` is set, other options (omit, defaults, updatedAt, ignore, map) use the **code name** (not the sheet name).
+
+### autoincrement
+
+Auto-increment values using GAS LockService + PropertiesService.
+
+```typescript
+const gassma = new Gassma.GassmaClient({
+  autoincrement: {
+    Users: "id",          // Single column
+    Orders: ["id", "seq"],  // Multiple columns
+  },
+});
+
+gassma.Users.create({ data: { name: "Alice" } });
+// => { id: 1, name: "Alice" }
+
+gassma.Users.create({ data: { name: "Bob" } });
+// => { id: 2, name: "Bob" }
+
+// Explicit value skips auto-increment
+gassma.Users.create({ data: { id: 100, name: "Charlie" } });
+// => { id: 100, name: "Charlie" }
+```
+
+Uses `LockService.getScriptLock().waitLock(10000)` for thread safety. GAS environment only.
+
+---
+
+## Atomic Number Operations
+
+Available in `update`, `updateMany`, and `updateManyAndReturn` methods.
+
+### Operations
+
+```typescript
+// increment: add to current value
+data: { count: { increment: 5 } }   // 10 → 15
+
+// decrement: subtract from current value
+data: { count: { decrement: 3 } }   // 10 → 7
+
+// multiply: multiply current value
+data: { price: { multiply: 1.1 } }  // 1000 → 1100
+
+// divide: divide current value
+data: { value: { divide: 2 } }      // 100 → 50
+```
+
+### Behavior
+- Non-numeric current values default to `0`
+- Can mix with regular field updates
+- Division by zero returns `Infinity` (JavaScript standard)
+
+---
+
+## Relation OrderBy
+
+Sort records by related record fields or relation counts.
+
+### Field Sorting (manyToOne / oneToOne)
+
+```typescript
+// Sort posts by author name
+postSheet.findMany({
+  orderBy: { author: { name: "asc" } }
+});
+
+// Combined with scalar sort
+postSheet.findMany({
+  orderBy: [
+    { author: { name: "asc" } },
+    { title: "desc" }
+  ]
+});
+```
+
+**Null FK behavior:** Records with null FK appear first in `asc`, last in `desc`.
+
+**Error:** Using field sort on oneToMany/manyToMany throws `RelationOrderByUnsupportedTypeError`.
+
+### _count Sorting (oneToMany / manyToMany)
+
+```typescript
+// Sort users by post count
+userSheet.findMany({
+  orderBy: { posts: { _count: "desc" } }
+});
+
+// Combined with scalar sort
+userSheet.findMany({
+  orderBy: [
+    { posts: { _count: "desc" } },
+    { name: "asc" }
+  ]
+});
+```
+
+**Zero count:** Records with 0 related records are treated as 0 (first in `asc`, last in `desc`).
+
+**Error:** Using `_count` sort on manyToOne/oneToOne throws `RelationOrderByCountUnsupportedTypeError`.
+
+---
+
+## Cursor-Based Pagination
+
+Available in `findMany`.
+
+### Usage
+
+```typescript
+// Get records starting from cursor position
+sheet.findMany({
+  cursor: { id: 10 },
+  take: 5,
+  orderBy: { id: "asc" }
+});
+
+// Reverse direction: get records up to cursor
+sheet.findMany({
+  cursor: { id: 10 },
+  take: -5,
+  orderBy: { id: "asc" }
+});
+
+// Skip from cursor position
+sheet.findMany({
+  cursor: { id: 10 },
+  skip: 1,
+  take: 5
+});
+```
+
+### Behavior
+- Cursor record is **included** in results
+- If cursor not found: returns `[]`
+- `take > 0`: cursor to end of results
+- `take < 0`: start of results to cursor
+- `take` null/undefined: cursor to end
+- Multiple cursor keys: all must match (e.g., `{ id: 3, name: "Charlie" }`)
+
+### Processing Order
+1. `where` → 2. `orderBy` → 3. `distinct` → 4. `cursor` → 5. `skip/take` → 6. `select/omit`
+
+---
+
+## Error Handling and Edge Cases
+
+### Error Types
+
+**GassmaFindSelectOmitConflictError**
+- Message: "Cannot use both select and omit in the same query"
+- Trigger: Using both `select` and `omit` in same query
+
+**GassmaAggregateAvgError**
+- Message: "avg can only be used on one column"
+- Trigger: Multiple columns in _avg
+
+**GassmaAggregateAvgTypeError**
+- Message: Details about type mismatch
+- Trigger: Non-numeric data in _avg
+
+**GassmaAggregateSumError** / **GassmaAggregateSumTypeError**
+- Similar to avg errors but for sum operation
+
+### Boundary Value Handling
+
+**Numeric Boundaries:**
+- Maximum: `Number.MAX_SAFE_INTEGER`
+- Minimum: `Number.MIN_SAFE_INTEGER`
+- Overflow: Not explicitly handled
+
+**Array Sizes:**
+- Empty arrays: Handled gracefully
+- Large arrays: Limited by memory
+
+**String Lengths:**
+- Empty strings: Special handling in filters (→ null)
+- Long strings: Limited by Google Sheets cell limits
+
+---
+
+## Special Behaviors and Gotchas
+
+### Empty String to Null Conversion
+
+**CRITICAL**: Only happens in filter conditions, NOT in data operations
+
+```typescript
+// Filter context - empty string becomes null
+where: { field: "" }  // Matches null values
+
+// Data context - empty string preserved
+sheet.create({ data: { field: "" } })  // Stores empty string
+```
+
+### Case Sensitivity
+
+All operations are case-sensitive by default:
+- String matching (use `mode: "insensitive"` for case-insensitive)
+- Field names
+- Sheet names
+
+### Performance Considerations
+
+**Memory Usage:**
+- Entire dataset loaded into memory
+- Large datasets may cause performance issues
+
+**Optimization Tips:**
+1. Use `where` to filter early
+2. Use `select` to reduce field count
+3. Use `take` to limit results
+4. Avoid unnecessary `distinct` on large datasets
+
+### Order of Operations Matters
+
+```typescript
+// Different results:
+sheet.findMany({
+  orderBy: { age: "asc" },
+  take: 10,
+  distinct: "department"
+});
+// vs
+sheet.findMany({
+  distinct: "department",
+  orderBy: { age: "asc" },
+  take: 10
+});
+// Execution order is fixed regardless of property order in object
+```
+
+### Select vs Omit Patterns
+
+**Use Select when:**
+- You need few specific fields
+- Working with large records
+- API response shaping
+
+**Use Omit when:**
+- You need most fields
+- Excluding sensitive data
+- Removing computed fields
+
+### Multiple OrderBy Fields
+
+```typescript
+orderBy: [
+  { department: "asc" },   // Primary sort
+  { salary: "desc" },      // Secondary sort
+  { name: "asc" }          // Tertiary sort
+]
+```
+
+When values are equal in earlier sort fields, later fields determine order.
+
+### OrderBy Null Positioning
+
+Control where null values appear in sorted results:
+
+```typescript
+// Object syntax with nulls option
+orderBy: { age: { sort: "asc", nulls: "last" } }
+// Result: [20, 30, 40, null, null]
+
+orderBy: { age: { sort: "desc", nulls: "first" } }
+// Result: [null, null, 40, 30, 20]
+```
+
+**Default behavior (no nulls option):**
+- `asc`: nulls appear first
+- `desc`: nulls appear last
+
+Can be combined with multiple sort fields:
+```typescript
+orderBy: [
+  { age: { sort: "asc", nulls: "last" } },
+  { name: "asc" }
+]
+```
+
+### Distinct Behavior
+
+**Single Field:**
+```typescript
+distinct: "department"  // Returns first occurrence of each department
+```
+
+**Multiple Fields:**
+```typescript
+distinct: ["department", "level"]  // Unique combinations
+```
+
+**Processing:** Applied after all other operations (including select/omit)
+
+### Date Handling
+
+Dates are compared as JavaScript Date objects:
+- Earlier dates are "less than" later dates
+- Date strings should be parsed to Date objects
+- Timezone considerations apply
+
+### Boolean Value Ordering
+
+In sorting and comparisons:
+- `false` < `true`
+- Treated as 0 and 1 respectively
+
+### Null Value Philosophy
+
+**General Rules:**
+1. Nulls filtered from aggregations
+2. Nulls return false in comparisons
+3. Nulls preserved in data operations
+4. Empty strings → null only in filters
+
+### Transaction Support
+
+**Not Supported**: Operations are not transactional
+- No rollback capability
+- Partial failures possible in batch operations
+- Consider implementing application-level transactions
+
+### Concurrency
+
+**Not Thread-Safe**: Google Sheets operations are not atomic
+- Race conditions possible with concurrent writes
+- Consider implementing locking mechanisms for critical operations
+
+---
+
+## Advanced Patterns and Best Practices
+
+### Pagination Pattern
+```typescript
+const pageSize = 20;
+const page = 3;
+
+sheet.findMany({
+  skip: (page - 1) * pageSize,
+  take: pageSize
+});
+```
+
+### Soft Delete Pattern
+```typescript
+// Instead of deleteMany, use updateMany
+sheet.updateMany({
+  where: { id: recordId },
+  data: { deletedAt: new Date() }
+});
+
+// Query non-deleted records
+sheet.findMany({
+  where: { deletedAt: null }
+});
+```
+
+### Audit Trail Pattern
+```typescript
+sheet.create({
+  data: {
+    ...userData,
+    createdAt: new Date(),
+    createdBy: Session.getActiveUser().getEmail()
+  }
+});
+```
+
+### Bulk Operations Pattern
+```typescript
+// Batch creates for performance
+const records = largeDataset.map(item => ({
+  ...item,
+  processedAt: new Date()
+}));
+
+sheet.createMany({ data: records });
+```
+
+### Complex Query Pattern
+```typescript
+// Find active engineers in Tokyo or Osaka with high performance
+sheet.findMany({
+  where: {
+    AND: [
+      { status: "active" },
+      { role: "engineer" },
+      {
+        OR: [
+          { city: "Tokyo" },
+          { city: "Osaka" }
+        ]
+      },
+      { performanceScore: { gte: 80 } }
+    ]
+  },
+  orderBy: [
+    { performanceScore: "desc" },
+    { name: "asc" }
+  ],
+  take: 10
+});
+```
+
+---
+
+## CLI Commands
+
+GASsma CLI provides commands for schema management and code generation.
+
+### Available Commands
+
+| Command | Description |
+|---------|-------------|
+| `gassma generate` | Generate type definitions and client code from .prisma files |
+| `gassma init` | Initialize project with schema.prisma and gassma.config.ts |
+| `gassma validate` | Check schema syntax and integrity |
+| `gassma format` | Format .prisma files using Prisma's formatter |
+| `gassma version` | Display CLI version |
+
+### gassma generate
+
+```bash
+gassma generate                              # All .prisma files in ./gassma
+gassma generate --schema gassma/user.prisma  # Specific file
+gassma generate --schema ./schemas           # Specific directory
+gassma generate --watch                      # Watch mode: auto-regenerate on file changes
+gassma generate --watch --schema ./schemas   # Watch specific directory
+```
+
+### gassma init
+
+```bash
+gassma init                    # Create gassma/schema.prisma + gassma.config.ts
+gassma init --output ./schemas # Custom output path
+gassma init --with-model       # Include sample User model
+```
+
+Errors if `schema.prisma` already exists.
+
+### gassma validate
+
+```bash
+gassma validate                              # All schemas in ./gassma
+gassma validate --schema gassma/test.prisma  # Specific file
+```
+
+Checks: syntax errors, generator block presence, output field requirement.
+
+### gassma format
+
+```bash
+gassma format                              # Format all .prisma files
+gassma format --schema gassma/test.prisma  # Format specific file
+gassma format --check                      # Check only (exit 1 if unformatted, for CI)
+```
+
+Uses `@prisma/internals` formatSchema (same engine as Prisma CLI).
+
+### gassma.config.ts
+
+Configuration file support (like Prisma's `prisma.config.ts`).
+
+Two ways to define the configuration:
+
+**1. `defineConfig` helper (recommended):**
+```typescript
+import { defineConfig } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+});
+```
+
+**2. `satisfies GassmaConfig`:**
+```typescript
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+Configuration options:
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `schema` | `string` | No | Schema file or directory path (default: `./gassma`) |
+| `datasource.url` | `string` | No | Spreadsheet URL or ID |
+
+`datasource.url`: Auto-embedded into generated client so `new GassmaClient()` connects without explicit ID. Supports full URL and raw spreadsheet ID.
+
+### env() helper
+
+`env()` function retrieves environment variables for spreadsheet URL (like Prisma's `env()`). Available from `gassma/config`.
+
+```typescript
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+`env()` throws an error if the environment variable is unset or empty. Use `process.env` directly for optional variables.
+
+Schema resolution priority: `--schema` flag > `gassma.config.ts` > default `./gassma` directory.
+
+### datasource block (in schema)
+
+URL can also be specified in the schema file via `datasource` block:
+
+```prisma
+datasource db {
+  provider = "google-spreadsheet"
+  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
+}
+```
+
+URL resolution priority: schema `datasource` block > `gassma.config.ts` `datasource.url`.
+
+### enum @map
+
+Enum members support `@map` for value mapping:
+
+```prisma
+enum Role {
+  admin     @map("ADMIN")
+  user      @map("USER")
+}
+```
+
+Generates constants: `Role.admin = "ADMIN"`, `Role.user = "USER"`.
+Type uses @map values: `"ADMIN" | "USER"`.
+
+---
+
+## Testing Insights
+
+Based on comprehensive test analysis:
+
+1. **100+ test files** covering all operations
+2. **544 test cases** validating edge cases
+3. **Extensive null handling** tests
+4. **Type safety** validation across operations
+5. **Complex query** combination testing
+6. **Error condition** verification
+7. **Boundary value** testing
+8. **Performance** benchmarking with large datasets
+
+---
+
+## API Completeness
+
+The library provides complete CRUD + analytics + relation operations matching modern ORMs:
+- ✅ Create (single and batch)
+- ✅ Read (with complex filtering)
+- ✅ Update (partial and batch)
+- ✅ Delete (batch with conditions)
+- ✅ Upsert (update or create)
+- ✅ Aggregation (avg, sum, min, max, count)
+- ✅ Grouping (with having clause)
+- ✅ Pagination (skip/take)
+- ✅ Sorting (multi-field)
+- ✅ Field selection (select/omit)
+- ✅ Distinct values
+- ✅ Complex logical operations (AND/OR/NOT)
+- ✅ Type-safe operations with TypeScript
+- ✅ Relations (oneToMany, oneToOne, manyToOne, manyToMany)
+- ✅ Include with nested include support
+- ✅ Where relation filters (some/every/none/is/isNot)
+- ✅ Nested write for create (create/connect/connectOrCreate)
+- ✅ Nested write for update (create/connect/connectOrCreate/update/delete/deleteMany/disconnect/set)
+- ✅ onDelete referential actions (Cascade/SetNull/Restrict/NoAction)
+- ✅ onUpdate referential actions (Cascade/SetNull/Restrict/NoAction)
+- ✅ Atomic number operations (increment/decrement/multiply/divide)
+- ✅ Case-insensitive filtering (mode: "insensitive")
+- ✅ OrderBy null positioning (nulls: "first" | "last")
+- ✅ findFirstOrThrow
+- ✅ Relation counting (_count in include/select)
+- ✅ Single record delete (delete method)
+- ✅ Single record upsert (upsert method)
+- ✅ Limit option for updateMany/deleteMany
+- ✅ Negative take (get records from end)
+- ✅ Relation orderBy (field sort for manyToOne/oneToOne)
+- ✅ Relation orderBy _count (count sort for oneToMany/manyToMany)
+- ✅ Cursor-based pagination (findMany, count, aggregate)
+- ✅ Column-to-column comparison (fields/FieldRef)
+- ✅ Global omit (per-sheet default field exclusion)
+- ✅ Query-level select/omit/include for create/update/createManyAndReturn
+- ✅ defaults (auto-set field values on create)
+- ✅ updatedAt (auto-timestamp on create/update)
+- ✅ ignore (complete field exclusion from all operations)
+- ✅ ignoreSheets (complete sheet exclusion)
+- ✅ Direct property access (gassma.User instead of gassma.sheets.User)
+- ✅ Select relation options (specify options on relation fields within select)
+- ✅ map (field name mapping: code ↔ spreadsheet header)
+- ✅ mapSheets (sheet name mapping: code ↔ spreadsheet sheet name)
+- ✅ autoincrement (auto-increment with LockService, GAS only)
+- ✅ CLI: generate (--watch), init, validate, format, version commands
+- ✅ gassma.config.ts configuration file (defineConfig/satisfies GassmaConfig) with datasource.url
+- ✅ env() helper for environment variable-based configuration
+- ✅ datasource block in schema for spreadsheet URL
+- ✅ enum @map (enum member name-to-value mapping)
+- ✅ Formula injection prevention (write operations)
+- ✅ Regex injection fix (literal string matching in contains/startsWith/endsWith)
+
+---
+
+## Version History
+
+**v1.0.0** (Current)
+- Relations: oneToMany, oneToOne, manyToOne, manyToMany with include
+- Where relation filters: some/every/none/is/isNot
+- Nested write for create: create/connect/connectOrCreate
+- Nested write for update: create/connect/connectOrCreate/update/delete/deleteMany/disconnect/set
+- onDelete referential actions: Cascade/SetNull/Restrict/NoAction
+- onUpdate referential actions: Cascade/SetNull/Restrict/NoAction
+- Atomic number operations: increment/decrement/multiply/divide
+- Case-insensitive filtering: mode: "insensitive"
+- OrderBy null positioning: nulls: "first" | "last"
+- findFirstOrThrow method
+- update (single record) method
+- Relation counting: _count support in include and select
+- Single record delete: delete() method with select/include/omit
+- Single record upsert: upsert() method with select/include/omit
+- Limit option: updateMany/deleteMany limit parameter
+- Negative take: get records from end of result set
+- Skip/limit negative validation: GassmaSkipNegativeError, GassmaLimitNegativeError
+- Relation orderBy: sort by manyToOne/oneToOne field values
+- Relation orderBy _count: sort by oneToMany/manyToMany record count
+- Cursor-based pagination: cursor option in findMany, count, aggregate (groupBy is not supported, same as Prisma)
+- Null FK fix: null values excluded from relation key matching
+- Column-to-column comparison: fields property with FieldRef for where conditions
+- Global omit: per-sheet default field exclusion in GassmaClient constructor
+- Query-level select/omit for create and update methods
+- defaults: auto-set field values on create (static values or functions)
+- updatedAt: auto-timestamp on create/update
+- ignore: complete field exclusion from all operations
+- ignoreSheets: complete sheet exclusion from gassma client
+- Direct property access: gassma.User instead of gassma.sheets.User
+- Select relation options: specify select/where/orderBy/include on relation fields within select
+- map: field name mapping (code name ↔ spreadsheet header)
+- mapSheets: sheet name mapping (code name ↔ spreadsheet sheet name)
+- autoincrement: auto-increment using LockService + PropertiesService
+- CLI commands: generate (--schema, --watch), init (--output, --with-model), validate, format (--check), version
+- gassma.config.ts: defineConfig()/satisfies GassmaConfig with schema path and datasource.url
+- env() helper: environment variable retrieval for config (throws on unset/empty)
+- datasource block: schema-level datasource url for auto spreadsheet ID embedding
+- enum @map: enum member name-to-value mapping and constant generation
+- Removed upsertMany (not in Prisma API)
+- findFirst: removed take/skip/distinct (Prisma alignment), added cursor support
+- create/update: added include support
+- createManyAndReturn: added select/omit/include support
+- Security: formula injection prevention (escape `=`, `+`, `-`, `@` prefixed strings in write operations)
+- Security: regex injection fix (contains/startsWith/endsWith now use literal string matching)
+- Direct property access: removed sheets property (gassma.User instead of gassma.sheets.User)
+- Select relation options: select with relation field options (select/where/orderBy/include/_count/omit/take/skip)
+
+**v0.8.0**
+- Full CRUD + analytics feature set
+- Stable API
+- Production ready
+
+---
+
+## Links and Resources
+
+- [Official Reference](https://akahoshi1421.github.io/gassma-reference/)
+- [GitHub Repository](https://github.com/akahoshi1421/gassma)
+- [NPM Package](https://www.npmjs.com/package/gassma)
+- [Script ID for GAS](https://script.google.com/macros/library/d/1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH/1)
