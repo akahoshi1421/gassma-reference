@@ -329,5 +329,33 @@
   "theme.tags.tagsPageTitle": {
     "message": "Tags",
     "description": "The title of the tag list page"
+  },
+  "homepage.tutorialButton": {
+    "message": "GASsma Tutorial - 5min ⏱️",
+    "description": "The tutorial button on the homepage"
+  },
+  "homepage.feature1.title": {
+    "message": "More Manageable",
+    "description": "Title of the first feature on homepage"
+  },
+  "homepage.feature1.description": {
+    "message": "When you want to retrieve specific rows from a spreadsheet, or sort retrieved data conditionally, you need complex array processing. This leads to code bloat and reduced readability. GASsma solves these problems and keeps your code concise.",
+    "description": "Description of the first feature on homepage"
+  },
+  "homepage.feature2.title": {
+    "message": "Fewer Mistakes",
+    "description": "Title of the second feature on homepage"
+  },
+  "homepage.feature2.description": {
+    "message": "When working with spreadsheets in GAS, you use getRange() to specify row and column numbers. This carries a risk of miscounting. However, GASsma automatically reads column names and sheet ranges. You don't need to count sheet ranges.",
+    "description": "Description of the second feature on homepage"
+  },
+  "homepage.feature3.title": {
+    "message": "More Secure",
+    "description": "Title of the third feature on homepage"
+  },
+  "homepage.feature3.description": {
+    "message": "When working with spreadsheets in GAS, you need to be security-conscious. For example, when integrated with Google Forms, you must prevent malicious users from executing spreadsheet formulas entered in responses. GASsma includes such security measures, enabling safe development.",
+    "description": "Description of the third feature on homepage"
   }
 }
