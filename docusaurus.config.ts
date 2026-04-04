@@ -28,7 +28,15 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: "ja",
-    locales: ["ja"],
+    locales: ["ja", "en"],
+    localeConfigs: {
+      ja: {
+        label: "日本語",
+      },
+      en: {
+        label: "English",
+      },
+    },
   },
 
   presets: [
@@ -50,7 +58,7 @@ const config: Config = {
     [
       "@cmfcmf/docusaurus-search-local",
       {
-        language: "ja",
+        language: ["ja", "en"],
         indexBlog: false,
       },
     ],
@@ -71,6 +79,10 @@ const config: Config = {
           sidebarId: "tutorialSidebar",
           position: "left",
           label: "Docs",
+        },
+        {
+          type: "localeDropdown",
+          position: "right",
         },
         {
           href: "https://github.com/akahoshi1421/gassma",

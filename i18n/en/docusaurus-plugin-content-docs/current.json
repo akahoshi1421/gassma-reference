@@ -1,0 +1,42 @@
+{
+  "version.label": {
+    "message": "Next",
+    "description": "The label for version current"
+  },
+  "sidebar.tutorialSidebar.category.リファレンス": {
+    "message": "Reference",
+    "description": "The label for category リファレンス in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.CRUD": {
+    "message": "CRUD",
+    "description": "The label for category CRUD in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Create": {
+    "message": "Create",
+    "description": "The label for category Create in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Read": {
+    "message": "Read",
+    "description": "The label for category Read in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Update": {
+    "message": "Update",
+    "description": "The label for category Update in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.Delete": {
+    "message": "Delete",
+    "description": "The label for category Delete in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.統計": {
+    "message": "Statistics",
+    "description": "The label for category 統計 in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.リレーション": {
+    "message": "Relations",
+    "description": "The label for category リレーション in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.設定": {
+    "message": "Settings",
+    "description": "The label for category 設定 in sidebar tutorialSidebar"
+  }
+}
