@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/relation/include
+description: "where/orderBy/select オプション、ネストした include、リレーションの _count を使って関連レコードを取得する"
 ---
 
 # include

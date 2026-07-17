@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/fields
+description: "Compare columns within the same row in where filters using FieldRef"
 ---
 
 # fields (Column Comparison)

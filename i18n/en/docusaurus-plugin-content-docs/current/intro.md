@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: "Overview and motivation: why plain GAS spreadsheet code is hard to maintain (getRange counting mistakes, formula injection) and how GASsma solves it"
 ---
 
 # What is GASsma

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 slug: /reference/config/ignore
+description: "フィールドやシート全体をすべての操作の対象から除外する（@ignore / @@ignore）"
 ---
 
 # ignore / ignoreSheets（@ignore / @@ignore）

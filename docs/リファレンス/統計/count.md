@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/statistics/count
+description: "条件に合致するレコードの件数を数える"
 ---
 
 # count()

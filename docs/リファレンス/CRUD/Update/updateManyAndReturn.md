@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/update/updateManyAndReturn
+description: "条件に合致するすべてのレコードを更新し、更新したレコードを返す"
 ---
 
 # updateManyAndReturn()

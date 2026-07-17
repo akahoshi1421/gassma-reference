@@ -1,6 +1,7 @@
 ---
 sidebar_position: 0
 slug: /reference/crud/delete/delete
+description: "レコードを 1 件削除し、削除したレコードを返す"
 ---
 
 # delete()

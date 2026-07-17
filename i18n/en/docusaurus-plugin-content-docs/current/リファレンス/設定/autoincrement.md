@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 slug: /reference/config/autoincrement
+description: "Auto-increment fields using LockService + PropertiesService (GAS only)"
 ---
 
 # autoincrement

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 0
 slug: /reference/crud/update/update
+description: "Update a single record; supports atomic number operations (increment/decrement/multiply/divide) and nested writes"
 ---
 
 # update()

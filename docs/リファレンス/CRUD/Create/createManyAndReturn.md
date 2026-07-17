@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/create/createManyAndReturn
+description: "複数のレコードを一括作成し、作成したレコードを返す"
 ---
 
 # createManyAndReturn()
