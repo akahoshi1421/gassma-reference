@@ -343,6 +343,21 @@ const result = gassma.Users.findMany({
 });
 ```
 
+リレーションフィールドは `true` でも指定でき、その場合はリレーション先の全スカラー列を取得します（トップレベルの `select` と同様に、任意の深さで機能します）。
+
+```ts
+const result = gassma.Users.findMany({
+  select: {
+    posts: {
+      select: {
+        title: true,
+        comments: true, // comments のスカラー列をすべて取得
+      },
+    },
+  },
+});
+```
+
 :::caution
 トップレベルの `select` と `include` は同時に使用できません。リレーション先のデータが必要な場合は `select` 内でリレーションオプションを指定するか、`include` を単独で使用してください。
 :::
