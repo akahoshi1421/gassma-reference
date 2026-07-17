@@ -15,7 +15,7 @@ llms.txt は、AI やLLM（Large Language Model）がプロジェクトやライ
 GASsma リファレンスでは、以下の2つのファイルを提供しています：
 
 ### 📄 llms.txt（目次版）
-- **アクセス URL**: [/llms.txt](/llms.txt)
+- **アクセス URL**: [/llms.txt](pathname:///llms.txt)
 - **内容**: llmstxt.org 標準に沿ったキュレーション済みの目次。GASsma の概要と、各リファレンスページへのリンク・説明のリスト
 - **対象**: AI がトピックごとに必要なドキュメントページを見つけて参照する場合
 

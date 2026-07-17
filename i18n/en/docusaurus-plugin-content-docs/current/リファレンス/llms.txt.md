@@ -15,7 +15,7 @@ llms.txt is a file format designed to help AI and LLMs (Large Language Models) e
 The GASsma reference provides the following two files:
 
 ### llms.txt (Index Version)
-- **Access URL**: [/llms.txt](/llms.txt)
+- **Access URL**: [/llms.txt](pathname:///llms.txt)
 - **Content**: A curated table of contents following the llmstxt.org standard: an overview of GASsma plus a list of links to each reference page with descriptions
 - **Intended for**: When an AI needs to find and consult the relevant documentation page per topic
 
