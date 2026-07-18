@@ -343,6 +343,21 @@ const result = gassma.Users.findMany({
 });
 ```
 
+Relation fields can also be specified with `true`, which retrieves all scalar columns of the related model (this works at any depth, just like the top-level `select`):
+
+```ts
+const result = gassma.Users.findMany({
+  select: {
+    posts: {
+      select: {
+        title: true,
+        comments: true, // retrieves all scalar columns of comments
+      },
+    },
+  },
+});
+```
+
 :::caution
 Top-level `select` and `include` cannot be used simultaneously. If you need related data, specify relation options within `select` or use `include` alone.
 :::
