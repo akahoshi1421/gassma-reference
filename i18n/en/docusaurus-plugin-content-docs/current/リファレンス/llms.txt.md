@@ -20,8 +20,8 @@ The GASsma reference provides the following two files:
 - **Intended for**: When an AI needs to find and consult the relevant documentation page per topic
 
 ### llms-full.txt (Full Version)
-- **Access URL**: [/llms-full.txt](/llms-full.txt)
-- **Content**: Complete technical specifications of GASsma, edge cases, and implementation details in a single file
+- **Access URL**: [/llms-full.txt](pathname:///llms-full.txt)
+- **Content**: The full content of every documentation page concatenated into a single file (auto-generated at build time from the same content as each page's Markdown version)
 - **Intended for**: When you need detailed implementation, advanced usage, troubleshooting, or want to pass the entire documentation as context
 
 ## Usage

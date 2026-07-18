@@ -56,6 +56,30 @@ The links below point to the Markdown version of each page (page URL + \`.md\`);
 `;
 };
 
+export const buildFullHeader = (
+  locale: string,
+  origin: string,
+  localeBase: string
+): string => {
+  const llms = `${origin}${localeBase}llms.txt`;
+
+  if (locale === "en") {
+    return `# GASsma Documentation (Full Content)
+
+A machine-readable version of the entire GASsma documentation bundled into a single file.
+Index: ${llms}
+
+---`;
+  }
+
+  return `# GASsma ドキュメント（全文）
+
+GASsma の全ドキュメントを 1 ファイルにまとめた機械可読版です。
+目次: ${llms}
+
+---`;
+};
+
 export const buildOptional = (
   locale: string,
   origin: string,
@@ -68,7 +92,7 @@ export const buildOptional = (
   if (locale === "en") {
     return `## Optional
 
-- [llms-full.txt](${fullUrl}): Complete technical specification of GASsma in a single file, including edge cases and detailed behaviors
+- [llms-full.txt](${fullUrl}): The full content of every documentation page concatenated into a single file
 - [GitHub repository](${github}): Source code, issues, and examples
 - [npm package](${npm}): Package details and release history
 `;
@@ -76,7 +100,7 @@ export const buildOptional = (
 
   return `## Optional
 
-- [llms-full.txt](${fullUrl}): GASsma の完全な技術仕様を 1 ファイルにまとめたもの（エッジケースや詳細な挙動を含む）
+- [llms-full.txt](${fullUrl}): 全ドキュメントページの本文を 1 ファイルに連結したもの
 - [GitHub repository](${github}): ソースコード、Issue、サンプル
 - [npm package](${npm}): パッケージの詳細とリリース履歴
 `;

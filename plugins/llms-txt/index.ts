@@ -7,6 +7,7 @@ import type { LoadContext, Plugin, Props } from "@docusaurus/types";
 import {
   EXCLUDED_SOURCE_SUFFIXES,
   SECTIONS,
+  buildFullHeader,
   buildHeader,
   buildOptional,
 } from "./manifest";
@@ -86,15 +87,49 @@ const stripDocusaurusSyntax = (markdown: string): string => {
   return kept.join("\n");
 };
 
-const writePageMarkdown = async (props: Props, doc: DocEntry): Promise<void> => {
-  const relRoute = doc.permalink.slice(props.baseUrl.length);
+const renderPageBody = async (props: Props, doc: DocEntry): Promise<string> => {
   const raw = await fs.readFile(
     path.join(props.siteDir, doc.sourcePath),
     "utf8"
   );
+  return stripDocusaurusSyntax(raw);
+};
+
+const writePageMarkdown = async (
+  props: Props,
+  doc: DocEntry,
+  body: string
+): Promise<void> => {
+  const relRoute = doc.permalink.slice(props.baseUrl.length);
   const outPath = path.join(props.outDir, `${relRoute}.md`);
   await fs.mkdir(path.dirname(outPath), { recursive: true });
-  await fs.writeFile(outPath, stripDocusaurusSyntax(raw));
+  await fs.writeFile(outPath, body);
+};
+
+const stripLeadingH1 = (body: string): string => {
+  const lines = body.split("\n");
+  const first = lines.findIndex((line) => line.trim() !== "");
+  if (first === -1 || !lines[first].startsWith("# ")) return body;
+  return lines.slice(first + 1).join("\n");
+};
+
+const buildLlmsFull = (
+  props: Props,
+  docs: DocEntry[],
+  bodies: string[]
+): string => {
+  const origin = props.siteConfig.url;
+  const pages = docs.map((doc, index) => {
+    const heading = `# ${doc.title} (${origin}${doc.permalink})`;
+    const desc = doc.description ? `${doc.description}\n\n` : "";
+    return `${heading}\n\n${desc}${stripLeadingH1(bodies[index]).trim()}`;
+  });
+  const header = buildFullHeader(
+    props.i18n.currentLocale,
+    origin,
+    props.baseUrl
+  );
+  return `${[header, ...pages].join("\n\n")}\n`;
 };
 
 const buildLlmsTxt = (props: Props, docs: DocEntry[]): string => {
@@ -136,13 +171,22 @@ export default function llmsTxtPlugin(_context: LoadContext): Plugin<undefined> 
     name: "gassma-llms-txt",
     async postBuild(props): Promise<void> {
       const docs = collectDocs(props);
-      await Promise.all(docs.map((doc) => writePageMarkdown(props, doc)));
+      const bodies = await Promise.all(
+        docs.map((doc) => renderPageBody(props, doc))
+      );
+      await Promise.all(
+        docs.map((doc, index) => writePageMarkdown(props, doc, bodies[index]))
+      );
       await fs.writeFile(
         path.join(props.outDir, "llms.txt"),
         buildLlmsTxt(props, docs)
       );
+      await fs.writeFile(
+        path.join(props.outDir, "llms-full.txt"),
+        buildLlmsFull(props, docs, bodies)
+      );
       console.log(
-        `[gassma-llms-txt] ${props.i18n.currentLocale}: llms.txt + ${docs.length} ページの Markdown を生成しました`
+        `[gassma-llms-txt] ${props.i18n.currentLocale}: llms.txt + llms-full.txt + ${docs.length} ページの Markdown を生成しました`
       );
     },
   };
