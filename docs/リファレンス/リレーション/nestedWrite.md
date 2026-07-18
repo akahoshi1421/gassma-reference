@@ -31,6 +31,25 @@ slug: /reference/relation/nested-write
 | connect | 対応 | 対応 | 単一/配列 | 単一/配列 |
 | connectOrCreate | 対応 | 対応 | 単一/配列 | 単一/配列 |
 
+:::note
+to-one リレーションは FK の位置によって動作が異なります。
+
+- **manyToOne（FK 保有側）**: 自レコードの FK に値がセットされます
+- **oneToOne（非FK側）**: FK を保有するリレーション先レコードの FK が書き換えられます。自レコードは変更されません
+
+`oneToOne` は 1 対 1 の FK を持たない側専用の定義です（[リレーション定義](/docs/reference/relation/definition)を参照）。
+:::
+
+### oneToOne（非FK側）の挙動
+
+| 操作 | 動作 | 対象レコードが存在しない場合 |
+| --- | --- | --- |
+| create | リレーション先レコードを FK 自動セットで作成 | - |
+| connect | 置き換え（既接続レコードの FK を null 化してから、対象レコードの FK を親にセット） | `NestedWriteConnectNotFoundError` |
+| connectOrCreate | 存在すれば connect と同じ置き換え、なければ FK 自動セットで作成 | - |
+
+`createMany` や配列形式の指定は `NestedWriteInvalidOperationError` になります。
+
 ## create
 
 ### manyToOne での create
@@ -70,6 +89,28 @@ const result = gassma.Posts.create({
   published: true,
 }
 ```
+
+### oneToOne での create
+
+ユーザー作成と同時にプロフィールも作成します。oneToOne（非FK側）では、リレーション先レコードの FK に親の値が自動セットされます。
+
+```ts
+const result = gassma.Users.create({
+  data: {
+    id: 4,
+    name: "Dave",
+    email: "dave@example.com",
+    profile: {
+      create: { id: 3, bio: "新しく来ました" },
+    },
+  },
+});
+```
+
+上記を実行すると以下が行われます。
+
+1. Users シートに Dave が作成される
+2. Profiles シートに `{ id: 3, userId: 4, bio: "新しく来ました" }` が作成される（`userId` は Dave の `id` = 4 が自動セット）
 
 ### oneToMany での create
 
@@ -183,6 +224,31 @@ const result = gassma.Posts.create({
 条件に一致するレコードが見つからない場合、`NestedWriteConnectNotFoundError` がスローされます。
 :::
 
+### oneToOne での connect
+
+ユーザー作成と同時に、既存のプロフィールを紐づけます。
+
+```ts
+const result = gassma.Users.create({
+  data: {
+    id: 4,
+    name: "Dave",
+    email: "dave@example.com",
+    profile: {
+      connect: { id: 1 },
+    },
+  },
+});
+```
+
+上記を実行すると、Profiles シートの `id: 1` の `userId` が Dave の `id`（= 4）に更新されます。
+
+oneToOne の connect は**置き換え**として動作します。親にすでに接続されているリレーション先レコードがある場合、そのレコードの FK を `null` にしてから、対象レコードの FK を親にセットします。
+
+:::caution
+条件に一致するレコードが見つからない場合、`NestedWriteConnectNotFoundError` がスローされます。
+:::
+
 ### oneToMany での connect
 
 ユーザー作成と同時に、既存の投稿を紐づけます。
@@ -257,6 +323,8 @@ const result = gassma.Posts.create({
 ```
 
 上記の場合、Users シートに Alice が存在するため connect と同じ動作になります。存在しない場合は `create` のデータで新規作成されます。
+
+oneToOne（非FK側）でも同様に、見つかった場合は connect と同じ置き換え動作、見つからない場合はリレーション先レコードが FK 自動セットで作成されます。
 
 oneToMany / manyToMany では配列で複数指定できます。
 
@@ -346,3 +414,4 @@ const result = gassma.Users.create({
 | --- | --- |
 | `NestedWriteWithoutRelationsError` | リレーション定義なしで nested write 構文を使用 |
 | `NestedWriteConnectNotFoundError` | `connect` / `connectOrCreate` の where でレコードが見つからない |
+| `NestedWriteInvalidOperationError` | リレーション種別に対応しない操作を指定（例: oneToOne に `createMany` や配列形式を指定） |

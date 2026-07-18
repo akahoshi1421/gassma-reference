@@ -27,6 +27,23 @@ Uses the sheet examples from [relation definition](/docs/reference/relation/defi
 | disconnect | Supported | Single / Array | Single / Array |
 | set | - | Supported | Supported |
 
+:::note
+manyToOne and oneToOne accept the same operation shapes but behave differently. manyToOne (FK-holding side) operates on the **own record's FK**, while oneToOne (non-FK side) operates on the **related record holding the FK** (see [relation definition](/docs/reference/relation/definition)).
+:::
+
+### Behavior of oneToOne (Non-FK Side)
+
+| Operation | Behavior | When the target record does not exist |
+| --- | --- | --- |
+| create | Creates the related record with the FK automatically set | - |
+| connect | Replaces (nulls the FK of the currently connected record, then sets the target record's FK to the parent) | `NestedWriteConnectNotFoundError` |
+| connectOrCreate | Same replacement as connect if found, otherwise creates with the FK automatically set | - |
+| update | Updates the related record (specify data directly) | `NestedWriteTargetNotFoundError` |
+| disconnect: true | Nulls the FK of the related record | Does nothing |
+| delete: true | Deletes the related record | `NestedWriteTargetNotFoundError` |
+
+Specifying `set` / `deleteMany` / `createMany` / array forms results in `NestedWriteInvalidOperationError`.
+
 ## create
 
 Creates a new related record and associates it. Same behavior as [create's Nested Write](/docs/reference/relation/nested-write).
@@ -59,6 +76,22 @@ gassma.Posts.update({
 });
 ```
 
+With oneToOne (non-FK side), connect behaves as a **replacement**. The FK of the currently connected related record is set to `null`, then the target record's FK is set to the parent:
+
+```ts
+// oneToOne: Replace the user's profile with another profile
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: {
+      connect: { id: 2 },
+    },
+  },
+});
+// => After the userId of Profiles id: 1 (currently connected) becomes null,
+//    the userId of id: 2 is updated to Alice's id (= 1)
+```
+
 ## connectOrCreate
 
 Associates if existing record found, otherwise creates and associates:
@@ -82,9 +115,9 @@ gassma.Posts.update({
 
 Updates related records.
 
-### manyToOne / oneToOne
+### manyToOne (FK-Holding Side)
 
-Specify the update data directly:
+Specify the update data directly. The record referenced by the own record's FK is updated:
 
 ```ts
 // manyToOne: Update the post's author name
@@ -97,6 +130,26 @@ gassma.Posts.update({
   },
 });
 ```
+
+### oneToOne (Non-FK Side)
+
+Likewise, specify the update data directly. The related record referencing the parent is updated:
+
+```ts
+// oneToOne: Update the user's profile
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: {
+      update: { bio: "Updated bio" },
+    },
+  },
+});
+```
+
+:::caution
+If no connected related record exists, `NestedWriteTargetNotFoundError` is thrown.
+:::
 
 ### oneToMany
 
@@ -134,7 +187,7 @@ gassma.Users.update({
 
 Deletes related records.
 
-### manyToOne / oneToOne
+### manyToOne (FK-Holding Side)
 
 Specify `delete: true` to delete the related record and set the own FK to `null`:
 
@@ -147,6 +200,25 @@ gassma.Posts.update({
   },
 });
 ```
+
+### oneToOne (Non-FK Side)
+
+Specify `delete: true` to delete the related record referencing the parent. The own record is not modified:
+
+```ts
+// oneToOne: Delete the user's profile
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: { delete: true },
+  },
+});
+// => The record with userId: 1 in Profiles is deleted
+```
+
+:::caution
+If no connected related record exists, `NestedWriteTargetNotFoundError` is thrown.
+:::
 
 ### oneToMany
 
@@ -207,7 +279,7 @@ gassma.Users.update({
 
 Removes the relation association. The record itself is not deleted.
 
-### manyToOne / oneToOne
+### manyToOne (FK-Holding Side)
 
 Specify `disconnect: true` to set the own FK to `null`:
 
@@ -221,6 +293,23 @@ gassma.Posts.update({
 });
 // => Posts authorId becomes null
 ```
+
+### oneToOne (Non-FK Side)
+
+Specify `disconnect: true` to set the FK of the related record referencing the parent to `null`:
+
+```ts
+// oneToOne: Remove the association between user and profile
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: { disconnect: true },
+  },
+});
+// => The userId: 1 in Profiles becomes null
+```
+
+If no connected record exists, nothing happens (no error is thrown).
 
 ### oneToMany
 
@@ -331,3 +420,4 @@ gassma.Users.update({
 | `NestedWriteWithoutRelationsError` | Executed Nested Write without relation definitions |
 | `NestedWriteInvalidOperationError` | Specified an operation not supported for the relation type |
 | `NestedWriteConnectNotFoundError` | Target record not found for connect / connectOrCreate |
+| `NestedWriteTargetNotFoundError` | No related record exists for update / delete on the non-FK side of a oneToOne |
