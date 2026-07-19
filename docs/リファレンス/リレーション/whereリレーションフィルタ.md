@@ -142,7 +142,9 @@ const result = gassma.Posts.findMany({
 
 ### is: null
 
-関連レコードが存在しない（FK が null の）レコードを取得できます。
+関連レコードが存在しないレコードを取得できます。`manyToOne`（FK を保有する側）では FK が null のレコード、`oneToOne`（FK を持たない側）では**関連レコードが存在しない**レコードが対象になります。
+
+例：著者（FK の `authorId`）が null の投稿を取得
 
 ```ts
 const result = gassma.Posts.findMany({
@@ -152,6 +154,26 @@ const result = gassma.Posts.findMany({
     },
   },
 });
+```
+
+例：プロフィールを持たないユーザーを取得（非FK側の `oneToOne`）
+
+```ts
+const result = gassma.Users.findMany({
+  where: {
+    profile: {
+      is: null,
+    },
+  },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+[
+  { id: 3, name: "Charlie", email: "charlie@example.com" },
+];
 ```
 
 ### isNot
@@ -180,7 +202,7 @@ const result = gassma.Posts.findMany({
 
 ### isNot: null
 
-FK が null でないレコード（=関連先が存在するレコード）を取得できます。
+関連レコードが存在するレコードを取得できます。`manyToOne`（FK を保有する側）では FK が null でないレコード、`oneToOne`（FK を持たない側）では**関連レコードが存在する**レコードが対象になります。
 
 ```ts
 const result = gassma.Posts.findMany({

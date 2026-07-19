@@ -142,7 +142,9 @@ The return value has the following format:
 
 ### is: null
 
-Retrieves records where no related record exists (FK is null):
+Retrieves records where no related record exists. For `manyToOne` (the FK-holding side), this matches records whose FK is null; for `oneToOne` (the side without the FK), this matches records for which **no related record exists**.
+
+Example: Get posts whose author (the FK `authorId`) is null
 
 ```ts
 const result = gassma.Posts.findMany({
@@ -152,6 +154,26 @@ const result = gassma.Posts.findMany({
     },
   },
 });
+```
+
+Example: Get users who have no profile (`oneToOne` on the non-FK side)
+
+```ts
+const result = gassma.Users.findMany({
+  where: {
+    profile: {
+      is: null,
+    },
+  },
+});
+```
+
+The return value has the following format:
+
+```ts
+[
+  { id: 3, name: "Charlie", email: "charlie@example.com" },
+];
 ```
 
 ### isNot
@@ -180,7 +202,7 @@ The return value has the following format:
 
 ### isNot: null
 
-Retrieves records where FK is not null (= related record exists):
+Retrieves records where a related record exists. For `manyToOne` (the FK-holding side), this matches records whose FK is not null; for `oneToOne` (the side without the FK), this matches records for which **a related record exists**.
 
 ```ts
 const result = gassma.Posts.findMany({
