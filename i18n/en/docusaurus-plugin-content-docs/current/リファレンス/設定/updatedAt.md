@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/config/updated-at
+description: "Auto-set timestamps on create/update (@updatedAt)"
 ---
 
 # updatedAt (@updatedAt)

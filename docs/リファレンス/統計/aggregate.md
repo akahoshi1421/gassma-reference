@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/statistics/aggregate
+description: "_avg、_sum、_min、_max、_count などの集計を行う"
 ---
 
 # aggregate()

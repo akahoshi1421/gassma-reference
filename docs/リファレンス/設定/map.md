@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/config/map
+description: "コード側の名前をスプレッドシートのヘッダー名・シート名に対応付ける（@map / @@map）"
 ---
 
 # map / mapSheets（@map / @@map）

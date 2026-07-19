@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/relation/where-relation-filter
+description: "Filter by related records using some/every/none (list relations) and is/isNot (single relations)"
 ---
 
 # where Relation Filter

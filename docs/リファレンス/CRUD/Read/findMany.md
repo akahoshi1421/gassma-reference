@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/read/findMany
+description: "where、orderBy、take/skip、カーソルページネーション、distinct を使って複数のレコードを取得する"
 ---
 
 # findMany()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/update/updateMany
+description: "Update all matching records and get the updated count; supports limit"
 ---
 
 # updateMany()

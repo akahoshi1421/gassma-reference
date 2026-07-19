@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/crud/update/upsert
+description: "Update a record if it exists, otherwise create it"
 ---
 
 # upsert()

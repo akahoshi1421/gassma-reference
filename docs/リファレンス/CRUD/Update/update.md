@@ -1,6 +1,7 @@
 ---
 sidebar_position: 0
 slug: /reference/crud/update/update
+description: "レコードを 1 件更新する。数値のアトミック操作（increment/decrement/multiply/divide）とネストされた書き込みに対応"
 ---
 
 # update()

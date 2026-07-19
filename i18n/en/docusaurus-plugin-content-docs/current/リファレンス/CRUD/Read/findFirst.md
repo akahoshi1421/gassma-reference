@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/crud/read/findFirst
+description: "Get the first record matching a where filter, or null if none matches"
 ---
 
 # findFirst()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/delete/deleteMany
+description: "Delete all matching records and get the deleted count; supports limit"
 ---
 
 # deleteMany()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/relation/on-delete
+description: "Referential actions on delete (Cascade, SetNull, Restrict, NoAction)"
 ---
 
 # onDelete

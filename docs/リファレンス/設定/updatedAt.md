@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/config/updated-at
+description: "作成・更新時にタイムスタンプを自動設定する（@updatedAt）"
 ---
 
 # updatedAt（@updatedAt）

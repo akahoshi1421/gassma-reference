@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/update/updateMany
+description: "条件に合致するすべてのレコードを更新し、更新件数を取得する。limit に対応"
 ---
 
 # updateMany()

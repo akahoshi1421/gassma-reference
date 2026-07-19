@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/config/defaults
+description: "Auto-set field values on create with static values or functions (@default)"
 ---
 
 # defaults (@default)

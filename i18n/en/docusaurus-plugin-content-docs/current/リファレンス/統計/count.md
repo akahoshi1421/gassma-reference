@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/statistics/count
+description: "Count records matching a filter"
 ---
 
 # count()

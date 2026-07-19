@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/relation/nested-write-update
+description: "Modify related records inside update using update/delete/deleteMany/disconnect/set"
 ---
 
 # Nested Write (update)

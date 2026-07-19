@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/settings/changeSettings
+description: "シートのデータ範囲（開始行・列範囲）を設定する"
 ---
 
 # changeSettings()

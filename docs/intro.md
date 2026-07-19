@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: "概要と動機: 素の GAS でのスプレッドシート操作が保守しにくい理由（getRange の指定ミスや数式インジェクション）と、GASsma がそれをどう解決するか"
 ---
 
 # GASsma とは

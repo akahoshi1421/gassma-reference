@@ -1,6 +1,7 @@
 ---
 sidebar_position: 0
 slug: /reference/crud/delete/delete
+description: "Delete a single record and return it"
 ---
 
 # delete()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/create/create
+description: "レコードを 1 件作成する。select/omit/include とネストされた書き込みに対応"
 ---
 
 # create()
