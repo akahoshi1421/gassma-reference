@@ -32,6 +32,10 @@ const gassma = new Gassma.GassmaClient({
 });
 ```
 
+:::note
+onUpdate は FK を保有する側（`manyToOne`）のリレーション定義では発火しません。参照される側（`oneToMany` / 非FK側の `oneToOne` / `manyToMany`）の定義に指定してください。
+:::
+
 ## アクションの種類
 
 | アクション | 動作 |

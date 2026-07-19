@@ -17,6 +17,10 @@ description: "レコードを 1 件削除し、削除したレコードを返す
 | omit    | 戻り値の取得列の除外設定 | 可 | `select` と同時に使用できません          |
 | include | リレーション先の取得   | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
+:::caution
+`where` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `where` is missing.）がスローされ、**暗黙的に全件が削除されることはありません**。空オブジェクト `{}` は省略とはみなされないため、`where: {}` を渡した場合は全行のうち最初の 1 件が削除されます。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

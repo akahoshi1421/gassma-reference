@@ -12,11 +12,15 @@ Updates the **first row** matching the specified conditions and retrieves the up
 
 | Key | Description | Optional | Notes |
 | --- | --- | --- | --- |
-| where | Specifies query conditions | Optional | Targets the first row if omitted |
+| where | Specifies query conditions | Required | If multiple rows match, only the first row is updated |
 | data | Data to update | Required | |
 | select | Display settings for return value columns | Optional | Cannot be used with `omit` / `include` |
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
+
+:::note
+`where` and `data` are required. Omitting either throws `GassmaMissingArgumentError` (e.g., Argument `where` is missing.). An empty object `{}` is not treated as omission, so `where: {}` updates the first of all rows.
+:::
 
 ## Example Sheet
 
@@ -104,6 +108,12 @@ const result = gassma.sheet1.update({
   },
 });
 ```
+
+:::note
+Number operations can only be used on **numeric columns**. Specifying `increment` and the like on a string column results in a type error. Columns made into a composite type that includes a number via `@gassma.addType` (e.g., `number | string`) are also eligible for number operations.
+:::
+
+Number operations can be used not only in `update` but also in `updateMany` / `updateManyAndReturn`, the `update` of `upsert`, and the `data` of the `update` operation in [Nested Write (update)](/docs/reference/relation/nested-write-update).
 
 ## Nested Write
 

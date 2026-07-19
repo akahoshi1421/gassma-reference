@@ -32,6 +32,10 @@ const gassma = new Gassma.GassmaClient({
 });
 ```
 
+:::note
+onUpdate does not fire on relation definitions of the FK-holding side (`manyToOne`). Specify it on the referenced side (`oneToMany` / the non-FK side `oneToOne` / `manyToMany`).
+:::
+
 ## Action Types
 
 | Action | Behavior |

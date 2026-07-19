@@ -16,6 +16,30 @@ Use this when you want to configure the reading range of the spreadsheet.
 | startColumnValue | Specify the column where the first column name is    | `number \| string` | Specify either the column number or the column letter    |
 | endColumnValue   | Specify the column where the last column name is     | `number \| string` | Specify either the column number or the column letter    |
 
+## Specifying Columns
+
+For `startColumnValue` / `endColumnValue`, you can specify either a **column number (`number`)** or a **column letter (`string`)**.
+
+Letters are case-insensitive and interpreted with the same base-26 scheme as spreadsheet column headers. `"A"` through `"Z"` are 1 through 26, and `"AA"` rolls over into two characters.
+
+| Value  | Column Number |
+| ------ | ------------- |
+| `"A"`  | 1             |
+| `"Z"`  | 26            |
+| `"AA"` | 27            |
+| `"AZ"` | 52            |
+| `"BA"` | 53            |
+
+```ts
+// The following two are equivalent
+gassma.sheet1.changeSettings(1, "B", "E");
+gassma.sheet1.changeSettings(1, 2, 5);
+```
+
+:::caution
+Specifying a string that contains non-letter characters (digits, symbols, empty string, etc.) throws `GassmaInValidColumnValueError`. To specify by number, pass a `number` rather than a string.
+:::
+
 ## When to Use
 
 If your spreadsheet is in any of the following states, you **must** call `changeSettings()` before performing any operations on the sheet.

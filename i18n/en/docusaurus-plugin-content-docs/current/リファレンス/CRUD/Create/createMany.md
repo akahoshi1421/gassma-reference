@@ -14,6 +14,10 @@ Used to add multiple rows to the target sheet simultaneously.
 | --- | --- | --- |
 | data | Specifies the data to register | Required |
 
+:::note
+`data` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `data` is missing.).
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

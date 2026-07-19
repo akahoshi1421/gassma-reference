@@ -231,6 +231,19 @@ const result = gassma.Users.findMany({
 });
 ```
 
+`omit` はリレーション先モデルの[グローバル omit](/docs/reference/config/global-omit)とマージされます。トップレベルの `omit` と同様に、`false` を指定するとグローバル omit で除外されているフィールドをこの取得に限り再表示できます。
+
+```ts
+// グローバル omit で Posts.content を除外している場合
+const result = gassma.Users.findMany({
+  include: {
+    posts: {
+      omit: { content: false }, // content が返る（グローバル omit を解除）
+    },
+  },
+});
+```
+
 :::caution
 `select` と `omit` は同時に指定できません。
 :::

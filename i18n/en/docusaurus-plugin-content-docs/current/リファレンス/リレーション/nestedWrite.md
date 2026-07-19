@@ -32,6 +32,25 @@ Uses the sheet examples from [relation definition](/docs/reference/relation/defi
 | connect | Supported | Supported | Single/Array | Single/Array |
 | connectOrCreate | Supported | Supported | Single/Array | Single/Array |
 
+:::note
+The behavior of to-one relations differs depending on where the FK lives.
+
+- **manyToOne (FK-holding side)**: the value is set on the **own record's FK**
+- **oneToOne (non-FK side)**: the FK of the related record holding the FK is rewritten. The own record is not modified
+
+`oneToOne` is reserved for the non-FK side of a one-to-one relationship (see [relation definition](/docs/reference/relation/definition)).
+:::
+
+### Behavior of oneToOne (Non-FK Side)
+
+| Operation | Behavior | When the target record does not exist |
+| --- | --- | --- |
+| create | Creates the related record with the FK automatically set | - |
+| connect | Replaces (nulls the FK of the currently connected record, then sets the target record's FK to the parent) | `NestedWriteConnectNotFoundError` |
+| connectOrCreate | Same replacement as connect if found, otherwise creates with the FK automatically set | - |
+
+Specifying `createMany` or array forms results in `NestedWriteInvalidOperationError`.
+
 ## create
 
 ### create with manyToOne
@@ -71,6 +90,28 @@ The return value has the following format:
   published: true,
 }
 ```
+
+### create with oneToOne
+
+Create a profile simultaneously when creating a user. With oneToOne (non-FK side), the parent's value is automatically set as the FK of the related record:
+
+```ts
+const result = gassma.Users.create({
+  data: {
+    id: 4,
+    name: "Dave",
+    email: "dave@example.com",
+    profile: {
+      create: { id: 3, bio: "I just joined" },
+    },
+  },
+});
+```
+
+Executing the above performs the following:
+
+1. Dave is created in the Users sheet
+2. `{ id: 3, userId: 4, bio: "I just joined" }` is created in the Profiles sheet (`userId` is automatically set to Dave's `id` = 4)
 
 ### create with oneToMany
 
@@ -184,6 +225,31 @@ Executing the above performs the following:
 If no record matching the condition is found, `NestedWriteConnectNotFoundError` is thrown.
 :::
 
+### connect with oneToOne
+
+Create a user and simultaneously link an existing profile:
+
+```ts
+const result = gassma.Users.create({
+  data: {
+    id: 4,
+    name: "Dave",
+    email: "dave@example.com",
+    profile: {
+      connect: { id: 1 },
+    },
+  },
+});
+```
+
+The above updates the `userId` of `id: 1` in the Profiles sheet to Dave's `id` (= 4).
+
+connect on oneToOne behaves as a **replacement**. If a related record is already connected to the parent, its FK is set to `null` before the target record's FK is set to the parent.
+
+:::caution
+If no record matching the condition is found, `NestedWriteConnectNotFoundError` is thrown.
+:::
+
 ### connect with oneToMany
 
 Create a user and simultaneously link existing posts:
@@ -258,6 +324,8 @@ const result = gassma.Posts.create({
 ```
 
 In the above case, since Alice exists in the Users sheet, it behaves the same as connect. If she doesn't exist, a new record is created with the `create` data.
+
+Likewise for oneToOne (non-FK side): if the record is found, it behaves as the same replacement as connect; if not found, the related record is created with the FK automatically set.
 
 For oneToMany / manyToMany, you can specify multiple with an array:
 
@@ -347,3 +415,4 @@ The above is processed in the following order:
 | --- | --- |
 | `NestedWriteWithoutRelationsError` | Used nested write syntax without relation definitions |
 | `NestedWriteConnectNotFoundError` | Record not found with `connect` / `connectOrCreate` where condition |
+| `NestedWriteInvalidOperationError` | Specified an operation not supported for the relation type (e.g., `createMany` or array forms on oneToOne) |

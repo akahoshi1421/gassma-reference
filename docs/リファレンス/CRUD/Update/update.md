@@ -12,11 +12,15 @@ description: "レコードを 1 件更新する。数値のアトミック操作
 
 | キー名  | 内容                       | 省略 | 備考                                             |
 | ------- | -------------------------- | ---- | ------------------------------------------------ |
-| where   | 取得条件の指定             | 可   | 書かない場合は最初の行が対象になります           |
+| where   | 取得条件の指定             | 不可 | 複数行が一致する場合は最初の 1 行のみ更新されます |
 | data    | 更新するデータ             | 不可 |                                                  |
 | select  | 戻り値の取得列の表示設定   | 可   | `omit` / `include` と同時に使用できません        |
 | omit    | 戻り値の取得列の除外設定   | 可   | `select` と同時に使用できません                  |
 | include | リレーション先の取得       | 可   | [詳細はこちら](/docs/reference/relation/include) |
+
+:::note
+`where` と `data` は必須です。いずれかを省略すると `GassmaMissingArgumentError`（例: Argument `where` is missing.）がスローされます。空オブジェクト `{}` は省略とはみなされないため、`where: {}` は全行のうち最初の 1 行を更新します。
+:::
 
 ## 説明例用のシート
 
@@ -104,6 +108,12 @@ const result = gassma.sheet1.update({
   },
 });
 ```
+
+:::note
+数値操作は**数値カラムに対してのみ**利用できます。文字列カラムに `increment` などを指定すると型エラーになります。`@gassma.addType` で数値を含む複合型（例: `number | string`）にしたカラムも数値操作の対象になります。
+:::
+
+数値操作は `update` だけでなく、`updateMany` / `updateManyAndReturn`、`upsert` の `update`、および [Nested Write（update）](/docs/reference/relation/nested-write-update) の `update` の `data` でも同様に利用できます。
 
 ## Nested Write
 

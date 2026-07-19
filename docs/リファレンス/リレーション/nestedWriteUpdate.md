@@ -28,6 +28,23 @@ description: "update の中で update/delete/deleteMany/disconnect/set を使っ
 | disconnect | 対応 | 単一 / 配列 | 単一 / 配列 |
 | set | - | 対応 | 対応 |
 
+:::note
+manyToOne と oneToOne は使える操作の形は同じですが、動作が異なります。manyToOne（FK 保有側）は**自レコードの FK** を操作し、oneToOne（非FK側）は **FK を保有するリレーション先レコード**を操作します（[リレーション定義](/docs/reference/relation/definition)を参照）。
+:::
+
+### oneToOne（非FK側）の挙動
+
+| 操作 | 動作 | 対象レコードが存在しない場合 |
+| --- | --- | --- |
+| create | リレーション先レコードを FK 自動セットで作成 | - |
+| connect | 置き換え（既接続レコードの FK を null 化してから、対象レコードの FK を親にセット） | `NestedWriteConnectNotFoundError` |
+| connectOrCreate | 存在すれば connect と同じ置き換え、なければ FK 自動セットで作成 | - |
+| update | リレーション先レコードを更新（data を直接指定） | `NestedWriteTargetNotFoundError` |
+| disconnect: true | リレーション先レコードの FK を null 化 | 何もしない |
+| delete: true | リレーション先レコードを削除 | `NestedWriteTargetNotFoundError` |
+
+`set` / `deleteMany` / `createMany` / 配列形式の指定は `NestedWriteInvalidOperationError` になります。
+
 ## create
 
 リレーション先のレコードを新規作成して関連付けます。[create の Nested Write](/docs/reference/relation/nested-write) と同じ動作です。
@@ -60,6 +77,22 @@ gassma.Posts.update({
 });
 ```
 
+oneToOne（非FK側）では**置き換え**として動作します。すでに接続されているリレーション先レコードの FK を `null` にしてから、対象レコードの FK を親にセットします。
+
+```ts
+// oneToOne: ユーザーのプロフィールを別のプロフィールに置き換え
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: {
+      connect: { id: 2 },
+    },
+  },
+});
+// => Profiles の id: 1（既接続）の userId が null になった後、
+//    id: 2 の userId が Alice の id（= 1）に更新される
+```
+
 ## connectOrCreate
 
 既存のレコードがあれば関連付け、なければ新規作成して関連付けます。
@@ -83,9 +116,9 @@ gassma.Posts.update({
 
 関連するレコードを更新します。
 
-### manyToOne / oneToOne
+### manyToOne（FK 保有側）
 
-更新データを直接指定します。
+更新データを直接指定します。自レコードの FK が参照しているレコードが更新されます。
 
 ```ts
 // manyToOne: 投稿の著者名を更新
@@ -98,6 +131,26 @@ gassma.Posts.update({
   },
 });
 ```
+
+### oneToOne（非FK側）
+
+同じく更新データを直接指定します。親を参照しているリレーション先レコードが更新されます。
+
+```ts
+// oneToOne: ユーザーのプロフィールを更新
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: {
+      update: { bio: "更新後の自己紹介" },
+    },
+  },
+});
+```
+
+:::caution
+接続されているリレーション先レコードが存在しない場合、`NestedWriteTargetNotFoundError` がスローされます。
+:::
 
 ### oneToMany
 
@@ -135,7 +188,7 @@ gassma.Users.update({
 
 関連するレコードを削除します。
 
-### manyToOne / oneToOne
+### manyToOne（FK 保有側）
 
 `delete: true` を指定すると、関連先のレコードを削除し、自身の FK を `null` に設定します。
 
@@ -148,6 +201,25 @@ gassma.Posts.update({
   },
 });
 ```
+
+### oneToOne（非FK側）
+
+`delete: true` を指定すると、親を参照しているリレーション先レコードを削除します。自レコードは変更されません。
+
+```ts
+// oneToOne: ユーザーのプロフィールを削除
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: { delete: true },
+  },
+});
+// => Profiles の userId: 1 のレコードが削除される
+```
+
+:::caution
+接続されているリレーション先レコードが存在しない場合、`NestedWriteTargetNotFoundError` がスローされます。
+:::
 
 ### oneToMany
 
@@ -208,7 +280,7 @@ gassma.Users.update({
 
 リレーションの関連付けを解除します。レコード自体は削除されません。
 
-### manyToOne / oneToOne
+### manyToOne（FK 保有側）
 
 `disconnect: true` を指定すると、自身の FK を `null` に設定します。
 
@@ -222,6 +294,23 @@ gassma.Posts.update({
 });
 // => Posts の authorId が null になる
 ```
+
+### oneToOne（非FK側）
+
+`disconnect: true` を指定すると、親を参照しているリレーション先レコードの FK を `null` に設定します。
+
+```ts
+// oneToOne: ユーザーとプロフィールの関連付けを解除
+gassma.Users.update({
+  where: { name: "Alice" },
+  data: {
+    profile: { disconnect: true },
+  },
+});
+// => Profiles の userId: 1 が null になる
+```
+
+接続されているレコードが存在しない場合は何も行われません（エラーになりません）。
 
 ### oneToMany
 
@@ -332,3 +421,4 @@ gassma.Users.update({
 | `NestedWriteWithoutRelationsError` | リレーション定義なしで Nested Write を実行した |
 | `NestedWriteInvalidOperationError` | リレーション種別に対応しない操作を指定した |
 | `NestedWriteConnectNotFoundError` | connect / connectOrCreate で対象レコードが見つからなかった |
+| `NestedWriteTargetNotFoundError` | 非FK側 oneToOne の update / delete でリレーション先レコードが存在しなかった |

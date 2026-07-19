@@ -19,6 +19,10 @@ description: "レコードが存在すれば更新し、存在しなければ作
 | omit    | 戻り値の取得列の除外設定 | 可   | `select` と同時に使用できません          |
 | include | リレーション先の取得     | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
+:::note
+`where` / `create` / `update` はいずれも必須です。省略すると `GassmaMissingArgumentError`（例: Argument `create` is missing.）がスローされます。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

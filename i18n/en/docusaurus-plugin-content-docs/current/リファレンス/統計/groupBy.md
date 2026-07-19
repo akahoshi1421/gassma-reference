@@ -24,6 +24,10 @@ Use this when you want to group data.
 | by       | Specify grouping conditions                   | No       |                                                                               |
 | having   | Specify conditions after grouping             | Yes      | If omitted, all data is retrieved                                             |
 
+:::note
+`by` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `by` is missing.).
+:::
+
 :::tip
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
 :::

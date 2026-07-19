@@ -231,6 +231,19 @@ const result = gassma.Users.findMany({
 });
 ```
 
+`omit` is merged with the related model's [global omit](/docs/reference/config/global-omit). As with the top-level `omit`, specifying `false` re-includes a field hidden by the global omit for this fetch only:
+
+```ts
+// With a global omit excluding Posts.content
+const result = gassma.Users.findMany({
+  include: {
+    posts: {
+      omit: { content: false }, // content is returned (overrides the global omit)
+    },
+  },
+});
+```
+
 :::caution
 `select` and `omit` cannot be specified simultaneously.
 :::
