@@ -11,7 +11,7 @@ Updates the **first row** matching the specified conditions and retrieves the up
 
 | Key | Description | Optional | Notes |
 | --- | --- | --- | --- |
-| where | Specifies query conditions | Optional | Targets the first row if omitted |
+| where | Specifies query conditions | Required | If multiple rows match, only the first row is updated |
 | data | Data to update | Required | |
 | select | Display settings for return value columns | Optional | Cannot be used with `omit` / `include` |
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
