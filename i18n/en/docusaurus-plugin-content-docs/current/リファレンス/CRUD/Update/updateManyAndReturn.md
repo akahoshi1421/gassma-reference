@@ -17,6 +17,10 @@ Performs the same update operation as `updateMany`, but differs in the return va
 | data | Data to update | Required | |
 | limit | Maximum number of records to update | Optional | Negative values cause an error |
 
+:::note
+`data` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `data` is missing.). `where` is optional; if omitted, all rows are targeted.
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

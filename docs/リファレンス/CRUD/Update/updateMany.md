@@ -15,6 +15,10 @@ slug: /reference/crud/update/updateMany
 | data   | 更新するデータ             | 不可 |                                          |
 | limit  | 更新する最大件数           | 可   | 負数を指定するとエラーになります         |
 
+:::note
+`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。`where` は省略可能で、省略すると全行が対象になります。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

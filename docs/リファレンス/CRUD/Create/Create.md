@@ -16,6 +16,10 @@ slug: /reference/crud/create/create
 | omit    | 戻り値の取得列の除外設定   | 可   | `select` と同時に使用できません                  |
 | include | リレーション先の取得       | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
+:::note
+`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

@@ -18,6 +18,10 @@ Performs the same write operation as `createMany`, but differs in the return val
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
+:::note
+`data` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `data` is missing.).
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

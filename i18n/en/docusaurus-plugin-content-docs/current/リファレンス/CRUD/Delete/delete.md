@@ -16,6 +16,10 @@ Deletes the **first row** matching the specified conditions and retrieves the de
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
+:::caution
+`where` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `where` is missing.) and **never deletes all rows implicitly**. An empty object `{}` is not treated as omission, so passing `where: {}` deletes the first of all rows.
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

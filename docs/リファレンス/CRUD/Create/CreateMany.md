@@ -13,6 +13,10 @@ slug: /reference/crud/create/createMany
 | ------ | -------------------- | ---- |
 | data   | 登録するデータの指定 | 不可 |
 
+:::note
+`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

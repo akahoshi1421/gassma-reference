@@ -17,6 +17,10 @@ Updates the **first row** matching the specified conditions and retrieves the up
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
+:::note
+`where` and `data` are required. Omitting either throws `GassmaMissingArgumentError` (e.g., Argument `where` is missing.). An empty object `{}` is not treated as omission, so `where: {}` updates the first of all rows.
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

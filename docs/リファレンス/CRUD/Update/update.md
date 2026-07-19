@@ -17,6 +17,10 @@ slug: /reference/crud/update/update
 | omit    | 戻り値の取得列の除外設定   | 可   | `select` と同時に使用できません                  |
 | include | リレーション先の取得       | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
+:::note
+`where` と `data` は必須です。いずれかを省略すると `GassmaMissingArgumentError`（例: Argument `where` is missing.）がスローされます。空オブジェクト `{}` は省略とはみなされないため、`where: {}` は全行のうち最初の 1 行を更新します。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

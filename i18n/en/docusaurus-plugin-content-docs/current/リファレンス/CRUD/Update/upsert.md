@@ -18,6 +18,10 @@ Updates a record if it matches the specified conditions, or creates a new one if
 | omit | Exclusion settings for return value columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
+:::note
+`where` / `create` / `update` are all required. Omitting any of them throws `GassmaMissingArgumentError` (e.g., Argument `create` is missing.).
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

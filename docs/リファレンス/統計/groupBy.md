@@ -23,6 +23,10 @@ slug: /reference/statistics/groupBy
 | by      | グループ化条件の指定           | 不可 |
 | having  | グループ化した後の取得条件指定 | 可   | 書かない場合は全てのデータを取得します        |
 
+:::note
+`by` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `by` is missing.）がスローされます。
+:::
+
 :::tip
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
 :::
