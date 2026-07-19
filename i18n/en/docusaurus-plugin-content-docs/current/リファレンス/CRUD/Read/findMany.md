@@ -603,14 +603,18 @@ If the record specified in cursor is not found, an empty array is returned.
 
 ### Processing Order
 
-The execution order when `cursor` is included:
+The execution order when combining `where`, `orderBy`, `cursor`, `distinct`, `skip`, and `take`:
 
 1. `where` - Filter
 2. `orderBy` - Sort
-3. `distinct` - Deduplication
-4. `cursor` - Slice at cursor position
-5. `skip` / `take` - Pagination
-6. `select` / `omit` - Field shaping
+3. Reverse the order when `take` is negative
+4. `cursor` - Slice at cursor position (inclusive of the cursor itself)
+5. `distinct` - Deduplication
+6. `skip` - Skip
+7. `take` - Limit (when negative, takes the absolute number of records, then restores the order to normal at the end)
+8. `select` / `omit` - Field shaping
+
+`distinct` is applied **after** `cursor`. Duplicates are removed within the range sliced by the cursor.
 
 ## omit
 
@@ -666,6 +670,10 @@ const result = gassma.sheet1.findMany({
   distinct: ["age"],
 });
 ```
+
+Because `distinct` is applied after `cursor`, duplicates are removed within the range sliced by the cursor (see "Processing Order" above).
+
+When `take` is negative, deduplication runs on the reversed order, so the remaining "first occurrence" is the record on the tail side. The final output is restored to normal order.
 
 ## include
 
