@@ -104,6 +104,12 @@ const result = gassma.sheet1.update({
 });
 ```
 
+:::note
+数値操作は**数値カラムに対してのみ**利用できます。文字列カラムに `increment` などを指定すると型エラーになります。`@gassma.addType` で数値を含む複合型（例: `number | string`）にしたカラムも数値操作の対象になります。
+:::
+
+数値操作は `update` だけでなく、`updateMany` / `updateManyAndReturn`、`upsert` の `update`、および [Nested Write（update）](/docs/reference/relation/nested-write-update) の `update` の `data` でも同様に利用できます。
+
 ## Nested Write
 
 リレーション定義がある場合、`data` の中にリレーション先のレコードを同時に操作する記述ができます。

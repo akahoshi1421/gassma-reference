@@ -104,6 +104,12 @@ const result = gassma.sheet1.update({
 });
 ```
 
+:::note
+Number operations can only be used on **numeric columns**. Specifying `increment` and the like on a string column results in a type error. Columns made into a composite type that includes a number via `@gassma.addType` (e.g., `number | string`) are also eligible for number operations.
+:::
+
+Number operations can be used not only in `update` but also in `updateMany` / `updateManyAndReturn`, the `update` of `upsert`, and the `data` of the `update` operation in [Nested Write (update)](/docs/reference/relation/nested-write-update).
+
 ## Nested Write
 
 When relation definitions exist, you can describe operations on related records within `data`.
