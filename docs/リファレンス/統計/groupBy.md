@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/statistics/groupBy
+description: "フィールドでレコードをグループ化してグループごとに集計し、having でグループを絞り込む"
 ---
 
 # groupBy()

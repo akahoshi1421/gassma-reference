@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/relation/where-relation-filter
+description: "some/every/none（リストリレーション）と is/isNot（単一リレーション）で関連レコードによる絞り込みを行う"
 ---
 
 # where リレーションフィルタ

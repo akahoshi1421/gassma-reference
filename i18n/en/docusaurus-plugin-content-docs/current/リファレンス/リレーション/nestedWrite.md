@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 slug: /reference/relation/nested-write
+description: "Write related records inside create using create/connect/connectOrCreate"
 ---
 
 # Nested Write (create)

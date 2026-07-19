@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 slug: /reference/config/ignore
+description: "Exclude fields or whole sheets from all operations (@ignore / @@ignore)"
 ---
 
 # ignore / ignoreSheets (@ignore / @@ignore)

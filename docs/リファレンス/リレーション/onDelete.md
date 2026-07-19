@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/relation/on-delete
+description: "削除時の参照アクション（Cascade、SetNull、Restrict、NoAction）"
 ---
 
 # onDelete

@@ -39,6 +39,8 @@ const config: Config = {
     },
   },
 
+  plugins: ["./plugins/llms-txt/index.ts"],
+
   presets: [
     [
       "classic",

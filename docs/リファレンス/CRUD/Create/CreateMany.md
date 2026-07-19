@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/crud/create/createMany
+description: "複数のレコードを一括作成し、作成件数を取得する"
 ---
 
 # createMany()

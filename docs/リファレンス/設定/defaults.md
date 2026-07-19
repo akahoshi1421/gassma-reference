@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/config/defaults
+description: "作成時にフィールド値を固定値または関数で自動設定する（@default）"
 ---
 
 # defaults（@default）

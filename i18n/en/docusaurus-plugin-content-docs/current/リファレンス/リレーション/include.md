@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/relation/include
+description: "Fetch related records with where/orderBy/select options, nested include, and relation _count"
 ---
 
 # include

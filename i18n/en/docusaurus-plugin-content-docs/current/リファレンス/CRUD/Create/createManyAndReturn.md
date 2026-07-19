@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/create/createManyAndReturn
+description: "Create multiple records and return the created records"
 ---
 
 # createManyAndReturn()

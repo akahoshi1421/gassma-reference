@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/config/global-omit
+description: "Exclude fields from results by default per sheet"
 ---
 
 # Global omit

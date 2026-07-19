@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/statistics/groupBy
+description: "Group records by fields, aggregate per group, and filter groups with having"
 ---
 
 # groupBy()

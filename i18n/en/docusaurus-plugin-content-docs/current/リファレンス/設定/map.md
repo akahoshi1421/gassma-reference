@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/config/map
+description: "Map code-side names to spreadsheet headers and sheet names (@map / @@map)"
 ---
 
 # map / mapSheets (@map / @@map)

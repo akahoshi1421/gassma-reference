@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/crud/read/findFirst
+description: "where 条件に合致する最初のレコードを取得する。合致するものがなければ null を返す"
 ---
 
 # findFirst()

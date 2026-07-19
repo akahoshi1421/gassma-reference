@@ -1,6 +1,7 @@
 ---
 sidebar_position: 7
 slug: /reference/config/autoincrement
+description: "LockService + PropertiesService を使ったフィールドの自動インクリメント（GAS のみ）"
 ---
 
 # autoincrement

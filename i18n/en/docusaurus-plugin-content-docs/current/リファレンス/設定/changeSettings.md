@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/settings/changeSettings
+description: "Configure the data range of a sheet (start row and column range)"
 ---
 
 # changeSettings()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/delete/deleteMany
+description: "条件に合致するすべてのレコードを削除し、削除件数を取得する。limit に対応"
 ---
 
 # deleteMany()

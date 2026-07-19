@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/fields
+description: "FieldRef を使って where 条件内で同じ行の列同士を比較する"
 ---
 
 # fields（列同士の比較）

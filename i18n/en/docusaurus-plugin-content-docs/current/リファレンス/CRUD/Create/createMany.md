@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/crud/create/createMany
+description: "Create multiple records at once and get the created count"
 ---
 
 # createMany()

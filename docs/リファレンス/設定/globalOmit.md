@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/config/global-omit
+description: "シートごとに、結果からデフォルトで除外するフィールドを設定する"
 ---
 
 # グローバル omit

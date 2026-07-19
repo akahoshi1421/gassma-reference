@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/create/create
+description: "Create a single record; supports select/omit/include and nested writes"
 ---
 
 # create()

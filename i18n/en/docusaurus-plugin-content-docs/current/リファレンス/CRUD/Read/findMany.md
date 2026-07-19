@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/crud/read/findMany
+description: "Get multiple records with where, orderBy, take/skip, cursor pagination, and distinct"
 ---
 
 # findMany()

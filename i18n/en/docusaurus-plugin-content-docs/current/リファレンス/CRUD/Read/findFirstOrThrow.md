@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/read/findFirstOrThrow
+description: "Like findFirst but throws NotFoundError when no record matches"
 ---
 
 # findFirstOrThrow()

@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/update/updateManyAndReturn
+description: "Update all matching records and return the updated records"
 ---
 
 # updateManyAndReturn()

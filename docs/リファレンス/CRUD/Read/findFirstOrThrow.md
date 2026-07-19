@@ -1,6 +1,7 @@
 ---
 sidebar_position: 3
 slug: /reference/crud/read/findFirstOrThrow
+description: "findFirst と同様だが、レコードが見つからない場合に NotFoundError を投げる"
 ---
 
 # findFirstOrThrow()

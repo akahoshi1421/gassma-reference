@@ -1,6 +1,7 @@
 ---
 sidebar_position: 5
 slug: /reference/relation/on-update
+description: "Referential actions on update (Cascade, SetNull, Restrict, NoAction)"
 ---
 
 # onUpdate

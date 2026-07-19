@@ -14,15 +14,15 @@ llms.txt is a file format designed to help AI and LLMs (Large Language Models) e
 
 The GASsma reference provides the following two files:
 
-### llms.txt (Basic Version)
-- **Access URL**: [/llms.txt](/llms.txt)
-- **Content**: Basic usage of GASsma, API overview, and descriptions of key features
-- **Intended for**: When you want to learn basic usage or need concise information
+### llms.txt (Index Version)
+- **Access URL**: [/llms.txt](pathname:///llms.txt)
+- **Content**: A curated table of contents following the llmstxt.org standard: an overview of GASsma plus a list of links to each reference page with descriptions
+- **Intended for**: When an AI needs to find and consult the relevant documentation page per topic
 
 ### llms-full.txt (Full Version)
-- **Access URL**: [/llms-full.txt](/llms-full.txt)
-- **Content**: Complete technical specifications of GASsma, edge cases, and implementation details
-- **Intended for**: When you need detailed implementation, advanced usage, or troubleshooting
+- **Access URL**: [/llms-full.txt](pathname:///llms-full.txt)
+- **Content**: The full content of every documentation page concatenated into a single file (auto-generated at build time from the same content as each page's Markdown version)
+- **Intended for**: When you need detailed implementation, advanced usage, troubleshooting, or want to pass the entire documentation as context
 
 ## Usage
 
@@ -37,8 +37,8 @@ These files are primarily used for the following purposes:
 ## File Format Features
 
 - **Markdown format**: Easy to read for both humans and machines
-- **Structured information**: Clear hierarchical structure with section divisions
-- **Practical code examples**: Ready-to-use TypeScript/JavaScript sample code
+- **Standard-compliant index**: llms.txt follows the llmstxt.org standard structure of an H1 title, a summary, and per-section link lists
+- **Practical code examples**: llms-full.txt contains ready-to-use TypeScript/JavaScript sample code
 - **Comprehensive reference**: Covers everything from API details to usage examples
 
 ## Update Information

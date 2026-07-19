@@ -1,6 +1,7 @@
 ---
 sidebar_position: 6
 slug: /reference/relation/nested-write-update
+description: "update の中で update/delete/deleteMany/disconnect/set を使って関連レコードを変更する"
 ---
 
 # Nested Write（update）

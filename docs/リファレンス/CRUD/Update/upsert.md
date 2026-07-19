@@ -1,6 +1,7 @@
 ---
 sidebar_position: 4
 slug: /reference/crud/update/upsert
+description: "レコードが存在すれば更新し、存在しなければ作成する"
 ---
 
 # upsert()
