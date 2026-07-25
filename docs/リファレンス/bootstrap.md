@@ -123,7 +123,7 @@ global.main = main;
 | --- | --- |
 | `build` | `node esbuild.mjs`（`src/index.ts` を `dist/index.js` にバンドル） |
 | `push` | `clasp push` |
-| `open` | `clasp open` |
+| `open` | `clasp open-script` |
 | `deploy` | `npm run build && npm run push` |
 
 ### .gitignore について
@@ -180,6 +180,6 @@ npm / pnpm / yarn / bun を自動検出し（検出できない場合は npm）�
 1. `gassma/schema.prisma` を編集してモデルを定義する
 2. `npx gassma generate` で型付きクライアントを生成する
 3. `npm run deploy` でビルドして Apps Script に push する
-4. `npx clasp open` で Apps Script エディタを開く
+4. `npm run open` で Apps Script エディタを開く
 
 スキーマの書き方や `gassma generate` の詳細は [Prisma スキーマを利用したローカル開発](/docs/reference/type-generation) を参照してください。

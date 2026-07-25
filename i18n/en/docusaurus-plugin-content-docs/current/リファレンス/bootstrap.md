@@ -123,7 +123,7 @@ If the existing manifest already has `exceptionLogging` or `runtimeVersion` set,
 | --- | --- |
 | `build` | `node esbuild.mjs` (bundles `src/index.ts` into `dist/index.js`) |
 | `push` | `clasp push` |
-| `open` | `clasp open` |
+| `open` | `clasp open-script` |
 | `deploy` | `npm run build && npm run push` |
 
 ### About .gitignore
@@ -179,6 +179,6 @@ When setup completes, the following steps are shown.
 1. Edit `gassma/schema.prisma` to define your models
 2. Run `npx gassma generate` to generate the typed client
 3. Run `npm run deploy` to build and push to Apps Script
-4. Run `npx clasp open` to open the project in the Apps Script editor
+4. Run `npm run open` to open the project in the Apps Script editor
 
 For how to write schemas and the details of `gassma generate`, see [Local Development with Prisma Schema](/docs/reference/type-generation).
