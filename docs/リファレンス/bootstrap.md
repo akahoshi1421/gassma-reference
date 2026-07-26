@@ -9,13 +9,15 @@ description: "npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma の
 `npx gassma bootstrap` は、GAS のローカル開発環境（clasp + esbuild + TypeScript + GASsma ライブラリ）をコマンド一発で新規セットアップするコマンドです。
 
 ```
-$ npx gassma bootstrap
+$ npx gassma bootstrap my-app   # my-app/ を作成してその中に構築
+$ npx gassma bootstrap          # 最初に構築先ディレクトリを質問（デフォルト: gassma-project）
+$ npx gassma bootstrap .        # カレントディレクトリに構築
 ```
 
-`npx` で実行できるため、事前のインストールは不要です。実行すると対話形式で質問が進み、Apps Script プロジェクトの作成からビルド設定・スキーマファイルの生成・依存パッケージのインストールまでが完了します。
+`npx` で実行できるため、事前のインストールは不要です。実行すると対話形式で質問が進み、構築先ディレクトリの作成・Apps Script プロジェクトの作成からビルド設定・スキーマファイルの生成・依存パッケージのインストールまでが完了します。
 
 :::note
-このコマンドは**新規プロジェクト専用**です。空のディレクトリで実行することを想定しています（既存ファイルがある場合は上書きせずスキップまたはマージされます。後述の「冪等性」を参照）。
+構築先ディレクトリはコマンドが自動で作成するため、事前にディレクトリを用意する必要はありません。`.` を指定すれば既存のカレントディレクトリにも構築できます。既存ファイルがある場合は上書きせずスキップまたはマージされます（後述の「ディレクトリの扱い」「冪等性」を参照）。
 :::
 
 ## 前提
@@ -41,11 +43,19 @@ Then log in with: clasp login
 
 以下の順で質問されます（プロンプトは実際の文言です）。
 
-### 1. Project title?
+### 1. Project directory?
 
-作成する Apps Script プロジェクトのタイトルです。デフォルトはカレントディレクトリ名です。
+プロジェクトを構築するディレクトリです。デフォルトは `gassma-project` で、`.` を入力するとカレントディレクトリに構築します。存在しないディレクトリは作成され、存在して空でない場合は続行確認が出ます（後述の「ディレクトリの扱い」を参照）。
 
-### 2. Create a new spreadsheet as well?
+:::note
+コマンド引数でディレクトリを指定した場合（`npx gassma bootstrap my-app` や `npx gassma bootstrap .`）、この質問はスキップされます。
+:::
+
+### 2. Project title?
+
+作成する Apps Script プロジェクトのタイトルです。デフォルトは構築先ディレクトリ名（引数または質問 1 で指定したディレクトリの名前）です。
+
+### 3. Create a new spreadsheet as well?
 
 **Yes**（デフォルト）にすると、新しいスプレッドシートを作成し、それに紐づくコンテナバインド型のスクリプトが作られます（`clasp create-script --type sheets`）。**No** の場合はスタンドアロン型（`--type standalone`）になります。
 
@@ -55,7 +65,7 @@ Then log in with: clasp login
 既に `.clasp.json` が存在する場合、この質問と `clasp create-script` はスキップされます（`Found an existing .clasp.json. Skipping clasp create-script.`）。
 :::
 
-### 3. Function exposure style?
+### 4. Function exposure style?
 
 GAS に関数を露出させるスタイルを選びます。選択肢の前に、それぞれのサンプルコードが表示されます。
 
@@ -81,11 +91,11 @@ global.main = main;
 
 選んだスタイルに応じて、生成される `esbuild.mjs` のプラグインと `package.json` の devDependencies が切り替わります。
 
-### 4. Generate a sample src/index.ts?
+### 5. Generate a sample src/index.ts?
 
 **Yes**（デフォルト）にすると、選んだスタイルのサンプルコードが `src/index.ts` として生成されます。
 
-### 5. Install dependencies now?
+### 6. Install dependencies now?
 
 **Yes**（デフォルト）にすると、検出されたパッケージマネージャで依存パッケージをインストールします（例: `Install dependencies now? (npm install)`）。`--skip-install` 指定時はこの質問自体が出ません。
 
@@ -99,7 +109,7 @@ global.main = main;
 | `esbuild.mjs` | 選んだスタイルに応じたビルド設定 |
 | `tsconfig.json` | GAS 向けの TypeScript 設定（`@types/google-apps-script`） |
 | `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*`（`dist/appsscript.json` を除く） |
-| `src/index.ts` | サンプルコード（質問 4 で Yes の場合のみ） |
+| `src/index.ts` | サンプルコード（質問 5 で Yes の場合のみ） |
 | `gassma/schema.prisma` / `gassma.config.ts` | `gassma init` 相当（サンプル User モデル入りのスキーマと設定ファイル） |
 
 ### dist/appsscript.json
@@ -123,7 +133,7 @@ global.main = main;
 | --- | --- |
 | `build` | `node esbuild.mjs`（`src/index.ts` を `dist/index.js` にバンドル） |
 | `push` | `clasp push` |
-| `open` | `clasp open` |
+| `open` | `clasp open-script` |
 | `deploy` | `npm run build && npm run push` |
 
 ### .gitignore について
@@ -134,13 +144,17 @@ global.main = main;
 Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
 ```
 
-## オプション
+## 引数とオプション
+
+| 引数 | 説明 |
+| --- | --- |
+| `[directory]` | プロジェクトを構築するディレクトリ（`.` でカレントディレクトリ）。省略時は対話で質問されます |
 
 | オプション | 説明 |
 | --- | --- |
-| `--yes` | すべての質問にデフォルト値で回答（非対話モード） |
+| `--yes` | すべての質問にデフォルト値で回答（非対話モード）。引数なしの場合は `./gassma-project` を作成して構築し、非空ディレクトリの続行確認も自動で続行します |
 | `--skip-install` | 依存パッケージのインストールをスキップ |
-| `--dry-run` | ファイルの書き込みやコマンド実行を行わず、実行予定の内容のみ表示 |
+| `--dry-run` | ファイルの書き込み・ディレクトリの作成・コマンド実行を行わず、実行予定の内容のみ表示（ディレクトリ作成も `create directory my-app` のように plan として表示されます） |
 
 :::note
 対話できないターミナル（CI など）では `--yes` が必須です。指定がない場合は
@@ -149,6 +163,13 @@ Note: .clasp.json is gitignored. Restore it from your team's secret store when s
 :::
 
 ## 挙動の詳細
+
+### ディレクトリの扱い
+
+- 指定したディレクトリが存在しない場合は作成し、その中に構築します。
+- 存在して空でない場合は `Directory "my-app" is not empty. Continue?`（デフォルト **No**）と確認されます。No を選ぶと何も変更せず `Bootstrap cancelled.` と表示して安全に終了します。`--yes` 指定時は自動的に続行します。
+- このため、途中で中断したセットアップは同じコマンドをもう一度実行し、続行確認に Yes と答えるだけで再開できます（生成済みのファイルは後述の「冪等性」によりスキップ/マージされます）。
+- 同名の**ディレクトリでないファイル**が既に存在する場合は `"my-app" already exists and is not a directory.` というエラーで終了します。
 
 ### 冪等性
 
@@ -180,6 +201,6 @@ npm / pnpm / yarn / bun を自動検出し（検出できない場合は npm）�
 1. `gassma/schema.prisma` を編集してモデルを定義する
 2. `npx gassma generate` で型付きクライアントを生成する
 3. `npm run deploy` でビルドして Apps Script に push する
-4. `npx clasp open` で Apps Script エディタを開く
+4. `npm run open` で Apps Script エディタを開く
 
 スキーマの書き方や `gassma generate` の詳細は [Prisma スキーマを利用したローカル開発](/docs/reference/type-generation) を参照してください。

@@ -9,13 +9,15 @@ description: "Set up a local development environment with clasp + esbuild + Type
 `npx gassma bootstrap` is a command that sets up a local GAS development environment (clasp + esbuild + TypeScript + GASsma library) for a new project in one shot.
 
 ```
-$ npx gassma bootstrap
+$ npx gassma bootstrap my-app   # create my-app/ and set up inside it
+$ npx gassma bootstrap          # ask for a directory first (default: gassma-project)
+$ npx gassma bootstrap .        # set up in the current directory
 ```
 
-Since it runs via `npx`, no prior installation is required. When executed, it walks you through interactive questions and completes everything from creating the Apps Script project to build configuration, schema file generation, and dependency installation.
+Since it runs via `npx`, no prior installation is required. When executed, it walks you through interactive questions and completes everything from creating the target directory and the Apps Script project to build configuration, schema file generation, and dependency installation.
 
 :::note
-This command is intended for **new projects only**. It is designed to be run in an empty directory (existing files are skipped or merged instead of overwritten. See "Idempotency" below).
+The target directory is created by the command itself, so you do not need to prepare one in advance. Passing `.` sets up in the existing current directory. Existing files are skipped or merged instead of overwritten (see "Directory Handling" and "Idempotency" below).
 :::
 
 ## Prerequisites
@@ -41,11 +43,19 @@ Then log in with: clasp login
 
 You will be asked the following questions in order (the prompts are the actual wording).
 
-### 1. Project title?
+### 1. Project directory?
 
-The title of the Apps Script project to create. Defaults to the current directory name.
+The directory to set up the project in. Defaults to `gassma-project`; entering `.` sets up in the current directory. A directory that does not exist is created, and if it exists and is not empty, a confirmation is asked before continuing (see "Directory Handling" below).
 
-### 2. Create a new spreadsheet as well?
+:::note
+If you pass a directory as a command argument (`npx gassma bootstrap my-app` or `npx gassma bootstrap .`), this question is skipped.
+:::
+
+### 2. Project title?
+
+The title of the Apps Script project to create. Defaults to the target directory name (the name of the directory given as the argument or in question 1).
+
+### 3. Create a new spreadsheet as well?
 
 With **Yes** (the default), a new spreadsheet is created together with a container-bound script attached to it (`clasp create-script --type sheets`). With **No**, a standalone script is created (`--type standalone`).
 
@@ -55,7 +65,7 @@ After this, `clasp create-script` runs and generates `.clasp.json` (with `rootDi
 If `.clasp.json` already exists, this question and `clasp create-script` are skipped (`Found an existing .clasp.json. Skipping clasp create-script.`).
 :::
 
-### 3. Function exposure style?
+### 4. Function exposure style?
 
 Choose how functions are exposed to GAS. Sample code for each style is shown before the choices.
 
@@ -81,11 +91,11 @@ global.main = main;
 
 The plugin in the generated `esbuild.mjs` and the devDependencies in `package.json` are switched according to the selected style.
 
-### 4. Generate a sample src/index.ts?
+### 5. Generate a sample src/index.ts?
 
 With **Yes** (the default), sample code for the selected style is generated as `src/index.ts`.
 
-### 5. Install dependencies now?
+### 6. Install dependencies now?
 
 With **Yes** (the default), dependencies are installed with the detected package manager (e.g. `Install dependencies now? (npm install)`). This question is not asked when `--skip-install` is specified.
 
@@ -99,7 +109,7 @@ With **Yes** (the default), dependencies are installed with the detected package
 | `esbuild.mjs` | Build configuration for the selected style |
 | `tsconfig.json` | TypeScript configuration for GAS (`@types/google-apps-script`) |
 | `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*` (except `dist/appsscript.json`) |
-| `src/index.ts` | Sample code (only if you answered Yes to question 4) |
+| `src/index.ts` | Sample code (only if you answered Yes to question 5) |
 | `gassma/schema.prisma` / `gassma.config.ts` | Equivalent to `gassma init` (schema with a sample User model and the config file) |
 
 ### dist/appsscript.json
@@ -123,7 +133,7 @@ If the existing manifest already has `exceptionLogging` or `runtimeVersion` set,
 | --- | --- |
 | `build` | `node esbuild.mjs` (bundles `src/index.ts` into `dist/index.js`) |
 | `push` | `clasp push` |
-| `open` | `clasp open` |
+| `open` | `clasp open-script` |
 | `deploy` | `npm run build && npm run push` |
 
 ### About .gitignore
@@ -134,13 +144,17 @@ If the existing manifest already has `exceptionLogging` or `runtimeVersion` set,
 Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
 ```
 
-## Options
+## Arguments and Options
+
+| Argument | Description |
+| --- | --- |
+| `[directory]` | Directory to set up the project in (`.` for the current directory). Omitting it prompts for one |
 
 | Option | Description |
 | --- | --- |
-| `--yes` | Answer all prompts with their default values (non-interactive mode) |
+| `--yes` | Answer all prompts with their default values (non-interactive mode). Without an argument, `./gassma-project` is created and set up, and the non-empty directory confirmation is answered with continue |
 | `--skip-install` | Skip dependency installation |
-| `--dry-run` | Show planned actions without writing files or running commands |
+| `--dry-run` | Show planned actions without writing files, creating directories, or running commands (directory creation is also shown as a plan entry like `create directory my-app`) |
 
 :::note
 In a non-interactive terminal (such as CI), `--yes` is required. Without it, the command exits with
@@ -148,6 +162,13 @@ In a non-interactive terminal (such as CI), `--yes` is required. Without it, the
 :::
 
 ## Behavior Details
+
+### Directory Handling
+
+- If the specified directory does not exist, it is created and the project is set up inside it.
+- If it exists and is not empty, `Directory "my-app" is not empty. Continue?` (default **No**) is asked. Choosing No exits safely with `Bootstrap cancelled.` without changing anything. With `--yes`, the command continues automatically.
+- Because of this, an interrupted setup can be resumed simply by running the same command again and answering Yes to the confirmation (already generated files are skipped/merged as described in "Idempotency" below).
+- If a **non-directory file** with the same name already exists, the command exits with the error `"my-app" already exists and is not a directory.`
 
 ### Idempotency
 
@@ -179,6 +200,6 @@ When setup completes, the following steps are shown.
 1. Edit `gassma/schema.prisma` to define your models
 2. Run `npx gassma generate` to generate the typed client
 3. Run `npm run deploy` to build and push to Apps Script
-4. Run `npx clasp open` to open the project in the Apps Script editor
+4. Run `npm run open` to open the project in the Apps Script editor
 
 For how to write schemas and the details of `gassma generate`, see [Local Development with Prisma Schema](/docs/reference/type-generation).
