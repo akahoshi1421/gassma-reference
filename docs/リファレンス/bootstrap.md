@@ -110,6 +110,7 @@ global.main = main;
 | `tsconfig.json` | GAS 向けの TypeScript 設定（`@types/google-apps-script`） |
 | `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*`（`dist/appsscript.json` を除く） |
 | `src/index.ts` | サンプルコード（質問 5 で Yes の場合のみ） |
+| `AGENTS.md` | コーディングエージェント向けのプロジェクト案内（コマンド・開発フロー・制約と GASsma リファレンスへの導線） |
 | `gassma/schema.prisma` / `gassma.config.ts` | `gassma init` 相当（サンプル User モデル入りのスキーマと設定ファイル） |
 
 ### dist/appsscript.json
@@ -176,7 +177,7 @@ Note: .clasp.json is gitignored. Restore it from your team's secret store when s
 再実行しても安全なように設計されています。
 
 - `.clasp.json` が存在する場合、`clasp create-script` はスキップされます。
-- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` は、既に存在する場合スキップされます。
+- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` は、既に存在する場合スキップされます。
 - `package.json` が既に存在する場合は、bootstrap の設定が**マージ**されます（既存の値が優先されます）。
 - `.gitignore` が既に存在する場合は、不足しているエントリのみ追記されます。
 - `dist/appsscript.json` に GASsma ライブラリのエントリが既にある場合は、重複追加されません。

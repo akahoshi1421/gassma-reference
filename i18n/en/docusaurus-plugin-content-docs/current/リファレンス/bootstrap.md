@@ -110,6 +110,7 @@ With **Yes** (the default), dependencies are installed with the detected package
 | `tsconfig.json` | TypeScript configuration for GAS (`@types/google-apps-script`) |
 | `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*` (except `dist/appsscript.json`) |
 | `src/index.ts` | Sample code (only if you answered Yes to question 5) |
+| `AGENTS.md` | Project guidance for coding agents (commands, development flow, constraints, and a pointer to the GASsma reference) |
 | `gassma/schema.prisma` / `gassma.config.ts` | Equivalent to `gassma init` (schema with a sample User model and the config file) |
 
 ### dist/appsscript.json
@@ -175,7 +176,7 @@ In a non-interactive terminal (such as CI), `--yes` is required. Without it, the
 The command is designed to be safe to re-run.
 
 - If `.clasp.json` exists, `clasp create-script` is skipped.
-- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` are skipped if they already exist.
+- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` are skipped if they already exist.
 - If `package.json` already exists, the bootstrap settings are **merged** into it (existing values win).
 - If `.gitignore` already exists, only the missing entries are appended.
 - If `dist/appsscript.json` already has the GASsma library entry, it is not added twice.
