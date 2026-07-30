@@ -91,11 +91,23 @@ global.main = main;
 
 選んだスタイルに応じて、生成される `esbuild.mjs` のプラグインと `package.json` の devDependencies が切り替わります。
 
-### 5. Generate a sample src/index.ts?
+### 5. Linter and formatter setup?
+
+リンタとフォーマッタの構成を選びます。
+
+| 選択肢 | 説明 |
+| --- | --- |
+| `oxlint + oxfmt` | recommended（デフォルト） |
+| `eslint + prettier` | ESLint（typescript-eslint）+ Prettier |
+| `none` | リンタもフォーマッタも導入しない |
+
+`--yes` 指定時はデフォルトの `oxlint + oxfmt` が選ばれます。選択に応じて `package.json` の devDependencies と `lint` / `lint:fix` / `format` / `format:check` スクリプト、生成される設定ファイルが変わります（後述の「リンタ / フォーマッタの選択」を参照）。
+
+### 6. Generate a sample src/index.ts?
 
 **Yes**（デフォルト）にすると、選んだスタイルのサンプルコードが `src/index.ts` として生成されます。
 
-### 6. Install dependencies now?
+### 7. Install dependencies now?
 
 **Yes**（デフォルト）にすると、検出されたパッケージマネージャで依存パッケージをインストールします（例: `Install dependencies now? (npm install)`）。`--skip-install` 指定時はこの質問自体が出ません。
 
@@ -105,11 +117,14 @@ global.main = main;
 | --- | --- |
 | `.clasp.json` | `clasp create-script` が生成（`rootDir: ./dist`） |
 | `dist/appsscript.json` | GASsma ライブラリ依存・`timeZone`・`exceptionLogging: STACKDRIVER`・`runtimeVersion: V8` を自動設定 |
-| `package.json` | `build` / `push` / `open` / `deploy` スクリプトと依存パッケージ |
+| `package.json` | `build` / `push` / `open` / `deploy` スクリプトと依存パッケージ（質問 5 の選択に応じて lint / format 系スクリプトも） |
 | `esbuild.mjs` | 選んだスタイルに応じたビルド設定 |
 | `tsconfig.json` | GAS 向けの TypeScript 設定（`@types/google-apps-script`） |
 | `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*`（`dist/appsscript.json` を除く） |
-| `src/index.ts` | サンプルコード（質問 5 で Yes の場合のみ） |
+| `.oxlintrc.json` | oxlint の設定（質問 5 で `oxlint + oxfmt` を選んだ場合のみ） |
+| `eslint.config.mjs` / `.prettierrc` | ESLint / Prettier の設定（質問 5 で `eslint + prettier` を選んだ場合のみ） |
+| `src/index.ts` | サンプルコード（質問 6 で Yes の場合のみ） |
+| `AGENTS.md` | コーディングエージェント向けのプロジェクト案内（コマンド・開発フロー・制約と GASsma リファレンスへの導線） |
 | `gassma/schema.prisma` / `gassma.config.ts` | `gassma init` 相当（サンプル User モデル入りのスキーマと設定ファイル） |
 
 ### dist/appsscript.json
@@ -135,6 +150,82 @@ global.main = main;
 | `push` | `clasp push` |
 | `open` | `clasp open-script` |
 | `deploy` | `npm run build && npm run push` |
+
+質問 5 で `oxlint + oxfmt` または `eslint + prettier` を選んだ場合は、これに加えて `lint` / `lint:fix` / `format` / `format:check` が追加されます（内容は次節を参照）。
+
+なお、新規生成される `package.json` の `devDependencies` はアルファベット順にソートされて書き出されます（フォーマッタのチェックがソート済みを前提とするため）。
+
+### リンタ / フォーマッタの選択
+
+質問 5 の選択によって、追加される devDependencies・npm スクリプト・設定ファイルが変わります。
+
+#### oxlint + oxfmt（推奨）
+
+devDependencies に `oxlint@^1.76.0` と `oxfmt@^0.61.0` が追加されます。
+
+| スクリプト | 内容 |
+| --- | --- |
+| `lint` | `oxlint` |
+| `lint:fix` | `oxlint --fix` |
+| `format` | `oxfmt` |
+| `format:check` | `oxfmt --check` |
+
+`.oxlintrc.json` が生成されます。
+
+```json
+{
+  "plugins": ["typescript"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["dist/**", "src/generated/**"]
+}
+```
+
+#### eslint + prettier
+
+devDependencies に `eslint@^10.8.0` / `eslint-config-prettier@^10.1.8` / `prettier@^3.9.6` / `typescript-eslint@^8.65.0` が追加されます。
+
+| スクリプト | 内容 |
+| --- | --- |
+| `lint` | `eslint .` |
+| `lint:fix` | `eslint . --fix` |
+| `format` | `prettier --write .` |
+| `format:check` | `prettier --check .` |
+
+`eslint.config.mjs` と `.prettierrc` が生成されます。
+
+```js
+import { defineConfig, globalIgnores } from "eslint/config";
+import prettier from "eslint-config-prettier/flat";
+import tseslint from "typescript-eslint";
+
+export default defineConfig([
+  globalIgnores(["dist/**", "src/generated/**"]),
+  {
+    files: ["**/*.ts"],
+    extends: [tseslint.configs.recommended, prettier],
+  },
+]);
+```
+
+```json
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all"
+}
+```
+
+#### none
+
+devDependencies・スクリプト・設定ファイルのいずれも追加されません。
+
+:::note
+bootstrap が用意するのは上記までです。次のものは導入しません（必要な場合はプロジェクト側で追加してください）。
+
+- pre-commit フック（husky / lint-staged など）
+- oxlint の type-aware lint（`oxlint-tsgolint`）
+- oxfmt の設定ファイル（デフォルト設定のまま使います）
+:::
 
 ### .gitignore について
 
@@ -176,7 +267,8 @@ Note: .clasp.json is gitignored. Restore it from your team's secret store when s
 再実行しても安全なように設計されています。
 
 - `.clasp.json` が存在する場合、`clasp create-script` はスキップされます。
-- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` は、既に存在する場合スキップされます。
+- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` は、既に存在する場合スキップされます。
+- リンタ / フォーマッタの設定ファイル（`.oxlintrc.json` / `eslint.config.mjs` / `.prettierrc`、質問 5 で選んだ場合に生成）も、既に存在する場合スキップされます。
 - `package.json` が既に存在する場合は、bootstrap の設定が**マージ**されます（既存の値が優先されます）。
 - `.gitignore` が既に存在する場合は、不足しているエントリのみ追記されます。
 - `dist/appsscript.json` に GASsma ライブラリのエントリが既にある場合は、重複追加されません。
