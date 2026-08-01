@@ -91,7 +91,7 @@ The behavior also differs when passing an empty array:
 ```ts
 // createMany
 gassma.sheet1.createMany({ data: [] });
-// => undefined
+// => { count: 0 }
 
 // createManyAndReturn
 gassma.sheet1.createManyAndReturn({ data: [] });
