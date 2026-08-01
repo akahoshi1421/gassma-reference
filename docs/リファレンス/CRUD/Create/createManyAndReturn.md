@@ -91,7 +91,7 @@ const result = gassma.sheet1.createManyAndReturn({
 ```ts
 // createMany の場合
 gassma.sheet1.createMany({ data: [] });
-// => undefined
+// => { count: 0 }
 
 // createManyAndReturn の場合
 gassma.sheet1.createManyAndReturn({ data: [] });
