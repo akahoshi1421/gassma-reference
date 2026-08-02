@@ -136,3 +136,5 @@ The answer is: if a malicious user enters a spreadsheet formula like `=C1` in th
 
 <hr/>
 The library that solves these problems is **"GASsma"**.
+
+Note that formula injection is prevented by automatic escaping at write time. If you intentionally want to write a formula, see [raw](/docs/reference/raw).
