@@ -17,7 +17,7 @@ Use this when you want to group data.
 | take     | Set the number of records to retrieve         | Yes      |                                                                               |
 | skip     | Set the number of records to skip             | Yes      |                                                                               |
 | \_avg    | Average display settings                      | Yes      |                                                                               |
-| \_count  | Hit count display settings                    | Yes      |                                                                               |
+| \_count  | Hit count display settings                    | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
 | \_max    | Maximum value display settings                | Yes      |                                                                               |
 | \_min    | Minimum value display settings                | Yes      |                                                                               |
 | \_sum    | Sum display settings                          | Yes      |                                                                               |
@@ -200,3 +200,66 @@ The return value is in the following format.
   { pref: "Fukuoka", _avg: { age: 33 } },
 ];
 ```
+
+### _count
+
+With `_count`, you can count the number of rows in each group. If you specify a column name, only rows whose value in that column is not null (an empty cell) are counted, while `_all: true` counts all rows, including null.
+
+For example, suppose you want to perform the following operations.
+
+- Group by pref
+- Display the number of rows in each group
+
+The code would be as follows.
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
+  by: ["pref"],
+  _count: { _all: true },
+});
+```
+
+The return value is in the following format.
+
+```ts
+[
+  { pref: "Ibaraki", _count: { _all: 1 } },
+  { pref: "Tokyo", _count: { _all: 2 } },
+  { pref: "Osaka", _count: { _all: 1 } },
+  { pref: "Aichi", _count: { _all: 1 } },
+  { pref: "Shiga", _count: { _all: 1 } },
+  { pref: "Kyoto", _count: { _all: 1 } },
+  { pref: "Tottori", _count: { _all: 1 } },
+  { pref: "Fukuoka", _count: { _all: 1 } },
+];
+```
+
+If you use the `_count: true` shorthand, the row count is returned directly as a number.
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
+  by: ["pref"],
+  _count: true,
+});
+```
+
+The return value is in the following format.
+
+```ts
+[
+  { pref: "Ibaraki", _count: 1 },
+  { pref: "Tokyo", _count: 2 },
+  { pref: "Osaka", _count: 1 },
+  { pref: "Aichi", _count: 1 },
+  { pref: "Shiga", _count: 1 },
+  { pref: "Kyoto", _count: 1 },
+  { pref: "Tottori", _count: 1 },
+  { pref: "Fukuoka", _count: 1 },
+];
+```
+
+:::note
+`_all` and the `true` shorthand are exclusive to `_count` and cannot be used with `_avg` / `_max` / `_min` / `_sum`. See [\_count in aggregate](/docs/reference/statistics/aggregate#_count) for details.
+:::

@@ -17,7 +17,7 @@ description: "フィールドでレコードをグループ化してグループ
 | take    | 取得数の設定                   | 可   |
 | skip    | スキップ数の設定               | 可   |
 | \_avg   | 平均表示の設定                 | 可   |
-| \_count | ヒット数表示の設定             | 可   |
+| \_count | ヒット数表示の設定             | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
 | \_max   | 最大値表示の設定               | 可   |
 | \_min   | 最小値表示の設定               | 可   |
 | \_sum   | 合計表示の設定                 | 可   |
@@ -200,3 +200,66 @@ const result = gassma.sheet1.groupBy({
   { pref: "Fukuoka", _avg: { age: 33 } },
 ];
 ```
+
+### _count
+
+`_count` では各グループの行数を数えられます。列名を指定するとその列の値が null（空のセル）ではない行のみを、`_all: true` を指定すると null を含む全ての行数を数えます。
+
+例えば以下の処理を行いたいとします。
+
+- pref でグループ化
+- 各グループの行数を表示
+
+この場合以下のコードとなります。
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
+  by: ["pref"],
+  _count: { _all: true },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+[
+  { pref: "Ibaraki", _count: { _all: 1 } },
+  { pref: "Tokyo", _count: { _all: 2 } },
+  { pref: "Osaka", _count: { _all: 1 } },
+  { pref: "Aichi", _count: { _all: 1 } },
+  { pref: "Shiga", _count: { _all: 1 } },
+  { pref: "Kyoto", _count: { _all: 1 } },
+  { pref: "Tottori", _count: { _all: 1 } },
+  { pref: "Fukuoka", _count: { _all: 1 } },
+];
+```
+
+`_count: true` と省略すると、行数が数値としてそのまま返されます。
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.groupBy
+const result = gassma.sheet1.groupBy({
+  by: ["pref"],
+  _count: true,
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+[
+  { pref: "Ibaraki", _count: 1 },
+  { pref: "Tokyo", _count: 2 },
+  { pref: "Osaka", _count: 1 },
+  { pref: "Aichi", _count: 1 },
+  { pref: "Shiga", _count: 1 },
+  { pref: "Kyoto", _count: 1 },
+  { pref: "Tottori", _count: 1 },
+  { pref: "Fukuoka", _count: 1 },
+];
+```
+
+:::note
+`_all` と `true` 省略形は `_count` 専用で、`_avg` / `_max` / `_min` / `_sum` では利用できません。詳細は [aggregate の \_count](/docs/reference/statistics/aggregate#_count) を参照してください。
+:::
