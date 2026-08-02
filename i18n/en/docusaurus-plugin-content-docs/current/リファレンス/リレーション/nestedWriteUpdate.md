@@ -10,6 +10,8 @@ You can simultaneously operate on related records within the `data` of the `upda
 
 In addition to the operations available in [create's Nested Write](/docs/reference/relation/nested-write), `update` / `delete` / `deleteMany` / `disconnect` / `set` operations are available.
 
+These operations write to multiple sheets, but if one fails partway through, not a single row is written to any of them. See [Write Atomicity and Concurrency](/docs/reference/write-atomicity) for details.
+
 ## Example Sheets
 
 Uses the sheet examples from [relation definition](/docs/reference/relation/definition).

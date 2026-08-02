@@ -408,6 +408,7 @@ const result = gassma.Users.create({
 - Nested write は `create` メソッドのみで利用できます。`createMany` / `updateMany` 等では利用できません。
 - FK は自動セットされますが、PK（id 等）は明示的に指定する必要があります。オートインクリメント機能はありません。
 - `connect` で指定した `where` 条件に一致するレコードが見つからない場合、`NestedWriteConnectNotFoundError` がスローされます。
+- Nested write は複数のシートに書き込みますが、途中でエラーになった場合はどのシートにも 1 行も書かれません。詳細は[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照してください。
 
 ## バリデーション
 

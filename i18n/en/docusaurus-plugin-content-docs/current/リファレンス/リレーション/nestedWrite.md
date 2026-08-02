@@ -408,6 +408,7 @@ The above is processed in the following order:
 - Nested write is only available in the `create` method. It cannot be used in `createMany` / `updateMany`, etc.
 - FK is automatically set, but PK (id, etc.) must be explicitly specified. There is no auto-increment feature.
 - If no record matching the `where` condition in `connect` is found, `NestedWriteConnectNotFoundError` is thrown.
+- A nested write writes to multiple sheets, but if it fails partway through, not a single row is written to any of them. See [Write Atomicity and Concurrency](/docs/reference/write-atomicity) for details.
 
 ## Validation
 

@@ -47,7 +47,7 @@ onUpdate does not fire on relation definitions of the FK-holding side (`manyToOn
 
 ## Cascade
 
-When a parent record's PK is changed, the FK of related child records is automatically updated to the new value:
+When a parent record's PK is changed, the FK of related child records is automatically updated to the new value. This writes to multiple sheets, but if it fails partway through, none of the sheets are modified (see [Write Atomicity and Concurrency](/docs/reference/write-atomicity)):
 
 ```ts
 const gassma = new Gassma.GassmaClient({
