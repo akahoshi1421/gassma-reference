@@ -18,7 +18,7 @@ description: "_avg、_sum、_min、_max、_count などの集計を行う"
 | skip    | スキップ数の設定         | 可   |
 | cursor  | カーソルベースページネーション | 可   | 詳細は [findMany の cursor](/docs/reference/crud/read/findMany#cursor) を参照 |
 | \_avg   | 平均表示の設定     | 可   |
-| \_count | ヒット数表示の設定 | 可   |
+| \_count | ヒット数表示の設定 | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
 | \_max   | 最大値表示の設定   | 可   |
 | \_min   | 最小値表示の設定   | 可   |
 | \_sum   | 合計表示の設定     | 可   |
@@ -65,3 +65,75 @@ const result = gassma.sheet1.aggregate({
   _min: { age: 20 }
 }
 ```
+
+## _count
+
+ヒット数を求めたい場合に利用します。
+
+### 列を指定したカウント
+
+`_count` に列名を指定すると、その列の値が null（空のセル）ではない行のみを数えます。
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: {
+    age: true,
+  },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  _count: { age: 9 }
+}
+```
+
+### _all を使った全行数のカウント
+
+`_all: true` を指定すると、null を含む全ての行数を数えます。
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: {
+    _all: true,
+    postNumber: true,
+  },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  _count: { _all: 9, postNumber: 9 }
+}
+```
+
+列を指定したカウントは null の行を数えないため、例えば postNumber が空の行が 2 行あるシートでは `{ _all: 9, postNumber: 7 }` のように結果が異なります。
+
+### true 省略形
+
+`_count: true` を指定すると、全行数が数値としてそのまま返されます。
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: true,
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  _count: 9
+}
+```
+
+:::note
+`_all` と `true` 省略形は `_count` 専用で、`_avg` / `_max` / `_min` / `_sum` では利用できません。`_count` は行数を数えるため null を含む全行に意味がありますが、他の集計は特定の列の値を対象とするためです。
+:::
