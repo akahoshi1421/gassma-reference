@@ -18,7 +18,7 @@ Use this when you want to perform statistical calculations such as averages and 
 | skip     | Set the number of records to skip    | Yes |                                                                               |
 | cursor   | Cursor-based pagination          | Yes      | See [findMany cursor](/docs/reference/crud/read/findMany#cursor) for details  |
 | \_avg    | Average display settings         | Yes      |                                                                               |
-| \_count  | Hit count display settings       | Yes      |                                                                               |
+| \_count  | Hit count display settings       | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
 | \_max    | Maximum value display settings   | Yes      |                                                                               |
 | \_min    | Minimum value display settings   | Yes      |                                                                               |
 | \_sum    | Sum display settings             | Yes      |                                                                               |
@@ -65,3 +65,75 @@ The return value is in the following format.
   _min: { age: 20 }
 }
 ```
+
+## _count
+
+Use this when you want to get the number of matching rows.
+
+### Counting a Specific Column
+
+If you specify a column name in `_count`, only rows whose value in that column is not null (an empty cell) are counted.
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: {
+    age: true,
+  },
+});
+```
+
+The return value is in the following format.
+
+```ts
+{
+  _count: { age: 9 }
+}
+```
+
+### Counting All Rows with _all
+
+If you specify `_all: true`, all rows are counted, including null.
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: {
+    _all: true,
+    postNumber: true,
+  },
+});
+```
+
+The return value is in the following format.
+
+```ts
+{
+  _count: { _all: 9, postNumber: 9 }
+}
+```
+
+Since column counts skip null rows, on a sheet where, for example, two rows have an empty postNumber, the results would differ like `{ _all: 9, postNumber: 7 }`.
+
+### The true Shorthand
+
+If you specify `_count: true`, the total number of rows is returned directly as a number.
+
+```ts
+// gassma.{{TARGET_SHEET_NAME}}.aggregate
+const result = gassma.sheet1.aggregate({
+  _count: true,
+});
+```
+
+The return value is in the following format.
+
+```ts
+{
+  _count: 9
+}
+```
+
+:::note
+`_all` and the `true` shorthand are exclusive to `_count` and cannot be used with `_avg` / `_max` / `_min` / `_sum`. `_count` counts rows, so "all rows including null" is meaningful, while the other aggregations target the values of a specific column.
+:::
