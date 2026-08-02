@@ -47,7 +47,7 @@ onUpdate は FK を保有する側（`manyToOne`）のリレーション定義�
 
 ## Cascade
 
-親レコードの PK を変更すると、関連する子レコードの FK が新しい値に自動的に更新されます。
+親レコードの PK を変更すると、関連する子レコードの FK が新しい値に自動的に更新されます。複数のシートへの書き込みになりますが、途中でエラーになった場合はどのシートも変更されません（詳細は[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({

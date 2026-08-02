@@ -47,7 +47,7 @@ onDelete は FK を保有する側（`manyToOne`）のリレーション定義�
 
 ## Cascade
 
-親レコードを削除すると、関連する子レコードも自動的に削除されます。
+親レコードを削除すると、関連する子レコードも自動的に削除されます。複数のシートへの書き込みになりますが、途中でエラーになった場合はどのシートも変更されません（詳細は[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({

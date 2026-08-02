@@ -47,7 +47,7 @@ onDelete does not fire on relation definitions of the FK-holding side (`manyToOn
 
 ## Cascade
 
-When a parent record is deleted, related child records are automatically deleted as well:
+When a parent record is deleted, related child records are automatically deleted as well. This writes to multiple sheets, but if it fails partway through, none of the sheets are modified (see [Write Atomicity and Concurrency](/docs/reference/write-atomicity)):
 
 ```ts
 const gassma = new Gassma.GassmaClient({

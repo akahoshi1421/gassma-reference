@@ -10,6 +10,8 @@ description: "update の中で update/delete/deleteMany/disconnect/set を使っ
 
 [create の Nested Write](/docs/reference/relation/nested-write) で使える操作に加えて、`update` / `delete` / `deleteMany` / `disconnect` / `set` 操作が利用できます。
 
+複数のシートに書き込みますが、途中でエラーになった場合はどのシートにも 1 行も書かれません。詳細は[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照してください。
+
 ## 説明例用のシート
 
 [リレーション定義](/docs/reference/relation/definition)のシート例を使用します。
