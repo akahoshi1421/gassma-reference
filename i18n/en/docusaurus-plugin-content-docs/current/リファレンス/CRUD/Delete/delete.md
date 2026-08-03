@@ -18,7 +18,7 @@ Deletes the **first row** matching the specified conditions and retrieves the de
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
 :::caution
-`where` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `where` is missing.) and **never deletes all rows implicitly**. An empty object `{}` is not treated as omission, so passing `where: {}` deletes the first of all rows.
+`where` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `where` is missing.) and **never deletes all rows implicitly**. A `where` with no conditions at all (`where: {}`) throws `GassmaInvalidValueError` (Invalid value for argument `where`. Expected at least one condition.) and no row is deleted. The same applies when `where` becomes empty after removing `undefined` / `Gassma.skip`.
 :::
 
 ## Example Sheet
@@ -86,4 +86,4 @@ When `onDelete` is configured in relation definitions, the referential action is
 
 For details, see the [onDelete reference](/docs/reference/relation/on-delete).
 
-The `where` specification follows [findMany()](../read/findMany).
+The `where` specification follows [findMany()](../read/findMany). However, unlike `findMany`, a `where` with no conditions at all (`where: {}`) throws an error (see the caution above).

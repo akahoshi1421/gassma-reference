@@ -96,6 +96,14 @@ The return value is in the following format.
 ];
 ```
 
+### Missing Values as Group Keys (null / NaN / Invalid Date)
+
+Rows whose value in a `by` column is null / `NaN` / an invalid Date (Invalid Date) are also grouped rather than dropped.
+
+- Rows with `NaN` collapse into a single group.
+- Rows with Invalid Date also collapse into a single group, even across different instances.
+- `NaN`, null, and Invalid Date form **separate groups** from each other.
+
 ### having
 
 Use this when you want to extract data that meets specific conditions from grouped data.
@@ -167,6 +175,10 @@ The return value would be as follows.
 
 Also, just like `where`, you can nest AND inside NOT and create other nested combinations.
 
+:::caution
+Passing an incomparable value such as `NaN` or an invalid Date (Invalid Date) as a `having` value throws a `GassmaInvalidValueError` (same as `where`).
+:::
+
 ### Displaying Statistics
 
 You can also display statistics such as averages, just like with aggregate.
@@ -201,9 +213,13 @@ The return value is in the following format.
 ];
 ```
 
+:::note
+In `_avg` / `_sum` / `_max` / `_min` and column-specified `_count`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null. `_count: { _all: true }` still counts those rows.
+:::
+
 ### _count
 
-With `_count`, you can count the number of rows in each group. If you specify a column name, only rows whose value in that column is not null (an empty cell) are counted, while `_all: true` counts all rows, including null.
+With `_count`, you can count the number of rows in each group. If you specify a column name, only rows whose value in that column is not a missing value — null (an empty cell), `NaN`, or an invalid Date (Invalid Date) — are counted, while `_all: true` counts all rows, including missing values.
 
 For example, suppose you want to perform the following operations.
 

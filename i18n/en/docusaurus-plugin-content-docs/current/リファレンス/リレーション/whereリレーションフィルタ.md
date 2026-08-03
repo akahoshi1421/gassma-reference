@@ -114,6 +114,10 @@ The return value has the following format:
 ];
 ```
 
+:::note
+When the parent record's own join key (the column specified as `reference` in the relation definition) is null, its related records are treated as 0. Such parents are therefore included in the results of `every` (all records satisfy the condition) and `none` (no record matches), and excluded from `some` (same as Prisma).
+:::
+
 ## Single Relation Filters (oneToOne / manyToOne)
 
 ### is
@@ -177,6 +181,10 @@ The return value has the following format:
 ];
 ```
 
+:::note
+For `oneToOne` (the side without the FK), records whose own join key (the column specified as `reference`) is null are also included in the `is: null` results as "no related record exists".
+:::
+
 ### isNot
 
 Retrieves records where the related record does **not** match the condition. Specifying `null` retrieves records where a related record exists.
@@ -200,6 +208,10 @@ The return value has the following format:
   { id: 3, title: "Draft Article", authorId: 2, published: false },
 ];
 ```
+
+:::note
+Rows without a related record (for `manyToOne`, rows whose FK is null; for `oneToOne`, rows with no related record) are also included in the results of `isNot: <condition>`. Since no related record exists, they count as "having no related record that matches the condition" (same as Prisma).
+:::
 
 ### isNot: null
 

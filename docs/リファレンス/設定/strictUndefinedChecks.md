@@ -66,7 +66,7 @@ gassma.Users.deleteMany({
 //    Invalid value for argument `where.name`: explicitly `undefined` values are not allowed.
 ```
 
-意図しない `undefined` がクエリに紛れ込むと、条件が意図せず変化したり、`update` で `undefined` がそのまま値として書き込まれたりする事故につながります。有効化しておけば、こうしたバグを実行時に即座に検出できます。
+無効時（デフォルト）は、後述のとおり `undefined` は「そのフィールドを指定しなかった」扱いになります。意図しない `undefined` が紛れ込むと、条件が静かに消えて対象行が広がる（上の例なら `deleteMany` が全件削除になる）事故につながります。有効化しておけば、こうしたバグを実行時に即座に検出できます。
 
 フィールドを省略したい場合は、`undefined` の代わりに `Gassma.skip` を使用してください。
 
@@ -76,6 +76,31 @@ gassma.Users.deleteMany({
 });
 // name の条件が省かれた状態で実行される
 ```
+
+## 無効時の挙動（デフォルト）
+
+`strictUndefinedChecks` が無効の場合、クエリ入力の `undefined` は Prisma と同じく**「そのフィールドを指定しなかった」扱い**になります。`where` の条件・演算子の中（`equals` / `gt` / `in` など）・`AND` / `OR` / `NOT` の中・リレーションフィルタ・`orderBy`・`select` のキーなど、クエリ入力のあらゆる箇所で同様です。
+
+```ts
+// age の条件は「指定しなかった」扱いになり、全件が返る
+gassma.Users.findMany({
+  where: { age: undefined },
+});
+```
+
+`update` の `data` に `undefined` を渡した場合も同様に、**そのフィールドは更新されません**（セルの値は保持されます）。
+
+```ts
+gassma.Users.update({
+  where: { id: 1 },
+  data: { name: undefined, age: 21 },
+});
+// => name は元の値のまま、age だけが 21 に更新される
+```
+
+:::caution
+`where` の条件が `undefined`（または `Gassma.skip`）だけで空になった場合、`findMany` / `updateMany` / `deleteMany` などでは**全件が対象**になります。単一行操作の `update` / `delete` / `upsert` では空の `where` は `GassmaInvalidValueError` になります（[update](/docs/reference/crud/update/update) を参照）。
+:::
 
 ## exactOptionalPropertyTypes の推奨
 
@@ -109,11 +134,24 @@ gassma.Users.findMany({
 //    within array. Use `null` or filter out `Gassma.skip` values.
 ```
 
+配列の要素としての `undefined` も同様です。`in` / `notIn` / `AND` / `OR` / `NOT` / `orderBy` / `distinct` などの配列に `undefined` の要素が含まれる場合、`strictUndefinedChecks` の有効・無効に関わらず `GassmaUndefinedValueError` がスローされます（Prisma と同じ挙動です）。
+
+```ts
+gassma.Users.findMany({
+  where: {
+    id: { in: [1, undefined, 3] },
+  },
+});
+// => GassmaUndefinedValueError:
+//    Invalid value for argument `where.id.in[1]`: explicitly `undefined` values are not allowed.
+```
+
 :::
 
 ## バリデーション
 
 | エラー | 原因 |
 | --- | --- |
-| `GassmaUndefinedValueError` | `strictUndefinedChecks` 有効時にクエリ入力へ明示的な `undefined` を指定 |
+| `GassmaUndefinedValueError` | `strictUndefinedChecks` 有効時にクエリ入力へ明示的な `undefined` を指定。配列の要素への `undefined` は有効・無効に関わらず発生 |
 | `GassmaSkipInArrayError` | 配列の要素に `Gassma.skip` を指定（有効・無効に関わらず発生） |
+| `GassmaInvalidValueError` | `undefined` / `Gassma.skip` の除去によって `update` / `delete` / `upsert` の `where` が空になった |

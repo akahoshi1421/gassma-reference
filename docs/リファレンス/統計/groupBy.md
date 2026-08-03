@@ -96,6 +96,14 @@ const result = gassma.sheet1.groupBy({
 ];
 ```
 
+### グループ化キーの欠損値（null / NaN / Invalid Date）
+
+`by` に指定した列の値が null / `NaN` / 不正な Date（Invalid Date）の行も、落とされずにグループ化されます。
+
+- `NaN` の行同士は 1 つのグループにまとまります。
+- Invalid Date の行同士も、別インスタンスであっても 1 つのグループにまとまります。
+- `NaN`・null・Invalid Date は互いに**別のグループ**です。
+
 ### having
 
 グループ化されたデータの中で、特定の条件を満たすデータを抽出したい場合に利用します。
@@ -167,6 +175,10 @@ const result = gassma.sheet1.groupBy({
 
 また、`where`と同様 NOT の下に AND を入れたりネストすることが可能です。
 
+:::caution
+`having` の値に `NaN` や不正な Date（Invalid Date）などの比較できない値を渡すと `GassmaInvalidValueError` がスローされます（`where` と同様です）。
+:::
+
 ### 統計の表示
 
 aggregate のように平均などを表示することもできます。
@@ -201,9 +213,13 @@ const result = gassma.sheet1.groupBy({
 ];
 ```
 
+:::note
+`_avg` / `_sum` / `_max` / `_min` および列名指定の `_count` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。`_count: { _all: true }` はこれらの行も数えます。
+:::
+
 ### _count
 
-`_count` では各グループの行数を数えられます。列名を指定するとその列の値が null（空のセル）ではない行のみを、`_all: true` を指定すると null を含む全ての行数を数えます。
+`_count` では各グループの行数を数えられます。列名を指定するとその列の値が null（空のセル）や `NaN` / 不正な Date（Invalid Date）などの欠損値ではない行のみを、`_all: true` を指定すると欠損値を含む全ての行数を数えます。
 
 例えば以下の処理を行いたいとします。
 

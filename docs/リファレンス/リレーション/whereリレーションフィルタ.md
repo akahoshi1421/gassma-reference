@@ -114,6 +114,10 @@ const result = gassma.Users.findMany({
 ];
 ```
 
+:::note
+親レコード自身の結合キー（リレーション定義の `reference` に指定した列）が null の場合、関連レコードは 0 件として扱われます。そのため `every`（全てが条件を満たす扱い）と `none`（一致するものがない扱い）の結果には含まれ、`some` の結果には含まれません（Prisma と同じです）。
+:::
+
 ## 単一リレーションのフィルタ（oneToOne / manyToOne）
 
 ### is
@@ -177,6 +181,10 @@ const result = gassma.Users.findMany({
 ];
 ```
 
+:::note
+`oneToOne`（FK を持たない側）では、自分側の結合キー（`reference` に指定した列）が null のレコードも「関連レコードが存在しない」として `is: null` の結果に含まれます。
+:::
+
 ### isNot
 
 関連レコードが条件に一致**しない**レコードを取得します。`null` を指定すると、関連レコードが存在するレコードを取得できます。
@@ -200,6 +208,10 @@ const result = gassma.Posts.findMany({
   { id: 3, title: "下書き記事", authorId: 2, published: false },
 ];
 ```
+
+:::note
+関連レコードを持たない行（`manyToOne` では FK が null の行、`oneToOne` では関連レコードが存在しない行）も `isNot: <条件>` の結果に含まれます。関連レコードが存在しない = 「条件に一致する関連レコードを持たない」扱いです（Prisma と同じです）。
+:::
 
 ### isNot: null
 

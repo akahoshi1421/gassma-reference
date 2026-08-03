@@ -20,7 +20,7 @@ description: "レコードが存在すれば更新し、存在しなければ作
 | include | リレーション先の取得     | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
 :::note
-`where` / `create` / `update` はいずれも必須です。省略すると `GassmaMissingArgumentError`（例: Argument `create` is missing.）がスローされます。
+`where` / `create` / `update` はいずれも必須です。省略すると `GassmaMissingArgumentError`（例: Argument `create` is missing.）がスローされます。また、条件が 1 つもない `where: {}` は `GassmaInvalidValueError`（Invalid value for argument `where`. Expected at least one condition.）がスローされます。`undefined` や `Gassma.skip` の除去によって `where` が空になった場合も同様です。
 :::
 
 ## 説明例用のシート
@@ -90,4 +90,4 @@ const result = gassma.sheet1.upsert({
 - `create` 時: [create の Nested Write](/docs/reference/relation/nested-write) と同等
 - `update` 時: [update の Nested Write](/docs/reference/relation/nested-write-update) と同等
 
-また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。
+また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。ただし `findMany` と異なり、条件が 1 つもない `where: {}` はエラーになります（上記 note を参照）。

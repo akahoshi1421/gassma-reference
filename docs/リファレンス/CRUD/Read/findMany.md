@@ -12,7 +12,7 @@ description: "where、orderBy、take/skip、カーソルページネーション
 
 | キー名   | 内容             | 省略 | 備考                                          |
 | -------- | ---------------- | ---- | --------------------------------------------- |
-| where    | 取得条件の指定   | 可   | 書かない場合は全ての行を取得します            |
+| where    | 取得条件の指定   | 可   | 書かない場合や `where: {}` の場合は全ての行を取得します |
 | select   | 取得列の表示設定 | 可   | `omit` / `include` と同時に使用できません。リレーションフィールドにオプション指定可 |
 | omit     | 取得列の除外設定 | 可   | `select` と同時に使用できません               |
 | include  | リレーション先の取得 | 可 | [詳細はこちら](/docs/reference/relation/include) |
@@ -144,6 +144,12 @@ const result = gassma.sheet1.findMany({
 
 `mode` を指定しない場合、またはデフォルトの `mode: "default"` の場合は大文字小文字が区別されます。
 
+:::caution
+`where` の値には `NaN` / `Infinity` / `-Infinity`、不正な Date（Invalid Date）、配列（`in` / `notIn` の配列を除く）、関数、Symbol、BigInt を渡せません。渡すと `GassmaInvalidValueError` がスローされます（`cursor` / `having` も同様）。`Gassma.raw` も `where` では使用できません（[raw](/docs/reference/raw) を参照）。
+
+また、値が `undefined` の条件は「指定しなかった」扱いになります。詳しくは [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) を参照してください。
+:::
+
 ## AND, OR, NOT
 
 複数条件での検索も可能です。
@@ -252,6 +258,27 @@ const result = gassma.sheet1.findMany({
 });
 ```
 
+### 空の AND, OR, NOT と条件を持たないブランチ
+
+空の `AND` / `NOT`（`[]` や `{}`）は**恒真**（全件にマッチ）、空の `OR: []` は**恒偽**（0 件）として扱われます（Prisma と同じです）。
+
+また、条件を 1 つも生成しないブランチ（`{}` や、値が空オブジェクト・`undefined` だけのオブジェクト）は、`AND` / `OR` / `NOT` の配列から取り除かれます。その結果 `OR` の配列が空になった場合は 0 件になります。
+
+```ts
+gassma.sheet1.findMany({ where: { NOT: {} } }); // => 全件
+gassma.sheet1.findMany({ where: { AND: [] } }); // => 全件
+gassma.sheet1.findMany({ where: { OR: [] } }); // => []
+
+gassma.sheet1.findMany({ where: { OR: [{ age: {} }] } }); // => []（条件ゼロのブランチが除去され、空の OR になる）
+gassma.sheet1.findMany({ where: { OR: [{}, { name: "akahoshi" }] } }); // => name が "akahoshi" の行のみ
+gassma.sheet1.findMany({ where: { NOT: [{ age: {} }] } }); // => 全件
+gassma.sheet1.findMany({ where: { AND: [{ OR: [] }] } }); // => 全件
+```
+
+:::caution
+`OR` には配列以外を渡せません。`OR: {}` のように配列以外を渡すと `GassmaInvalidValueError` がスローされます。
+:::
+
 ### where でのリレーションフィルタ
 
 リレーション定義がある場合、`where` 内でリレーション先の条件を使ってフィルタリングできます（`some`、`every`、`none`、`is`、`isNot`）。
@@ -296,6 +323,10 @@ const result = gassma.sheet1.findMany({
   { name: "murakami", pref: "Fukuoka" },
 ];
 ```
+
+:::caution
+`select: {}` のように選択するフィールドが 1 つもない `select` は `GassmaInvalidValueError`（Invalid value for argument `select`. Expected at least one selected field.）になります。すべてのキーが `undefined` で空になった場合も同様です。
+:::
 
 ### select 内でのリレーションオプション指定
 
@@ -415,6 +446,10 @@ const result = gassma.sheet1.findMany({
 
 `nulls` を指定しない場合、`asc` では null が先頭に、`desc` では null が末尾に配置されます。
 
+:::note
+`NaN` や不正な Date（Invalid Date）も null と同じ「欠損値」として扱われ、null と同じ位置に配置されます（`nulls` オプションの対象にもなります）。
+:::
+
 また、複数ソートの条件を指定することもでき、例えば
 
 - `age`で昇順でソート
@@ -437,6 +472,8 @@ const result = gassma.sheet1.findMany({
 ```
 
 ※ソートの優先順位はインデックス番号の若い順となります。
+
+`orderBy: {}` のように条件が空の場合は無視されます（並び替えは行われません）。配列内のエントリが `undefined` の除去によって空になった場合も、そのエントリだけが無視され、残りの指定で並び替えられます。
 
 ### リレーションフィールドでのソート
 
@@ -602,6 +639,10 @@ const result = gassma.sheet1.findMany({
 cursor に指定したレコードが見つからない場合は空配列が返されます。
 :::
 
+:::caution
+`cursor: {}` のようにカラムが 1 つもない `cursor` は `GassmaInvalidValueError`（Invalid value for argument `cursor`. Expected at least one column.）になります。すべてのキーが `undefined` で空になった場合も同様です。また、`cursor` の値に `NaN` や不正な Date（Invalid Date）などの比較できない値を渡した場合も `GassmaInvalidValueError` がスローされます。
+:::
+
 ### 処理順序
 
 `where`・`orderBy`・`cursor`・`distinct`・`skip`・`take` を組み合わせた場合の実行順序は以下の通りです。
@@ -675,6 +716,12 @@ const result = gassma.sheet1.findMany({
 `distinct` は `cursor` の後に適用されるため、カーソルで切り出した範囲内で重複が削除されます（上記の「処理順序」を参照）。
 
 `take` に負数を指定した場合は反転した並びで重複削除が行われるため、残る「最初の 1 件」は末尾側のレコードになります。最終的な出力は正順に戻されます。
+
+重複の判定は値を正規化したキーで行われます。
+
+- Date は時刻が同じであれば別インスタンスでも同じ値とみなされます。Date と同時刻の ISO 文字列は別の値です。
+- 数値の `1` と文字列の `"1"` は別の値です。
+- `NaN` 同士、不正な Date（Invalid Date）同士は、それぞれ同じ値として畳まれます。`NaN`・`null`・Invalid Date は互いに別の値です。
 
 ## include
 

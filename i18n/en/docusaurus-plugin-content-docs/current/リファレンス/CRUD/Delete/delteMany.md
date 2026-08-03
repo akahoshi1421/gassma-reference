@@ -15,6 +15,10 @@ Used to delete all rows matching the specified conditions.
 | where | Specifies deletion conditions | Optional | Targets all rows if omitted |
 | limit | Maximum number of records to delete | Optional | Negative values cause an error |
 
+:::caution
+`where: {}`, and a `where` that became empty because its conditions were only `undefined` / `Gassma.skip`, also target **every row for deletion**. To catch unintended `undefined` values, enable [strictUndefinedChecks](/docs/reference/config/strict-undefined-checks).
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

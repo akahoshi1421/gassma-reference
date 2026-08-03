@@ -12,7 +12,7 @@ description: "Use Gassma.raw to opt out of formula-injection escaping per cell a
 
 When writing, GASsma escapes any string starting with `=`, `+`, `-`, or `@` by prepending a `'` (single quote). This prevents strings like `=IMPORTRANGE(...)` slipped into form input from being executed as formulas (formula injection).
 
-- Only **strings** are escaped. Numbers, booleans, and Dates are written unchanged.
+- Only **strings** are escaped. Numbers, booleans, and Dates are written unchanged. However, `NaN` / `Infinity` / `-Infinity` and invalid Dates (Invalid Date) are rejected with a `GassmaInvalidValueError` before escaping — the write itself fails.
 - The `'` does not appear in the spreadsheet's display or when reading, so reading an escaped cell back through GASsma returns the original string (e.g. `"=1+2"`).
 
 Since this protection is always on, it gets in the way when you intentionally want to write an aggregation formula. `Gassma.raw` is the opt-out for that.
@@ -98,7 +98,7 @@ readBack.total; // 120
 `Gassma.raw(value: string)` returns a `Gassma.RawValue`.
 
 - In the generated types, **every column** in `data` accepts `Gassma.RawValue`. Since a formula can produce a value of any type on the cell, you can pass it to number, boolean, and Date columns as well.
-- It cannot be used in `where`. It is write-only.
+- It cannot be used in `where`. It is write-only. Passing it as a `where` value throws a `GassmaInvalidValueError` (Expected a scalar value, but received a Gassma.raw value.).
 
 ## Never Use It with Untrusted Input
 

@@ -19,7 +19,7 @@ description: "レコードを 1 件更新する。数値のアトミック操作
 | include | リレーション先の取得       | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
 :::note
-`where` と `data` は必須です。いずれかを省略すると `GassmaMissingArgumentError`（例: Argument `where` is missing.）がスローされます。空オブジェクト `{}` は省略とはみなされないため、`where: {}` は全行のうち最初の 1 行を更新します。
+`where` と `data` は必須です。いずれかを省略すると `GassmaMissingArgumentError`（例: Argument `where` is missing.）がスローされます。また、条件が 1 つもない `where: {}` は `GassmaInvalidValueError`（Invalid value for argument `where`. Expected at least one condition.）がスローされます。`undefined` や `Gassma.skip` の除去によって `where` が空になった場合も同様です。
 :::
 
 ## 説明例用のシート
@@ -61,6 +61,16 @@ const result = gassma.sheet1.update({
 
 更新後のレコードが返されます。更新していないフィールドは元の値がそのまま保持されます。
 
+`data` の値に `undefined` を渡したフィールドは「指定しなかった」扱いになり、更新されません。
+
+```ts
+const result = gassma.sheet1.update({
+  where: { name: "akahoshi" },
+  data: { name: undefined, age: 23 },
+});
+// => name は元の値のまま、age だけが 23 に更新される
+```
+
 条件に合致するレコードがない場合は `null` が返されます。
 
 ```ts
@@ -71,7 +81,7 @@ const result = gassma.sheet1.update({
 // => null
 ```
 
-また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。
+また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。ただし `findMany` と異なり、条件が 1 つもない `where: {}` はエラーになります（上記 note を参照）。
 
 ## 数値の原子的操作
 
@@ -96,6 +106,8 @@ const result = gassma.sheet1.update({
 | divide | 除算 | `{ divide: 4 }` → 現在値 ÷ 4 |
 
 現在値が数値でない場合は `0` をベースとして演算されます。
+
+`increment` などの演算子の引数に `NaN` / `Infinity` / `-Infinity` を渡すと `GassmaInvalidValueError` がスローされます。
 
 通常の値指定と組み合わせることもできます。
 

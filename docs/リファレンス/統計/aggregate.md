@@ -66,13 +66,17 @@ const result = gassma.sheet1.aggregate({
 }
 ```
 
+:::note
+`_avg` / `_sum` / `_max` / `_min` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。
+:::
+
 ## _count
 
 ヒット数を求めたい場合に利用します。
 
 ### 列を指定したカウント
 
-`_count` に列名を指定すると、その列の値が null（空のセル）ではない行のみを数えます。
+`_count` に列名を指定すると、その列の値が null（空のセル）や `NaN` / 不正な Date（Invalid Date）などの欠損値ではない行のみを数えます。
 
 ```ts
 // gassma.{{TARGET_SHEET_NAME}}.aggregate

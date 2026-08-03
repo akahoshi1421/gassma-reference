@@ -20,7 +20,7 @@ Updates a record if it matches the specified conditions, or creates a new one if
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
 :::note
-`where` / `create` / `update` are all required. Omitting any of them throws `GassmaMissingArgumentError` (e.g., Argument `create` is missing.).
+`where` / `create` / `update` are all required. Omitting any of them throws `GassmaMissingArgumentError` (e.g., Argument `create` is missing.). A `where` with no conditions at all (`where: {}`) throws `GassmaInvalidValueError` (Invalid value for argument `where`. Expected at least one condition.). The same applies when `where` becomes empty after removing `undefined` / `Gassma.skip`.
 :::
 
 ## Example Sheet
@@ -90,4 +90,4 @@ When relation definitions exist, Nested Write can be used within `create` / `upd
 - On `create`: Equivalent to [create's Nested Write](/docs/reference/relation/nested-write)
 - On `update`: Equivalent to [update's Nested Write](/docs/reference/relation/nested-write-update)
 
-The `where` specification follows [findMany()](../read/findMany).
+The `where` specification follows [findMany()](../read/findMany). However, unlike `findMany`, a `where` with no conditions at all (`where: {}`) throws an error (see the note above).

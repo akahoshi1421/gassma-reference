@@ -66,13 +66,17 @@ The return value is in the following format.
 }
 ```
 
+:::note
+In `_avg` / `_sum` / `_max` / `_min`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null.
+:::
+
 ## _count
 
 Use this when you want to get the number of matching rows.
 
 ### Counting a Specific Column
 
-If you specify a column name in `_count`, only rows whose value in that column is not null (an empty cell) are counted.
+If you specify a column name in `_count`, only rows whose value in that column is not a missing value — null (an empty cell), `NaN`, or an invalid Date (Invalid Date) — are counted.
 
 ```ts
 // gassma.{{TARGET_SHEET_NAME}}.aggregate

@@ -19,7 +19,7 @@ Updates the **first row** matching the specified conditions and retrieves the up
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
 
 :::note
-`where` and `data` are required. Omitting either throws `GassmaMissingArgumentError` (e.g., Argument `where` is missing.). An empty object `{}` is not treated as omission, so `where: {}` updates the first of all rows.
+`where` and `data` are required. Omitting either throws `GassmaMissingArgumentError` (e.g., Argument `where` is missing.). A `where` with no conditions at all (`where: {}`) throws `GassmaInvalidValueError` (Invalid value for argument `where`. Expected at least one condition.). The same applies when `where` becomes empty after removing `undefined` / `Gassma.skip`.
 :::
 
 ## Example Sheet
@@ -61,6 +61,16 @@ The return value has the following format:
 
 The updated record is returned. Fields that were not updated retain their original values.
 
+Fields whose `data` value is `undefined` are treated as "not specified" and are not updated.
+
+```ts
+const result = gassma.sheet1.update({
+  where: { name: "akahoshi" },
+  data: { name: undefined, age: 23 },
+});
+// => name keeps its original value; only age is updated to 23
+```
+
 If no matching record is found, `null` is returned:
 
 ```ts
@@ -71,7 +81,7 @@ const result = gassma.sheet1.update({
 // => null
 ```
 
-The `where` specification follows [findMany()](../read/findMany).
+The `where` specification follows [findMany()](../read/findMany). However, unlike `findMany`, a `where` with no conditions at all (`where: {}`) throws an error (see the note above).
 
 ## Atomic Number Operations
 
@@ -96,6 +106,8 @@ const result = gassma.sheet1.update({
 | divide | Division | `{ divide: 4 }` → current value ÷ 4 |
 
 If the current value is not a number, `0` is used as the base for calculations.
+
+Passing `NaN` / `Infinity` / `-Infinity` as the argument of an operator such as `increment` throws a `GassmaInvalidValueError`.
 
 You can also combine it with regular value assignments:
 
