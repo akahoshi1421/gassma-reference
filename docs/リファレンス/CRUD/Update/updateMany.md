@@ -17,7 +17,9 @@ description: "条件に合致するすべてのレコードを更新し、更新
 | limit  | 更新する最大件数           | 可   | 負数を指定するとエラーになります         |
 
 :::note
-`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。`where` は省略可能で、省略すると全行が対象になります。
+`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。`where` は省略可能で、省略すると全行が対象になります。`where: {}` や、条件が `undefined` だけで空になった場合も同様に全行が対象になります。
+
+`data` の値に `undefined` を渡したフィールドは「指定しなかった」扱いになり、更新されません。
 :::
 
 ## 説明例用のシート

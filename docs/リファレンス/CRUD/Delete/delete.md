@@ -18,7 +18,7 @@ description: "レコードを 1 件削除し、削除したレコードを返す
 | include | リレーション先の取得   | 可   | [詳細はこちら](/docs/reference/relation/include) |
 
 :::caution
-`where` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `where` is missing.）がスローされ、**暗黙的に全件が削除されることはありません**。空オブジェクト `{}` は省略とはみなされないため、`where: {}` を渡した場合は全行のうち最初の 1 件が削除されます。
+`where` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `where` is missing.）がスローされ、**暗黙的に全件が削除されることはありません**。また、条件が 1 つもない `where: {}` は `GassmaInvalidValueError`（Invalid value for argument `where`. Expected at least one condition.）がスローされ、行は削除されません。`undefined` や `Gassma.skip` の除去によって `where` が空になった場合も同様です。
 :::
 
 ## 説明例用のシート
@@ -86,4 +86,4 @@ const result = gassma.sheet1.delete({
 
 詳しくは [onDelete のリファレンス](/docs/reference/relation/on-delete)を参照してください。
 
-また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。
+また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。ただし `findMany` と異なり、条件が 1 つもない `where: {}` はエラーになります（上記 caution を参照）。

@@ -12,7 +12,7 @@ Used to retrieve all rows matching specific conditions.
 
 | Key | Description | Optional | Notes |
 | --- | --- | --- | --- |
-| where | Specifies query conditions | Optional | Retrieves all rows if omitted |
+| where | Specifies query conditions | Optional | Retrieves all rows if omitted or when `where: {}` is passed |
 | select | Display settings for columns | Optional | Cannot be used with `omit` / `include`. Supports relation field options |
 | omit | Exclusion settings for columns | Optional | Cannot be used with `select` |
 | include | Retrieve related records | Optional | [Details here](/docs/reference/relation/include) |
@@ -144,6 +144,12 @@ const result = gassma.sheet1.findMany({
 
 If `mode` is not specified or set to the default `mode: "default"`, case is distinguished.
 
+:::caution
+`where` values cannot be `NaN` / `Infinity` / `-Infinity`, invalid Dates (Invalid Date), arrays (except the arrays of `in` / `notIn`), functions, Symbols, or BigInts. Passing one throws a `GassmaInvalidValueError` (the same applies to `cursor` / `having`). `Gassma.raw` cannot be used in `where` either (see [raw](/docs/reference/raw)).
+
+Conditions whose value is `undefined` are treated as "not specified". For details, see [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks).
+:::
+
 ## AND, OR, NOT
 
 Searches with multiple conditions are also possible.
@@ -252,6 +258,27 @@ const result = gassma.sheet1.findMany({
 });
 ```
 
+### Empty AND, OR, NOT and Branches with No Conditions
+
+An empty `AND` / `NOT` (`[]` or `{}`) is treated as **always true** (matches every row), and an empty `OR: []` is treated as **always false** (matches nothing) — same as Prisma.
+
+Branches that generate no conditions at all (`{}`, or objects whose values are only empty objects / `undefined`) are removed from the `AND` / `OR` / `NOT` arrays. If the `OR` array becomes empty as a result, no rows match.
+
+```ts
+gassma.sheet1.findMany({ where: { NOT: {} } }); // => every row
+gassma.sheet1.findMany({ where: { AND: [] } }); // => every row
+gassma.sheet1.findMany({ where: { OR: [] } }); // => []
+
+gassma.sheet1.findMany({ where: { OR: [{ age: {} }] } }); // => [] (the condition-less branch is removed, leaving an empty OR)
+gassma.sheet1.findMany({ where: { OR: [{}, { name: "akahoshi" }] } }); // => only the rows where name is "akahoshi"
+gassma.sheet1.findMany({ where: { NOT: [{ age: {} }] } }); // => every row
+gassma.sheet1.findMany({ where: { AND: [{ OR: [] }] } }); // => every row
+```
+
+:::caution
+`OR` only accepts an array. Passing a non-array such as `OR: {}` throws a `GassmaInvalidValueError`.
+:::
+
 ### Relation Filters in where
 
 When relation definitions exist, you can filter using conditions on related records within `where` (`some`, `every`, `none`, `is`, `isNot`).
@@ -296,6 +323,10 @@ The return value would be:
   { name: "murakami", pref: "Fukuoka" },
 ];
 ```
+
+:::caution
+A `select` with no selected fields at all, such as `select: {}`, throws a `GassmaInvalidValueError` (Invalid value for argument `select`. Expected at least one selected field.). The same applies when all keys become empty through `undefined`.
+:::
 
 ### Relation Options within select
 
@@ -415,6 +446,10 @@ const result = gassma.sheet1.findMany({
 
 When `nulls` is not specified, null values are placed at the beginning for `asc` and at the end for `desc`.
 
+:::note
+`NaN` and invalid Dates (Invalid Date) are also treated as "missing values" like null, and are placed in the same position as null (they are also subject to the `nulls` option).
+:::
+
 You can also specify multiple sort conditions. For example, to:
 
 - Sort by `age` in ascending order
@@ -437,6 +472,8 @@ const result = gassma.sheet1.findMany({
 ```
 
 *Sort priority follows the order of index numbers (lower index = higher priority).
+
+An empty `orderBy` such as `orderBy: {}` is ignored (no sorting is performed). If an entry in the array becomes empty after removing `undefined`, only that entry is ignored and the remaining entries are used for sorting.
 
 ### Sorting by Relation Fields
 
@@ -602,6 +639,10 @@ const result = gassma.sheet1.findMany({
 If the record specified in cursor is not found, an empty array is returned.
 :::
 
+:::caution
+A `cursor` with no columns at all, such as `cursor: {}`, throws a `GassmaInvalidValueError` (Invalid value for argument `cursor`. Expected at least one column.). The same applies when all keys become empty through `undefined`. Passing an incomparable value such as `NaN` or an invalid Date (Invalid Date) as a `cursor` value also throws a `GassmaInvalidValueError`.
+:::
+
 ### Processing Order
 
 The execution order when combining `where`, `orderBy`, `cursor`, `distinct`, `skip`, and `take`:
@@ -675,6 +716,12 @@ const result = gassma.sheet1.findMany({
 Because `distinct` is applied after `cursor`, duplicates are removed within the range sliced by the cursor (see "Processing Order" above).
 
 When `take` is negative, deduplication runs on the reversed order, so the remaining "first occurrence" is the record on the tail side. The final output is restored to normal order.
+
+Duplicates are detected using normalized keys.
+
+- Dates with the same time are considered the same value even if they are different instances. A Date and an ISO string of the same time are different values.
+- The number `1` and the string `"1"` are different values.
+- `NaN` values collapse into one, and invalid Dates (Invalid Date) collapse into one. `NaN`, `null`, and Invalid Date are all distinct from each other.
 
 ## include
 

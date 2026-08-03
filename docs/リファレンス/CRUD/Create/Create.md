@@ -63,7 +63,7 @@ const result = gassma.sheet1.create({
 
 作成された行のデータが返されます。
 
-また、以下のように年齢を省くとその行の`age`列部分が空になります。
+また、以下のように年齢を省くとその行の`age`列部分が空になります。値に `undefined` を渡した場合も省略と同じ扱いになります。
 
 ```ts
 const gassma = new Gassma.GassmaClient();

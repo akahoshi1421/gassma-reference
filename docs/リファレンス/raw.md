@@ -12,7 +12,7 @@ description: "Gassma.raw で数式インジェクション対策の自動エス�
 
 GASsma は書き込み時、`=`・`+`・`-`・`@` のいずれかで始まる文字列の先頭に `'`（シングルクォート）を付けてエスケープします。これにより、フォーム入力などに紛れ込んだ `=IMPORTRANGE(...)` のような文字列が数式として実行されること（数式インジェクション）を防いでいます。
 
-- エスケープの対象は**文字列のみ**です。数値・boolean・Date はそのまま書き込まれます。
+- エスケープの対象は**文字列のみ**です。数値・boolean・Date はそのまま書き込まれます。ただし `NaN` / `Infinity` / `-Infinity` や不正な Date（Invalid Date）は、エスケープ以前に書き込み自体が `GassmaInvalidValueError` で拒否されます。
 - `'` はスプレッドシート上の表示・読み取りには現れないため、エスケープされたセルを GASsma で読み直すと元の文字列（例: `"=1+2"`）がそのまま返ります。
 
 この保護は常時有効なため、集計用の数式を意図的に書き込みたい場合には邪魔になります。そのためのオプトアウトが `Gassma.raw` です。
@@ -98,7 +98,7 @@ readBack.total; // 120
 `Gassma.raw(value: string)` は `Gassma.RawValue` 型を返します。
 
 - 生成型では、`data` の**すべてのカラム**が `Gassma.RawValue` を受け付けます。数式はセル上で任意の型の値を返せるため、数値・boolean・Date のカラムにも渡せます。
-- `where` では使用できません。書き込み専用です。
+- `where` では使用できません。書き込み専用です。`where` の値に渡すと `GassmaInvalidValueError`（Expected a scalar value, but received a Gassma.raw value.）がスローされます。
 
 ## 信頼できない入力には使わない
 

@@ -63,7 +63,7 @@ The return value has the following format:
 
 The data of the created row is returned.
 
-Also, if you omit the age as follows, the `age` column of that row will be empty:
+Also, if you omit the age as follows, the `age` column of that row will be empty. Passing `undefined` as the value is treated the same as omission:
 
 ```ts
 const gassma = new Gassma.GassmaClient();

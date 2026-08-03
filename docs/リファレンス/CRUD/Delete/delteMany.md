@@ -15,6 +15,10 @@ description: "条件に合致するすべてのレコードを削除し、削除
 | where  | 削除条件の指定             | 可   | 書かない場合は全ての行が対象になります   |
 | limit  | 削除する最大件数           | 可   | 負数を指定するとエラーになります         |
 
+:::caution
+`where: {}` や、条件が `undefined` / `Gassma.skip` だけで空になった場合も**全行が削除対象**になります。意図しない `undefined` を検出したい場合は [strictUndefinedChecks](/docs/reference/config/strict-undefined-checks) を有効にしてください。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)
