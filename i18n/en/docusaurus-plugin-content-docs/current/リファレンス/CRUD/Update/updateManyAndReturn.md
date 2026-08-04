@@ -89,7 +89,7 @@ The `where` specification follows [findMany()](../read/findMany).
 
 ## limit
 
-You can specify the maximum number of records to update. For details, see [updateMany()](/docs/reference/crud/update/updateMany).
+You can specify the maximum number of records to update. For details, see [updateMany()](/docs/reference/crud/update/updateMany). `NaN` / `Infinity` / `-Infinity` / `null` are handled the same way as in `updateMany`.
 
 ## Atomic Number Operations
 

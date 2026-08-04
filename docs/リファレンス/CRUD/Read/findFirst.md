@@ -74,7 +74,9 @@ const result = gassma.sheet1.findFirst({
 ```
 
 :::caution
-`1` / `-1` 以外を指定すると `GassmaFindFirstTakeError` がスローされます。`findMany` の `take` とは異なり、件数の指定はできません。
+`1` / `-1` 以外を指定すると `GassmaFindFirstTakeError` がスローされます。`findMany` の `take` とは異なり、件数の指定はできません。`NaN` / `Infinity` / `-Infinity` も `1` / `-1` 以外なので `GassmaFindFirstTakeError` になります（`findMany` の `take` とは異なるエラークラスです）。
+
+ただし `take: null` だけは `GassmaInvalidValueError`（<code>Invalid value for argument \`take\`. Expected a number, but received null.</code>）になります。
 :::
 
 ## skip
@@ -90,7 +92,7 @@ const result = gassma.sheet1.findFirst({
 ```
 
 :::caution
-`skip` に負数を指定すると `GassmaSkipNegativeError` がスローされます。
+`skip` に有限の負数を指定すると `GassmaSkipNegativeError` がスローされます。`NaN` / `Infinity` / `-Infinity` / `null` を指定した場合は `GassmaInvalidValueError` です（[findMany の take / skip の異常値](./findMany#take--skip-の異常値)を参照）。
 :::
 
 ## distinct

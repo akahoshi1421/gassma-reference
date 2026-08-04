@@ -54,3 +54,20 @@ gassma.Users.create({
 });
 // => role は "ADMIN"（デフォルト値 "USER" は適用されない）
 ```
+
+## デフォルト値の検証
+
+デフォルト値として適用される値も、`data` に直接書いた値と同じ検証を受けます。セルに保存できない値を返した場合は `GassmaInvalidValueError` がスローされ、行は 1 件も書き込まれません。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  defaults: {
+    Users: { age: () => NaN },
+  },
+});
+
+gassma.Users.createMany({ data: [{ name: "Alice" }] });
+// => Invalid value for argument `age`. Expected a finite number, but received NaN.
+```
+
+`{argumentName}` にはカラム名が入ります。`NaN` / `Infinity` / `-Infinity`、不正な Date（Invalid Date）、`Date` 以外のオブジェクトなどが対象です。詳しくは[エラー一覧](/docs/reference/errors#セルに保存できない値)を参照してください。

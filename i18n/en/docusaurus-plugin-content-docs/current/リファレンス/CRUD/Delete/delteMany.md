@@ -69,7 +69,19 @@ const result = gassma.sheet1.deleteMany({
 Specifying `limit: 0` results in 0 deletions (nothing is deleted).
 
 :::caution
-Specifying a negative value for `limit` throws `GassmaLimitNegativeError`.
+Specifying a finite negative value for `limit` throws `GassmaLimitNegativeError`.
+
+`NaN` / `Infinity` / `-Infinity` / `null` throw `GassmaInvalidValueError` instead. In that case no rows are deleted at all.
+
+```ts
+gassma.sheet1.deleteMany({ limit: NaN });
+// => Invalid value for argument `limit`. Expected a finite number, but received NaN.
+
+gassma.sheet1.deleteMany({ limit: null });
+// => Invalid value for argument `limit`. Expected a number, but received null.
+```
+
+`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
 :::
 
 The `where` specification follows [findMany()](../read/findMany).

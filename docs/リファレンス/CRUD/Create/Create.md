@@ -21,6 +21,20 @@ description: "レコードを 1 件作成する。select/omit/include とネス�
 `data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。
 :::
 
+:::caution
+`data` の値にはセルに保存できるスカラー値（文字列・数値・真偽値・`null`・`Date`）のみを指定できます。`Map` / `Set` / `RegExp` / クラスのインスタンス / `new String("x")` のようなラッパーオブジェクトなど、`Date` 以外のオブジェクトを渡すと `GassmaInvalidValueError` がスローされます。
+
+```ts
+gassma.sheet1.create({ data: { name: new Map() } });
+// => Invalid value for argument `name`. Expected a scalar value, but received a Map.
+
+gassma.sheet1.create({ data: { name: new Point(1, 2) } });
+// => Invalid value for argument `name`. Expected a scalar value, but received an object.
+```
+
+`Gassma.raw`（[raw](/docs/reference/raw) を参照）と `fields`（[fields](/docs/reference/fields) を参照）は書き込み時にそのまま渡せます。その他の対象値は[エラー一覧](/docs/reference/errors#セルに保存できない値)を参照してください。
+:::
+
 ## 説明例用のシート
 
 ![説明用シート](../../img/exampleSheet.png)

@@ -54,3 +54,20 @@ gassma.Users.create({
 });
 // => role is "ADMIN" (default value "USER" is not applied)
 ```
+
+## Validation of Default Values
+
+Values produced as defaults go through the same validation as values written directly in `data`. If a default returns something a cell cannot hold, a `GassmaInvalidValueError` is thrown and no rows are written.
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  defaults: {
+    Users: { age: () => NaN },
+  },
+});
+
+gassma.Users.createMany({ data: [{ name: "Alice" }] });
+// => Invalid value for argument `age`. Expected a finite number, but received NaN.
+```
+
+Here `{argumentName}` is the column name. `NaN` / `Infinity` / `-Infinity`, invalid Dates (Invalid Date) and objects other than `Date` are covered. For details, see the [error list](/docs/reference/errors#values-a-cell-cannot-hold).

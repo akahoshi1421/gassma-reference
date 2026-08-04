@@ -186,6 +186,28 @@ The above example orders each user's posts by id ascending, skips the first one,
 `skip` / `take` are available for oneToMany and manyToMany. They are not applicable to oneToOne / manyToOne as they return a single record.
 :::
 
+:::caution
+Passing a non-number to `skip` / `take` in `include` throws an `IncludeInvalidOptionTypeError`. The message differs depending on the value.
+
+```ts
+gassma.Users.findMany({ include: { posts: { take: NaN } } });
+// => IncludeInvalidOptionTypeError:
+//    Include "posts": option "take" must be a finite number
+
+gassma.Users.findMany({ include: { posts: { take: null } } });
+// => IncludeInvalidOptionTypeError:
+//    Include "posts": option "take" must be a number
+```
+
+| Value | Message |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | `must be a finite number` |
+| `null` or any non-number | `must be a number` |
+| `undefined` | Treated as "not specified" and ignored |
+
+Finite negative numbers are not errors: `take` reads from the end, and a negative `skip` throws `GassmaSkipNegativeError`. Options of nested `include` receive the same validation.
+:::
+
 ### select
 
 Specify which columns to retrieve from related data:

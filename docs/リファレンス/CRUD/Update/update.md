@@ -107,7 +107,45 @@ const result = gassma.sheet1.update({
 
 現在値が数値でない場合は `0` をベースとして演算されます。
 
-`increment` などの演算子の引数に `NaN` / `Infinity` / `-Infinity` を渡すと `GassmaInvalidValueError` がスローされます。
+### 演算子に渡す値
+
+`increment` などの演算子の引数に `NaN` / `Infinity` / `-Infinity` を渡すと `GassmaInvalidValueError` がスローされます。このとき `{argumentName}` は**演算子のキー**になります。
+
+```ts
+gassma.sheet1.update({ where: { name: "akahoshi" }, data: { age: { increment: NaN } } });
+// => Invalid value for argument `increment`. Expected a finite number, but received NaN.
+```
+
+### 演算結果
+
+演算の**結果**が `NaN` / `Infinity` / `-Infinity` になる場合も `GassmaInvalidValueError` がスローされます。このとき `{argumentName}` は**カラム名**になります（演算子のキーではありません）。
+
+```ts
+gassma.sheet1.update({ where: { name: "akahoshi" }, data: { age: { divide: 0 } } });
+// => Invalid value for argument `age`. Expected a finite number, but received Infinity.
+```
+
+現在値が `0` の状態で `divide: 0` を指定した場合は `0 / 0` で `NaN` になります。
+
+```ts
+// age が 0 の行に対して
+data: { age: { divide: 0 } };
+// => Invalid value for argument `age`. Expected a finite number, but received NaN.
+```
+
+桁あふれも対象です。演算結果が数値として表現できる範囲を超えた場合は `Infinity` / `-Infinity` になるためエラーになります。
+
+```ts
+// age が 20 の行に対して
+data: { age: { multiply: 1e308 } };
+// => Invalid value for argument `age`. Expected a finite number, but received Infinity.
+```
+
+結果が有限の数値に収まる場合は従来どおり更新されます。エラーになった場合、行は書き換えられません。
+
+:::note
+この検証は `update` / `updateMany` / `updateManyAndReturn`、`upsert` の更新分岐、および [Nested Write（update）](/docs/reference/relation/nested-write-update) の `update` すべてで行われます。
+:::
 
 通常の値指定と組み合わせることもできます。
 

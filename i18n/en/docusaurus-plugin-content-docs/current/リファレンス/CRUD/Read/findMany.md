@@ -147,6 +147,16 @@ If `mode` is not specified or set to the default `mode: "default"`, case is dist
 :::caution
 `where` values cannot be `NaN` / `Infinity` / `-Infinity`, invalid Dates (Invalid Date), arrays (except the arrays of `in` / `notIn`), functions, Symbols, or BigInts. Passing one throws a `GassmaInvalidValueError` (the same applies to `cursor` / `having`). `Gassma.raw` cannot be used in `where` either (see [raw](/docs/reference/raw)).
 
+Objects a cell cannot hold are rejected as well. Every object other than `Date` and `fields` (FieldRef) — `Map` / `Set` / `RegExp` / `Error` / class instances / wrapper objects such as `new String("x")` — throws a `GassmaInvalidValueError`.
+
+```ts
+gassma.sheet1.findMany({ where: { name: new Map() } });
+// => Invalid value for argument `name`. Expected a scalar value, but received a Map.
+
+gassma.sheet1.findMany({ where: { name: new Point(1, 2) } });
+// => Invalid value for argument `name`. Expected a scalar value, but received an object.
+```
+
 Conditions whose value is `undefined` are treated as "not specified". For details, see [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks).
 :::
 
@@ -284,6 +294,50 @@ gassma.sheet1.findMany({ where: { AND: [{ OR: [] }] } }); // => every row
 When relation definitions exist, you can filter using conditions on related records within `where` (`some`, `every`, `none`, `is`, `isNot`).
 
 For details, see the [where relation filter reference](/docs/reference/relation/where-relation-filter).
+
+## Handling of null
+
+Whether `null` is accepted depends on whether it sits in a value position or a structural position.
+
+### `null` in a value position (valid)
+
+Passing `null` as a column value is a legitimate specification and finds rows whose cell is empty.
+
+```ts
+gassma.sheet1.findMany({ where: { age: null } });
+gassma.sheet1.findMany({ where: { age: { equals: null } } });
+gassma.sheet1.findMany({ where: { age: { not: null } } });
+```
+
+Passing `null` to `is` / `isNot` on a to-one relation (manyToOne / oneToOne) is valid in the same way (see [where relation filters](/docs/reference/relation/where-relation-filter)). Column values in `having`, and column values in `data` when writing, also accept `null`.
+
+### `null` in a structural position (error)
+
+Passing `null` to an argument that expects an object or an array throws a `GassmaInvalidValueError`.
+
+```ts
+gassma.sheet1.findMany({ where: null });
+// => GassmaInvalidValueError:
+//    Invalid value for argument `where`. Expected an object, but received null.
+
+gassma.sheet1.findMany({ where: { AND: null } });
+// => Invalid value for argument `AND`. Expected an object or an array, but received null.
+
+gassma.sheet1.findMany({ where: { name: { contains: null } } });
+// => Invalid value for argument `contains`. Expected a string, but received null.
+```
+
+This covers top-level arguments (`where` / `orderBy` / `cursor` / `distinct` / `by` / `having` / `data` / `create` / `update`), `AND` / `OR` / `NOT`, to-many relation filters (`some` / `every` / `none`), nested write verbs (`create` / `connect` / `connectOrCreate` / `set` / `disconnect` / `delete` / `update` / `deleteMany` / `updateMany` / `createMany`), and the string and number operators (`contains` / `startsWith` / `endsWith` / `gt` / `gte` / `lt` / `lte` / `increment` / `decrement` / `multiply` / `divide`). Putting `null` in an array element raises the same error.
+
+For the `{expected}` wording of each argument, see the [error list](/docs/reference/errors#null-where-an-argument-expects-a-structure).
+
+:::caution
+`cursor` is the one exception: **its column values cannot be `null` either**. Because `cursor` identifies a single record, a `null` value throws a `GassmaInvalidValueError` (<code>Invalid value for argument \`id\`. Expected a scalar value, but received null.</code>). Here `{argumentName}` is the column name.
+:::
+
+:::note
+A `null` written directly under `select` / `include` / `omit` is still ignored (that field is treated as not specified).
+:::
 
 ## select
 
@@ -505,6 +559,17 @@ Records with null FK are placed at the beginning for `asc` and at the end for `d
 Field sorting is not available for oneToMany / manyToMany relations. `RelationOrderByUnsupportedTypeError` will be thrown.
 :::
 
+:::caution
+Passing a non-object to a relation name throws a `GassmaInvalidValueError`.
+
+```ts
+gassma.Posts.findMany({ orderBy: { author: new Date() } });
+// => Invalid value for argument `author`. Expected a relation orderBy object.
+```
+
+To sort by a field of the related record, pass an object such as `orderBy: { author: { name: "asc" } }`.
+:::
+
 ### Sorting by _count
 
 You can sort by the number of records in oneToMany / manyToMany relations:
@@ -597,8 +662,33 @@ const result = gassma.sheet1.findMany({
 ```
 
 :::caution
-Specifying a negative value for `skip` throws `GassmaSkipNegativeError`.
+Specifying a finite negative value for `skip` throws `GassmaSkipNegativeError`.
 :::
+
+### Invalid take / skip values
+
+Passing `NaN` / `Infinity` / `-Infinity` / `null` to `take` / `skip` throws a `GassmaInvalidValueError`.
+
+```ts
+gassma.sheet1.findMany({ take: NaN });
+// => Invalid value for argument `take`. Expected a finite number, but received NaN.
+
+gassma.sheet1.findMany({ skip: null });
+// => Invalid value for argument `skip`. Expected a number, but received null.
+```
+
+| Value | Behaviour |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | `GassmaInvalidValueError` (`Expected a finite number, but received ...`) |
+| `null` | `GassmaInvalidValueError` (`Expected a number, but received null.`) |
+| A finite negative number | `take` reads from the end; `skip` throws `GassmaSkipNegativeError` |
+| `undefined` | Treated as "not specified" and ignored |
+
+:::note
+`skip: -Infinity` used to throw `GassmaSkipNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `GassmaSkipNegativeError` is thrown only for **finite** negative numbers.
+:::
+
+The same validation applies to `take` / `skip` in `count` / `aggregate` / `groupBy`. The `take` of `findFirst` has [a different restriction](./findFirst#take).
 
 ## cursor
 

@@ -147,6 +147,16 @@ const result = gassma.sheet1.findMany({
 :::caution
 `where` の値には `NaN` / `Infinity` / `-Infinity`、不正な Date（Invalid Date）、配列（`in` / `notIn` の配列を除く）、関数、Symbol、BigInt を渡せません。渡すと `GassmaInvalidValueError` がスローされます（`cursor` / `having` も同様）。`Gassma.raw` も `where` では使用できません（[raw](/docs/reference/raw) を参照）。
 
+セルに保存できないオブジェクトも同様に渡せません。`Date` と `fields`（FieldRef）以外のオブジェクト —— `Map` / `Set` / `RegExp` / `Error` / クラスのインスタンス / `new String("x")` のようなラッパーオブジェクトなど —— はすべて `GassmaInvalidValueError` になります。
+
+```ts
+gassma.sheet1.findMany({ where: { name: new Map() } });
+// => Invalid value for argument `name`. Expected a scalar value, but received a Map.
+
+gassma.sheet1.findMany({ where: { name: new Point(1, 2) } });
+// => Invalid value for argument `name`. Expected a scalar value, but received an object.
+```
+
 また、値が `undefined` の条件は「指定しなかった」扱いになります。詳しくは [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) を参照してください。
 :::
 
@@ -284,6 +294,50 @@ gassma.sheet1.findMany({ where: { AND: [{ OR: [] }] } }); // => 全件
 リレーション定義がある場合、`where` 内でリレーション先の条件を使ってフィルタリングできます（`some`、`every`、`none`、`is`、`isNot`）。
 
 詳しくは [where リレーションフィルタのリファレンス](/docs/reference/relation/where-relation-filter)を参照してください。
+
+## null の扱い
+
+`null` を渡せるかどうかは「値の位置か、構造の位置か」で決まります。
+
+### 値の位置の `null`（有効）
+
+カラムの値として `null` を渡すのは正当な指定で、セルが空の行を検索できます。
+
+```ts
+gassma.sheet1.findMany({ where: { age: null } });
+gassma.sheet1.findMany({ where: { age: { equals: null } } });
+gassma.sheet1.findMany({ where: { age: { not: null } } });
+```
+
+to-one リレーション（manyToOne / oneToOne）の `is` / `isNot` に `null` を渡すのも同様に有効です（[where リレーションフィルタ](/docs/reference/relation/where-relation-filter)を参照）。`having` のカラムの値、書き込み時の `data` のカラムの値も `null` を渡せます。
+
+### 構造の位置の `null`（エラー）
+
+オブジェクトや配列を受け取る引数に `null` を渡すと `GassmaInvalidValueError` がスローされます。
+
+```ts
+gassma.sheet1.findMany({ where: null });
+// => GassmaInvalidValueError:
+//    Invalid value for argument `where`. Expected an object, but received null.
+
+gassma.sheet1.findMany({ where: { AND: null } });
+// => Invalid value for argument `AND`. Expected an object or an array, but received null.
+
+gassma.sheet1.findMany({ where: { name: { contains: null } } });
+// => Invalid value for argument `contains`. Expected a string, but received null.
+```
+
+対象は、トップレベル引数（`where` / `orderBy` / `cursor` / `distinct` / `by` / `having` / `data` / `create` / `update`）、`AND` / `OR` / `NOT`、to-many リレーションフィルタ（`some` / `every` / `none`）、Nested Write の動詞（`create` / `connect` / `connectOrCreate` / `set` / `disconnect` / `delete` / `update` / `deleteMany` / `updateMany` / `createMany`）、文字列・数値の演算子（`contains` / `startsWith` / `endsWith` / `gt` / `gte` / `lt` / `lte` / `increment` / `decrement` / `multiply` / `divide`）です。配列の要素に `null` を入れた場合も同様にエラーになります。
+
+各引数の `{expected}` の文言は[エラー一覧](/docs/reference/errors#構造を期待する引数への-null)を参照してください。
+
+:::caution
+`cursor` だけは**カラムの値にも `null` を渡せません**。`cursor` はレコードを一意に特定するための指定なので、値が `null` の場合は `GassmaInvalidValueError`（<code>Invalid value for argument \`id\`. Expected a scalar value, but received null.</code>）になります。`{argumentName}` にはカラム名が入ります。
+:::
+
+:::note
+`select` / `include` / `omit` の直下に書いた `null` は従来どおり無視されます（そのフィールドを指定しなかった扱いになります）。
+:::
 
 ## select
 
@@ -505,6 +559,17 @@ FK が `null` のレコードは `asc` で先頭、`desc` で末尾に配置さ�
 oneToMany / manyToMany のリレーションではフィールドソートはできません。`RelationOrderByUnsupportedTypeError` がスローされます。
 :::
 
+:::caution
+リレーション名に対してオブジェクト以外の値を指定すると `GassmaInvalidValueError` がスローされます。
+
+```ts
+gassma.Posts.findMany({ orderBy: { author: new Date() } });
+// => Invalid value for argument `author`. Expected a relation orderBy object.
+```
+
+リレーション先のフィールドを指定するには `orderBy: { author: { name: "asc" } }` のようにオブジェクトを渡してください。
+:::
+
 ### _count でのソート
 
 oneToMany / manyToMany のリレーション件数でソートできます。
@@ -597,8 +662,33 @@ const result = gassma.sheet1.findMany({
 ```
 
 :::caution
-`skip` に負数を指定すると `GassmaSkipNegativeError` がスローされます。
+`skip` に有限の負数を指定すると `GassmaSkipNegativeError` がスローされます。
 :::
+
+### take / skip の異常値
+
+`take` / `skip` に `NaN` / `Infinity` / `-Infinity` / `null` を渡すと `GassmaInvalidValueError` がスローされます。
+
+```ts
+gassma.sheet1.findMany({ take: NaN });
+// => Invalid value for argument `take`. Expected a finite number, but received NaN.
+
+gassma.sheet1.findMany({ skip: null });
+// => Invalid value for argument `skip`. Expected a number, but received null.
+```
+
+| 値 | 挙動 |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | `GassmaInvalidValueError`（`Expected a finite number, but received ...`） |
+| `null` | `GassmaInvalidValueError`（`Expected a number, but received null.`） |
+| 有限の負数 | `take` は末尾から取得、`skip` は `GassmaSkipNegativeError` |
+| `undefined` | 指定しなかった扱いになり無視されます |
+
+:::note
+`skip: -Infinity` は以前 `GassmaSkipNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
+:::
+
+同じ検証は `count` / `aggregate` / `groupBy` の `take` / `skip` にも適用されます。`findFirst` の `take` は[別の制限](./findFirst#take)があります。
 
 ## cursor
 
