@@ -80,7 +80,19 @@ const result = gassma.sheet1.updateMany({
 Specifying `limit: 0` results in 0 updates (nothing is updated).
 
 :::caution
-Specifying a negative value for `limit` throws `GassmaLimitNegativeError`.
+Specifying a finite negative value for `limit` throws `GassmaLimitNegativeError`.
+
+`NaN` / `Infinity` / `-Infinity` / `null` throw `GassmaInvalidValueError` instead. In that case no rows are updated at all.
+
+```ts
+gassma.sheet1.updateMany({ data: { age: 1 }, limit: NaN });
+// => Invalid value for argument `limit`. Expected a finite number, but received NaN.
+
+gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
+// => Invalid value for argument `limit`. Expected a number, but received null.
+```
+
+`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
 :::
 
 ## Atomic Number Operations

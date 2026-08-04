@@ -107,7 +107,45 @@ const result = gassma.sheet1.update({
 
 If the current value is not a number, `0` is used as the base for calculations.
 
-Passing `NaN` / `Infinity` / `-Infinity` as the argument of an operator such as `increment` throws a `GassmaInvalidValueError`.
+### The value passed to an operator
+
+Passing `NaN` / `Infinity` / `-Infinity` as the argument of an operator such as `increment` throws a `GassmaInvalidValueError`. Here `{argumentName}` is the **operator key**.
+
+```ts
+gassma.sheet1.update({ where: { name: "akahoshi" }, data: { age: { increment: NaN } } });
+// => Invalid value for argument `increment`. Expected a finite number, but received NaN.
+```
+
+### The result of the operation
+
+If the **result** of the operation is `NaN` / `Infinity` / `-Infinity`, a `GassmaInvalidValueError` is thrown as well. Here `{argumentName}` is the **column name**, not the operator key.
+
+```ts
+gassma.sheet1.update({ where: { name: "akahoshi" }, data: { age: { divide: 0 } } });
+// => Invalid value for argument `age`. Expected a finite number, but received Infinity.
+```
+
+If the current value is `0` and you specify `divide: 0`, the result is `0 / 0`, which is `NaN`.
+
+```ts
+// against a row whose age is 0
+data: { age: { divide: 0 } };
+// => Invalid value for argument `age`. Expected a finite number, but received NaN.
+```
+
+Overflow is covered too. If the result exceeds the representable range of a number it becomes `Infinity` / `-Infinity`, which is an error.
+
+```ts
+// against a row whose age is 20
+data: { age: { multiply: 1e308 } };
+// => Invalid value for argument `age`. Expected a finite number, but received Infinity.
+```
+
+If the result is a finite number, the update proceeds as before. When the error is thrown, no row is rewritten.
+
+:::note
+This validation runs in `update` / `updateMany` / `updateManyAndReturn`, in the update branch of `upsert`, and in the `update` of [Nested Write (update)](/docs/reference/relation/nested-write-update).
+:::
 
 You can also combine it with regular value assignments:
 

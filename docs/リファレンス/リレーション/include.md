@@ -186,6 +186,28 @@ const result = gassma.Users.findMany({
 `skip` / `take` は oneToMany と manyToMany で利用できます。oneToOne / manyToOne は単一レコードのため対象外です。
 :::
 
+:::caution
+`include` の `skip` / `take` に数値以外の値を渡すと `IncludeInvalidOptionTypeError` がスローされます。値によってメッセージが変わります。
+
+```ts
+gassma.Users.findMany({ include: { posts: { take: NaN } } });
+// => IncludeInvalidOptionTypeError:
+//    Include "posts": option "take" must be a finite number
+
+gassma.Users.findMany({ include: { posts: { take: null } } });
+// => IncludeInvalidOptionTypeError:
+//    Include "posts": option "take" must be a number
+```
+
+| 値 | メッセージ |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | `must be a finite number` |
+| `null` / 数値以外 | `must be a number` |
+| `undefined` | 指定しなかった扱いになり無視されます |
+
+有限の負数はエラーになりません。`take` は末尾から取得し、`skip` に負数を渡した場合は `GassmaSkipNegativeError` になります。ネストした `include` のオプションも同じ検証を受けます。
+:::
+
 ### select
 
 リレーション先のデータの取得列を指定できます。

@@ -21,6 +21,20 @@ Used to add a new single row to the target sheet.
 `data` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `data` is missing.).
 :::
 
+:::caution
+`data` values must be scalar values a cell can hold (string, number, boolean, `null`, `Date`). Passing an object other than `Date` — `Map` / `Set` / `RegExp` / a class instance / a wrapper object such as `new String("x")` — throws a `GassmaInvalidValueError`.
+
+```ts
+gassma.sheet1.create({ data: { name: new Map() } });
+// => Invalid value for argument `name`. Expected a scalar value, but received a Map.
+
+gassma.sheet1.create({ data: { name: new Point(1, 2) } });
+// => Invalid value for argument `name`. Expected a scalar value, but received an object.
+```
+
+`Gassma.raw` (see [raw](/docs/reference/raw)) and `fields` (see [fields](/docs/reference/fields)) can be passed as-is when writing. For the other affected values, see the [error list](/docs/reference/errors#values-a-cell-cannot-hold).
+:::
+
 ## Example Sheet
 
 ![Example Sheet](../../img/exampleSheet.png)

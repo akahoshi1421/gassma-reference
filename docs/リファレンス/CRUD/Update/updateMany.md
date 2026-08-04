@@ -80,7 +80,19 @@ const result = gassma.sheet1.updateMany({
 `limit: 0` を指定すると 0 件更新（何も更新しない）となります。
 
 :::caution
-`limit` に負数を指定すると `GassmaLimitNegativeError` がスローされます。
+`limit` に有限の負数を指定すると `GassmaLimitNegativeError` がスローされます。
+
+`NaN` / `Infinity` / `-Infinity` / `null` を指定した場合は `GassmaInvalidValueError` です。この場合、行は 1 件も更新されません。
+
+```ts
+gassma.sheet1.updateMany({ data: { age: 1 }, limit: NaN });
+// => Invalid value for argument `limit`. Expected a finite number, but received NaN.
+
+gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
+// => Invalid value for argument `limit`. Expected a number, but received null.
+```
+
+`limit: -Infinity` は以前 `GassmaLimitNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`undefined` は従来どおり無視されます（上限なし）。
 :::
 
 ## 数値の原子的操作

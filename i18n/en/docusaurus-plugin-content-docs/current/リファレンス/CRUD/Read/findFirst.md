@@ -74,7 +74,9 @@ const result = gassma.sheet1.findFirst({
 ```
 
 :::caution
-Specifying anything other than `1` / `-1` throws `GassmaFindFirstTakeError`. Unlike `findMany`'s `take`, you cannot specify a number of records.
+Specifying anything other than `1` / `-1` throws `GassmaFindFirstTakeError`. Unlike `findMany`'s `take`, you cannot specify a number of records. `NaN` / `Infinity` / `-Infinity` are also values other than `1` / `-1`, so they throw `GassmaFindFirstTakeError` too (a different error class from `findMany`'s `take`).
+
+Only `take: null` throws a `GassmaInvalidValueError` (<code>Invalid value for argument \`take\`. Expected a number, but received null.</code>).
 :::
 
 ## skip
@@ -90,7 +92,7 @@ const result = gassma.sheet1.findFirst({
 ```
 
 :::caution
-Specifying a negative value for `skip` throws `GassmaSkipNegativeError`.
+Specifying a finite negative value for `skip` throws `GassmaSkipNegativeError`. `NaN` / `Infinity` / `-Infinity` / `null` throw `GassmaInvalidValueError` instead (see [Invalid take / skip values in findMany](./findMany#invalid-take--skip-values)).
 :::
 
 ## distinct

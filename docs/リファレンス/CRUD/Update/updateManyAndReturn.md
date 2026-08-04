@@ -89,7 +89,7 @@ const result = gassma.sheet1.updateManyAndReturn({
 
 ## limit
 
-更新する最大件数を指定できます。詳しくは [updateMany()](/docs/reference/crud/update/updateMany) を参照してください。
+更新する最大件数を指定できます。詳しくは [updateMany()](/docs/reference/crud/update/updateMany) を参照してください。`NaN` / `Infinity` / `-Infinity` / `null` を指定したときの扱いも `updateMany` と同じです。
 
 ## 数値の原子的操作
 
