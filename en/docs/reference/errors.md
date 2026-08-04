@@ -1,0 +1,230 @@
+
+# Error List
+
+A list of error classes that can occur in GASsma.
+
+## Catching Errors
+
+GASsma's error classes are exported from the `Gassma` namespace. You can catch them with `try` / `catch` and determine the error type with `instanceof`.
+
+```ts
+try {
+  gassma.sheet1.findFirst({ take: 5 });
+} catch (e) {
+  if (e instanceof Gassma.GassmaFindFirstTakeError) {
+    // Handle an invalid take for findFirst
+  }
+}
+```
+
+There are 51 exported error classes; together with `GassmaClient` / `GassmaController` / `FieldRef` / `skip`, the `Gassma` namespace exposes 55 public entities.
+
+This `instanceof` limitation applies to built-in types such as `Date`, which evaluate to `false` across the library boundary (see [Basic](/docs/reference/basic)). GASsma's error classes, on the other hand, are referenced via the `Gassma` namespace (the library's global), so they can be checked correctly with `instanceof`.
+
+## Search / Query Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaFindSelectOmitConflictError` | Cannot use both select and omit in the same query | `select` and `omit` are specified at the same time |
+| `NotFoundError` | An operation failed because it depends on one or more records that were required but not found. | No record found with `findFirstOrThrow` |
+| `GassmaSkipNegativeError` | Invalid value for skip argument: Value can only be positive, found: \{value\} | A **finite** negative number is specified for `skip` (also applies to `skip` in `include`). `NaN` / `Infinity` / `-Infinity` / `null` raise `GassmaInvalidValueError` instead |
+| `GassmaLimitNegativeError` | Invalid value for limit argument: Value can only be positive, found: \{value\} | A **finite** negative number is specified for `limit`. `NaN` / `Infinity` / `-Infinity` / `null` raise `GassmaInvalidValueError` instead |
+| `GassmaFindFirstTakeError` | The 'findFirst' operation cannot be used with a 'take' argument that isn't 1 or -1 | A value other than 1 / -1 is specified for `take` in `findFirst` (including `NaN` / `Infinity` / `-Infinity`). Only `take: null` raises `GassmaInvalidValueError` |
+
+## strictUndefinedChecks / Gassma.skip Errors
+
+For details, see [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks).
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaUndefinedValueError` | Invalid value for argument \`\{path\}\`: explicitly \`undefined\` values are not allowed. | An explicit `undefined` is specified in a query input while `strictUndefinedChecks` is enabled. For array elements (`in` / `AND` / `OR` / `orderBy`, etc.), `undefined` throws whether enabled or not |
+| `GassmaSkipInArrayError` | Invalid value for argument \`\{path\}\`: Can not use \`Gassma.skip\` value within array. Use \`null\` or filter out \`Gassma.skip\` values. | `Gassma.skip` is specified as an array element (occurs whether `strictUndefinedChecks` is enabled or not) |
+
+## orderBy Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `RelationOrderByUnsupportedTypeError` | Cannot use orderBy on "\{relationName\}" (type: \{relationType\}). Only manyToOne and oneToOne are supported. | Field sort is used on a oneToMany / manyToMany relation |
+| `RelationOrderByCountUnsupportedTypeError` | Cannot use \_count orderBy on "\{relationName\}" (type: \{relationType\}). Only oneToMany and manyToMany are supported. | `_count` sort is used on a manyToOne / oneToOne relation |
+
+## Aggregation Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaAggregateMaxError` | Cannot produce a maximum value of more than one type. | Mixed types in `_max` |
+| `GassmaAggregateMinError` | Cannot produce a maximum value of more than one type. | Mixed types in `_min` |
+| `GassmaAggregateSumError` | Cannot produce a maximum value of more than one type. | Non-numeric types mixed in `_sum` |
+| `GassmaAggregateAvgError` | Cannot produce a maximum value of more than one type. | Non-numeric types mixed in `_avg` |
+| `GassmaAggregateTypeError` | Only "number", "string", "boolean", and "Date" types are supported. | Unsupported type in `_max` / `_min` |
+| `GassmaAggregateSumTypeError` | Only "number" type is supported. | Non-numeric type in `_sum` |
+| `GassmaAggregateAvgTypeError` | Only "number" type is supported. | Non-numeric type in `_avg` |
+| `GassmaAggregateSelectionRequiredError` | At least one aggregation is required: specify \`_avg\`, \`_count\`, \`_max\`, \`_min\`, or \`_sum\` with at least one field. | `aggregate` is called without any of `_avg` / `_count` / `_max` / `_min` / `_sum` pointing at a field (including calls with only `where` / `orderBy` / `take`, or empty selections such as `_count: {}`) |
+
+`GassmaAggregateMinError` / `GassmaAggregateSumError` / `GassmaAggregateAvgError` extend `GassmaAggregateMaxError`, and `GassmaAggregateAvgTypeError` extends `GassmaAggregateSumTypeError`. As a result, an `instanceof` check against a base class also catches its subclasses.
+
+## groupBy Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaGroupByHavingDontWriteByError` | When using "having" other than "\_avg", "\_count", "\_max", "\_min", and "\_sum", column names can be used only if they are written in the "by" field. | A column not included in `by` is used in `having` |
+
+## Configuration Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaInValidColumnValueError` | startColumnValue and endColumnValue can only use number, \[a-z\] and \[A-Z\]. | An invalid column value is specified in `changeSettings` |
+
+## Argument Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaMissingArgumentError` | Argument \`\{argumentName\}\` is missing. | A required argument (`data` / `where` / `create` / `update` / `by`, etc.) is omitted |
+| `GassmaUnknownArgumentError` | Unknown argument \`\{argumentName\}\`. Did you mean \`\{suggestion\}\`? Available: \{availableArguments\} | An unknown key is used in a query input (a top-level argument, a column name in `where` / `data` / `select` / `omit` / `orderBy`, a filter operator, an update operator such as `increment`, etc.). Also thrown when a `GassmaClient` option (`map` / `defaults` / `updatedAt` / `autoincrement` / `ignore` / `omit`) refers to a column that does not exist |
+| `GassmaInvalidValueError` | Invalid value for argument \`\{argumentName\}\`. Expected \{expected\}. | An argument value has an unacceptable shape. There are many trigger conditions, so they are collected [below](#trigger-conditions-for-gassmainvalidvalueerror) |
+
+In the `GassmaUnknownArgumentError` message, `Did you mean ...?` only appears when a close match is found, and `Available: ...` only appears when the list of candidates is non-empty.
+
+### Trigger Conditions for GassmaInvalidValueError
+
+The message always has the form <code>Invalid value for argument \`\{argumentName\}\`. Expected \{expected\}.</code>. The tables below show the `{expected}` part.
+
+#### Arguments with an invalid shape
+
+| Condition | `{argumentName}` | `{expected}` |
+| --- | --- | --- |
+| A non-array is given to `OR` / `AND` / `NOT` | `OR`, etc. | an array |
+| The `orderBy` value is not `"asc"` / `"desc"` (including when an array is passed) | `orderBy` | "asc" \| "desc" |
+| The `sort` in `orderBy` is not `"asc"` / `"desc"` | `sort` | "asc" \| "desc" |
+| The `nulls` in `orderBy` is not `"first"` / `"last"` | `nulls` | "first" \| "last" |
+| A non-object is given to a relation key in `orderBy` | the relation name | a relation orderBy object |
+| `select` selects no fields at all | `select` | at least one selected field |
+| `cursor` has no columns at all | `cursor` | at least one column |
+| The `where` of a single-row operation (`update` / `delete` / `upsert`) has no conditions at all | `where` | at least one condition |
+
+#### Invalid pagination values (`take` / `skip` / `limit`)
+
+| Value | `{expected}` |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | a finite number, but received NaN |
+| `null` | a number, but received null |
+
+`take` / `skip` apply to `findMany` / `findFirst` / `count` / `aggregate` / `groupBy`, and `limit` applies to `updateMany` / `updateManyAndReturn` / `deleteMany`. `undefined` is still treated as "not specified" and ignored.
+
+For `take` in `findFirst`, the `1` / `-1` check runs first, so `NaN` / `Infinity` / `-Infinity` raise `GassmaFindFirstTakeError` (only `take: null` raises `GassmaInvalidValueError`). `take` / `skip` inside `include` raise `IncludeInvalidOptionTypeError`.
+
+#### `null` where an argument expects a structure
+
+`, but received null` is appended to `{expected}` (for example, <code>Invalid value for argument \`where\`. Expected an object, but received null.</code>).
+
+| `{argumentName}` | `{expected}` |
+| --- | --- |
+| `where` / `cursor` / `having` / `some` / `every` / `none` / `createMany` | an object |
+| `data` / `create` / `update` / `connect` / `connectOrCreate` / `set` / `deleteMany` / `updateMany` / `AND` / `OR` / `NOT` | an object or an array |
+| `orderBy` | an object or an array |
+| `distinct` / `by` | a field name or an array of field names |
+| `disconnect` / `delete` | a boolean or an object |
+| `contains` / `startsWith` / `endsWith` | a string |
+| `gt` / `gte` / `lt` / `lte` | a comparable value |
+| `increment` / `decrement` / `multiply` / `divide` | a number |
+| A column value in `cursor` | a scalar value |
+
+Putting `null` in an array element raises the same error (`AND: [null]`, `distinct: [null]`, `data: [null]` in `createMany`, and so on). For details, see [Handling of null](/docs/reference/crud/read/findMany#handling-of-null).
+
+#### Values a cell cannot hold
+
+This applies to write (`data`) and query (`where` / `cursor` / `having`) values.
+
+| Value | `{expected}` |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | a finite number, but received NaN |
+| Invalid Date | a valid Date, but the provided Date object is invalid |
+| An array | a scalar value, but received an array |
+| A function | a scalar value, but received a function |
+| A Symbol | a scalar value, but received a symbol |
+| A BigInt | a scalar value, but received a bigint |
+| Built-in objects such as `Map` / `Set` / `RegExp` / `Error` / `Promise` | a scalar value, but received a Map |
+| Any other object, such as a class instance | a scalar value, but received an object |
+| `Gassma.raw` (in `where` / `cursor` / `having` only) | a scalar value, but received a Gassma.raw value |
+
+`Date`, `Gassma.raw` (in `data` only) and `FieldRef` are objects but can be passed as-is. For built-in objects, the name in the message is the internal type of the value (`Set` produces `but received a Set.`).
+
+#### Arithmetic operation results
+
+Raised when the **result** of `increment` / `decrement` / `multiply` / `divide` is `NaN` / `Infinity` / `-Infinity`. Here `{argumentName}` is the **column name**.
+
+| `{expected}` |
+| --- |
+| a finite number, but received Infinity |
+
+For details, see [update()](/docs/reference/crud/update/update#atomic-number-operations).
+
+## Relation Definition Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `RelationSheetNotFoundError` | Sheet "\{sheetName\}" is not found in the spreadsheet | The sheet specified in the relation definition does not exist |
+| `RelationMissingPropertyError` | Relation "\{relationName\}" on sheet "\{sheetName\}" is missing required property "\{property\}" | A required property is missing in the relation definition |
+| `RelationInvalidPropertyTypeError` | Relation "\{relationName\}" on sheet "\{sheetName\}": property "\{property\}" must be a \{expectedType\} | The property type in the relation definition is invalid |
+| `RelationInvalidTypeError` | Relation "\{relationName\}" on sheet "\{sheetName\}": type "\{value\}" is not valid. Must be one of: oneToMany, oneToOne, manyToOne, manyToMany | The relation `type` is invalid |
+| `RelationColumnNotFoundError` | Column "\{columnName\}" is not found in sheet "\{sheetName\}" | The column specified in `field` / `reference` of the relation definition does not exist |
+| `RelationInvalidOnDeleteError` | Relation "\{relationName\}" on sheet "\{sheetName\}": onDelete "\{value\}" is not valid. Must be one of: Cascade, SetNull, Restrict, NoAction | The `onDelete` value is invalid |
+| `RelationInvalidOnUpdateError` | Relation "\{relationName\}" on sheet "\{sheetName\}": onUpdate "\{value\}" is not valid. Must be one of: Cascade, SetNull, Restrict, NoAction | The `onUpdate` value is invalid |
+| `RelationIgnoredColumnError` | Relation "\{relationName\}" on sheet "\{sheetName\}": column "\{columnName\}" is ignored on sheet "\{ignoredSheetName\}". Ignored columns are stripped from where conditions, so relation processing (onDelete/onUpdate/nested writes) could modify all rows in sheet "\{ignoredSheetName\}". Remove "\{columnName\}" from the ignore option or remove this relation | The relation's `field` / `reference` (or `through.field` / `through.reference` for manyToMany) refers to a column listed in the `ignore` option (detected at client initialization) |
+
+## Relation Operation Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaRelationNotFoundError` | Relation "\{relationName\}" is not defined for sheet "\{sheetName\}" | An undefined relation name is specified in `include` |
+| `GassmaRelationDuplicateError` | Duplicate value "\{value\}" found in "\{sheetName\}.\{field\}" for a unique relation | Duplicate values exist in the target of a oneToOne / manyToOne relation |
+| `GassmaThroughRequiredError` | Relation "\{relationName\}" is manyToMany but "through" is not defined | `through` (junction table) is not defined for a manyToMany relation |
+| `RelationOnDeleteRestrictError` | Cannot delete: related records exist for relation "\{relationName\}" (onDelete: Restrict) | Attempting to delete when related records exist with `onDelete: "Restrict"` |
+| `RelationOnUpdateRestrictError` | Cannot update: related records exist for relation "\{relationName\}" (onUpdate: Restrict) | Attempting to update a PK when related records exist with `onUpdate: "Restrict"` |
+
+## include Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `IncludeWithoutRelationsError` | Cannot use include without defining relations in GassmaClient | `include` is used without defining relations |
+| `GassmaIncludeSelectConflictError` | Cannot use both include and select in the same query | `include` and `select` are used simultaneously at the top level |
+| `IncludeInvalidOptionTypeError` | Include "\{relationName\}": option "\{option\}" must be \{expectedType\} | The option value type in `include` is invalid |
+| `IncludeSelectOmitConflictError` | Include "\{relationName\}": cannot use both select and omit at the same time | `select` and `omit` are specified simultaneously within `include` |
+| `IncludeSelectIncludeConflictError` | Include "\{relationName\}": cannot use both select and include at the same time | `select` and `include` are specified simultaneously within `include` |
+
+## where Relation Filter Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `WhereRelationInvalidFilterError` | Filter "\{filterType\}" cannot be used on relation "\{relationName\}" of type "\{relationType\}" | An inappropriate filter is used for the relation type (e.g., using `is` on a oneToMany relation) |
+| `WhereRelationWithoutContextError` | Cannot use relation filters in where clause without defining relations | Relation filters are used without defining relations |
+
+## Nested Write Errors
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `NestedWriteWithoutRelationsError` | Cannot use nested write operations without defining relations in GassmaClient | Nested Write is used without defining relations |
+| `NestedWriteConnectNotFoundError` | Nested write connect failed: no record found in "\{sheetName\}" | The target record is not found with `connect` / `connectOrCreate` |
+| `NestedWriteRelationNotFoundError` | Nested write failed: "\{fieldName\}" is not a defined relation | An undefined relation name is used in Nested Write |
+| `NestedWriteInvalidOperationError` | Nested write: operation "\{operation\}" is not valid for relation "\{relationName\}" of type "\{relationType\}" | An unsupported operation is used for the relation type (e.g., using `delete` on a manyToMany relation) |
+| `NestedWriteTargetNotFoundError` | Nested write \{operation\} failed: no record found in "\{sheetName\}" | No related record exists for a nested `update` / `delete` on the non-FK side of a oneToOne relation |
+
+## Transaction Errors
+
+For details, see [$transaction](/docs/reference/transaction).
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | The script lock could not be acquired within `maxWait` when starting `$transaction` |
+| `GassmaTransactionTimeoutError` | Transaction API error: A \{phase\} cannot be executed on an expired transaction. The timeout for this transaction was \{timeoutMs\} ms, however \{elapsedMs\} ms passed since the start of the transaction. Consider increasing the transaction timeout or doing less work in the transaction. | The elapsed time since the transaction started exceeds `timeout` (detected when a tx operation is called or right before commit) |
+| `GassmaNestedTransactionError` | Transaction API error: Nested transactions are not supported. Do not call $transaction inside an active transaction. | `$transaction` is called inside a transaction |
+| `GassmaTransactionRollbackError` | Transaction API error: The transaction failed during commit and automatic rollback also failed. The affected sheets may be in an inconsistent state. Backup sheets are preserved for manual recovery: \{backupSheetNames\} | The automatic restore from the backups also failed after a write failure during commit (the `backupSheetNames` property holds the list of remaining backup sheet names) |
+
+## CLI Configuration File Errors
+
+Errors that occur when running CLI commands (such as `gassma generate`).
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `ConfigFileNotFoundError` | GASsmaConfigFileNotFoundError: config file not found at \{configPath\} | The config file specified with `--config` does not exist |
+| `GassmaConfigLoadError` | GASsmaConfigLoadError: Failed to load config file at \{configPath\}. \{detail\} | A syntax or runtime error in the config file, an invalid type for a known key (`schema` / `datasource.url`), or the config file does not export a config object |
+| `GassmaConfigEnvError` | Cannot resolve environment variable: \{name\}. | The environment variable referenced by `env()` is not set or is an empty string |

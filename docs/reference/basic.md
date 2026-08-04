@@ -1,0 +1,63 @@
+
+# 基本
+
+## インスタンス生成
+
+もしあなたが、特定のスプレッドシート上に GAS を作成し、そのスプレッドシートを扱うのであれば以下の方法でインスタンス生成が可能です。
+
+```ts
+const gassma = new Gassma.GassmaClient();
+```
+
+あるいは、スプレッドシートではない場所に GAS を作成した、あるいは別の場所にあるスプレッドシートを扱うのであれば、引数に対象のスプレッドシートの ID を挿入することでインスタンス生成が可能です。
+
+```ts
+const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
+```
+
+### オプションオブジェクトでの初期化
+
+リレーション定義やグローバル omit など、高度な設定を行う場合はオプションオブジェクトを渡します。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  id: "XXXXXXXXXXXXXXXXXXX", // 省略可
+  relations: {
+    // リレーション定義（詳細はリレーション定義のリファレンスを参照）
+  },
+  omit: {
+    // グローバル omit 設定（詳細はグローバル omit のリファレンスを参照）
+    Users: { password: true },
+  },
+});
+```
+
+| オプション | 説明 | 参照 |
+| --- | --- | --- |
+| `id` | スプレッドシート ID（省略時はアクティブスプレッドシート） | - |
+| `relations` | リレーション定義 | [リレーション定義](/docs/reference/relation/definition) |
+| `omit` | グローバル omit 設定 | [グローバル omit](/docs/reference/config/global-omit) |
+| `defaults` | フィールドのデフォルト値 | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | 自動更新タイムスタンプ | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | フィールドレベルの除外 | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | シートレベルの除外 | [ignore](/docs/reference/config/ignore) |
+| `map` | フィールド名のマッピング | [map](/docs/reference/config/map) |
+| `mapSheets` | シート名のマッピング | [map](/docs/reference/config/map) |
+| `autoincrement` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
+| `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+## Date 値の判定
+
+GASsma は GAS ライブラリとして、呼び出し元スクリプトとは別のスクリプトコンテキストで動作します。そのため、GASsma が返した `Date` 値を `instanceof Date` で判定すると `false` になります。判定には `Object.prototype.toString` を使用してください。
+
+```ts
+const user = gassma.Users.findFirst({ where: { id: 1 } });
+
+user.createdAt instanceof Date;
+// => false（ライブラリ境界を越えた Date は instanceof で判定できない）
+
+Object.prototype.toString.call(user.createdAt) === "[object Date]";
+// => true
+```
+
+この制約は `Date` などの**ビルトイン型**に対する `instanceof` の話です。GASsma が公開するエラークラス（`Gassma.GassmaMissingArgumentError` など）は `Gassma` 名前空間（ライブラリの global）経由で参照するため、`instanceof` で判定できます。詳しくは[エラー一覧](/docs/reference/errors)を参照してください。

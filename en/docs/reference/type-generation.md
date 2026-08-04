@@ -1,0 +1,775 @@
+
+# Local Development with Prisma Schema
+
+GASsma provides the ability to auto-generate type-safe client code from Prisma-format schema files when developing GAS locally using TypeScript with tools such as clasp+esbuild.
+
+By using this feature, settings such as relation definitions, defaults, and map are auto-generated from the schema, eliminating the need to manually write GASsma-specific constructor options (`relations`, `defaults`, `updatedAt`, `ignore`, `map`, etc.). As long as you know Prisma's schema syntax, you can start developing with the same workflow as Prisma.
+
+**Without CLI (manual configuration):**
+
+```ts
+import { Gassma } from "gassma";
+
+const gassma = new Gassma.GassmaClient({
+  id: "SPREAD_SHEET_ID",
+  relations: {
+    User: {
+      posts: { type: "oneToMany", to: "Post", field: "id", reference: "authorId", onDelete: "Cascade" },
+    },
+    Post: {
+      author: { type: "manyToOne", to: "User", field: "authorId", reference: "id" },
+    },
+  },
+  defaults: { User: { role: "USER" } },
+  updatedAt: { Post: "updatedAt" },
+  map: { User: { firstName: "名前" } },
+});
+```
+
+**With CLI (auto-generated from schema):**
+
+```ts
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+// Relations, defaults, updatedAt, map, etc. are all auto-injected
+const gassma = new GassmaClient();
+```
+
+## Prerequisites
+
+Install the GASsma CLI tool with the following command:
+
+```
+$ npm i gassma
+```
+
+## Creating a Schema File
+
+Create a `.prisma` file in your project. By default, the `./gassma` directory is searched.
+
+```
+my-project/
+├── gassma/
+│   └── schema.prisma    ← Write your schema here
+├── package.json
+└── ...
+```
+
+### Basic Syntax
+
+Define models using Prisma's syntax. Specify the output directory in the `generator` block's `output` field.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/gassma"
+}
+
+model User {
+  id    Int     @id
+  name  String
+  email String?
+  age   Int
+}
+```
+
+### previewFeatures
+
+You can enable opt-in features by specifying `previewFeatures` in the `generator` block (same syntax as Prisma's `previewFeatures`).
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  output          = "./generated/gassma"
+  previewFeatures = ["strictUndefinedChecks"]
+}
+```
+
+Currently supported features:
+
+| Feature | Description | Reference |
+| --- | --- | --- |
+| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+When enabled, `strictUndefinedChecks: true` is embedded into the generated client JS, and the generated type definitions also accept `Gassma.skip`.
+
+### Type Mapping
+
+Prisma types are converted to the following TypeScript types:
+
+| Prisma Type | TypeScript Type |
+| --- | --- |
+| `Int` | `number` |
+| `Float` | `number` |
+| `Decimal` | `number` |
+| `BigInt` | `number` |
+| `String` | `string` |
+| `Boolean` | `boolean` |
+| `DateTime` | `Date` |
+| `Json` | `string` |
+| `Bytes` | `string` |
+
+Adding `?` makes the field optional (`null` is allowed).
+
+### Relation Definitions
+
+Using Prisma's `@relation` attribute, relation information is automatically extracted and injected into the generated client.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/gassma"
+}
+
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
+}
+```
+
+The following relation settings are auto-generated from the above definition:
+
+- `User.posts`: oneToMany (User -> Post)
+- `Post.author`: manyToOne (Post -> User, onDelete: Cascade)
+
+#### Implicit Many-to-Many
+
+When bidirectional array references exist, an implicit Many-to-Many relation is automatically detected.
+
+```prisma
+model Post {
+  id   Int   @id
+  tags Tag[]
+}
+
+model Tag {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+```
+
+In the generated client, the junction table name is automatically resolved as `_PostToTag` (model names in alphabetical order). If you name the relation like `@relation("PostTags")`, the relation name is used as the junction table name (`_PostTags`) — the same rule as Prisma.
+
+The junction table (sheet) itself can be created automatically with [migrate / db push](/docs/reference/migrate) (you can also prepare a sheet with the same name manually in the spreadsheet).
+If you want to change the junction table name, give the relation a name with `@relation`.
+
+### enum
+
+Literal union types are auto-generated from Prisma's `enum` definitions.
+
+```prisma
+enum Role {
+  ADMIN
+  USER
+  MODERATOR
+}
+
+model User {
+  id   Int  @id
+  role Role
+}
+```
+
+Generated type:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+#### enum @map
+
+Adding `@map` to enum members allows you to map between the name used in code and the value stored in the spreadsheet.
+
+```prisma
+enum Role {
+  admin     @map("ADMIN")
+  user      @map("USER")
+  moderator @map("MODERATOR")
+}
+```
+
+Generated constant:
+
+```ts
+const Role = {
+  admin: "ADMIN",
+  user: "USER",
+  moderator: "MODERATOR",
+} as const;
+```
+
+The `@map` values are used in the type definition:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+### @gassma.addType
+
+By writing `@gassma.addType` in a Prisma field comment (`///`), you can add union types to the field's type.
+
+```prisma
+model User {
+  /// @gassma.addType string
+  id    Int @id          // Generated type: number | string
+
+  /// @gassma.addType string, boolean
+  score Int              // Generated type: number | string | boolean
+
+  name  String           // Generated type: string (normal when no comment)
+}
+```
+
+### @gassma.replaceType
+
+While `@gassma.addType` creates a union with the base type, `@gassma.replaceType` replaces the base type and generates only the specified types.
+
+```prisma
+model User {
+  /// @gassma.replaceType "admin", "user", "moderator"
+  role String
+}
+```
+
+Generated type:
+
+```ts
+"role": "admin" | "user" | "moderator"  // Does not include string
+```
+
+Priority: enum > replaceType > addType. When an enum exists, replaceType / addType are ignored.
+
+### @default
+
+Fields with `@default()` become optional (`?`) in the generated Create input type.
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+```
+
+Generated type:
+
+```ts
+"isActive"?: boolean   // @default(true) -> Optional
+"createdAt"?: Date     // @default(now()) -> Optional
+```
+
+The defaults settings are automatically embedded in the generated client JS.
+
+| `@default()` | Generated JS |
+| --- | --- |
+| `@default(true)` / `@default(false)` | `true` / `false` |
+| `@default(0)` (number) | `0` |
+| `@default("USER")` (string) | `"USER"` |
+| `@default(ADMIN)` (enum value) | `"ADMIN"` |
+| `@default(active)` (enum value with `active @map("ACTIVE")`) | `"ACTIVE"` (the `@map`-applied value) |
+| `@default(now())` | `() => new Date()` |
+| `@default(uuid())` | `() => Utilities.getUuid()` |
+| `@default(autoincrement())` | Generated separately as an autoincrement setting |
+
+### @updatedAt
+
+Fields with `@updatedAt` become optional in the Create input type, and the updatedAt setting is embedded in the generated client JS.
+
+```prisma
+model Post {
+  id        Int      @id
+  title     String
+  updatedAt DateTime @updatedAt
+}
+```
+
+### @ignore
+
+Fields with `@ignore` are completely excluded from the type definition, and the ignore setting is embedded in the generated client JS.
+
+```prisma
+model User {
+  id       Int    @id
+  name     String
+  secret   String @ignore   // Not included in the type definition
+}
+```
+
+### @map
+
+`@map("name")` defines a field name mapping. The map setting is embedded in the generated client JS.
+
+```prisma
+model User {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+}
+```
+
+In code, you work with `firstName` / `lastName`, which correspond to the columns named "名前" and "名字" in the spreadsheet.
+
+### @@ignore
+
+The model-level `@@ignore` excludes an entire sheet. The ignoreSheets setting is embedded in the generated client JS.
+
+```prisma
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+### @@map
+
+The model-level `@@map("name")` maps a sheet name.
+
+```prisma
+model Users {
+  id   Int    @id
+  name String
+
+  @@map("ユーザー一覧")
+}
+```
+
+In code, you access it as `Users`, which corresponds to the sheet named "ユーザー一覧" in the spreadsheet.
+
+## CLI Commands
+
+### gassma generate
+
+Generates type files and client code.
+
+```
+$ npx gassma generate
+```
+
+By default, `.prisma` files in the `./gassma` directory are searched. You can specify a particular schema file or directory using the `--schema` option (equivalent to Prisma's `prisma generate --schema`).
+
+```
+$ npx gassma generate --schema gassma/user.prisma
+$ npx gassma generate --schema ./schemas
+```
+
+The `--watch` option monitors schema file changes and automatically regenerates.
+
+```
+$ npx gassma generate --watch
+```
+
+It can also be combined with `--schema`.
+
+The `--config` option lets you explicitly specify the path to the config file (equivalent to Prisma's `--config`).
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+If the specified file does not exist, a `ConfigFileNotFoundError` is thrown. When omitted, the default locations are searched as before (see "Config File Search Rules" below).
+
+### gassma init
+
+Initializes a project and auto-generates a schema file and configuration file.
+
+```
+$ npx gassma init
+```
+
+The following files are generated:
+
+- `gassma/schema.prisma` -- Initial schema
+- `gassma.config.ts` -- Configuration file
+
+| Option | Description |
+| --- | --- |
+| `--output <path>` | Customize the output path |
+| `--with-model` | Generate a schema with a sample User model |
+
+If `schema.prisma` already exists, it safely stops with an error.
+
+### gassma validate
+
+Performs syntax checking and consistency checking of the schema file (equivalent to Prisma's `prisma validate`).
+
+```
+$ npx gassma validate
+```
+
+```
+$ npx gassma validate --schema gassma/test.prisma
+```
+
+You can also specify the path to the config file with the `--config` option.
+
+Check items:
+
+- Syntax errors (parser error detection)
+- `generator` block existence check
+- `output` field required check
+- At least one model is defined
+
+On success, the following is output:
+
+```
+The schema at /path/to/gassma/test.prisma is valid 🚀
+```
+
+### gassma format
+
+Formats `.prisma` files with the same formatting as the official Prisma formatter (uses `@prisma/internals`' `formatSchema`).
+
+```
+$ npx gassma format
+```
+
+| Option | Description |
+| --- | --- |
+| `--schema <path>` | Format only a specific file |
+| `--config <path>` | Specify the path to the config file |
+| `--check` | Check if already formatted (for CI; exits with code 1 if unformatted) |
+
+### gassma studio
+
+Opens the spreadsheet configured in `datasource` in your OS's default browser.
+
+```
+$ npx gassma studio
+```
+
+| Option | Description |
+| --- | --- |
+| `--config <path>` | Specify the path to the config file |
+
+The URL is resolved in the following order:
+
+1. The `url` of the `datasource` block in the schema
+2. `datasource.url` in `gassma.config.ts`
+
+If `url` is a full URL (`https://...`), it is opened as-is; if it is a spreadsheet ID, `https://docs.google.com/spreadsheets/d/<id>/edit` is constructed and opened. If neither has a URL set, a `NoDatasourceUrlError` occurs.
+
+### gassma version
+
+Displays the GASsma CLI version.
+
+```
+$ npx gassma version
+```
+
+You can also check with the `--version` / `-V` flag.
+
+| Option | Description |
+| --- | --- |
+| `--json` | Output version information as JSON |
+
+With `--json`, the version is output as JSON (`{"gassma":"<version>"}`).
+
+```
+$ npx gassma version --json
+{"gassma":"1.2.3"}
+```
+
+### Generated Files
+
+The following files are generated based on the schema file name. For example, for `schema.prisma`:
+
+| File | Content |
+| --- | --- |
+| `schema.d.ts` | Type definitions (model types, query types, common types) |
+| `schemaClient.js` | Client implementation (with auto-injected relation definitions) |
+| `schemaClient.d.ts` | Client type definitions |
+
+The output directory is the directory specified by the `generator` block's `output`.
+
+## Using the Generated Client
+
+Import `GassmaClient` from the generated client file and use it directly. Relation definitions are auto-injected.
+
+```ts
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
+// Access sheets with type safety
+const users = gassma.User.findMany({
+  where: { age: { gte: 20 } },
+  select: { name: true, email: true },
+});
+```
+
+You can instantiate it using the same pattern as Prisma.
+
+```ts
+// Prisma
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+// GASsma (same pattern)
+import { GassmaClient } from "./generated/gassma/schemaClient";
+const gassma = new GassmaClient();
+```
+
+### Initialization with Options
+
+```ts
+// Specify spreadsheet ID
+const gassma = new GassmaClient("SPREAD_SHEET_ID");
+
+// Options object
+const gassma = new GassmaClient({
+  id: "SPREAD_SHEET_ID",
+  omit: {
+    User: { password: true },
+  },
+});
+```
+
+## Configuration File (gassma.config.ts)
+
+By placing `gassma.config.ts` at the project root, you can centrally manage CLI settings (equivalent to Prisma's `prisma.config.ts`). Extensions other than TypeScript (`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`) and placement in the `.config/` directory are also supported (see "Config File Search Rules" below).
+
+### Configuration Interface
+
+There are two ways to write the configuration file.
+
+**1. Using the `defineConfig` helper (recommended):**
+
+```ts
+import { defineConfig } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+});
+```
+
+**2. Using the `satisfies` operator:**
+
+```ts
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+The `GassmaConfig` type can be imported from the root of the `gassma` package.
+
+### Configuration Options
+
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `schema` | `string` | No | Path to the schema file or directory (default: `./gassma`) |
+| `datasource.url` | `string` | No | Spreadsheet URL or ID |
+
+### Config File Search Rules
+
+The config file is searched in the following order, and the **first file found** is used:
+
+1. `gassma.config.js`
+2. `gassma.config.ts`
+3. `gassma.config.mjs`
+4. `gassma.config.cjs`
+5. `gassma.config.mts`
+6. `gassma.config.cts`
+7. `.config/gassma.js`
+8. `.config/gassma.ts`
+9. `.config/gassma.mjs`
+10. `.config/gassma.cjs`
+11. `.config/gassma.mts`
+12. `.config/gassma.cts`
+
+All extensions of `gassma.config.*` directly under the project root are searched first, followed by `gassma.*` in the `.config/` directory. This is the same order as Prisma's config file search, including `.js` taking precedence over `.ts`.
+
+### --config Option
+
+The `generate` (including `--watch`), `validate`, `format`, and `studio` commands accept the `--config` option to explicitly specify the path to the config file (equivalent to Prisma's `--config`).
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+- Relative paths are resolved from the current working directory.
+- If the specified file does not exist, a `ConfigFileNotFoundError` is thrown.
+- When omitted, the default locations are searched according to the search rules above.
+
+### Load Behavior
+
+When running `gassma generate`, the following is displayed when the config file is loaded successfully:
+
+```
+⚙️ Loaded config from gassma.config.ts
+```
+
+- If the config file has a syntax or runtime error, or if a known key (`schema` / `datasource.url`) has an invalid type, a `GassmaConfigLoadError` is thrown.
+- If the config contains unknown keys, a warning is displayed and those keys are ignored (no error is thrown).
+
+```
+Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
+```
+
+### env() Helper
+
+Using the `env()` function, you can retrieve the spreadsheet URL from an environment variable (equivalent to Prisma's `env()`).
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+It can also be used with the `satisfies` pattern.
+
+```ts
+import "dotenv/config";
+import type { GassmaConfig } from "gassma";
+import { env } from "gassma/config";
+
+export default {
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+} satisfies GassmaConfig;
+```
+
+#### Typed env()
+
+By passing an interface of your environment variables as a type argument, the names you can pass to `env()` are restricted to its keys, and you get autocompletion.
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+interface Env {
+  SPREADSHEET_URL: string;
+}
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env<Env>("SPREADSHEET_URL"),
+  },
+});
+```
+
+Only keys whose values are of type `string` (or `string | undefined`) can be specified. Specifying a nonexistent key results in a compile error.
+
+`env()` throws a `GassmaConfigEnvError` if the environment variable is not set or is an empty string. For optional environment variables, use `process.env` directly.
+
+### datasource.url
+
+When you specify a spreadsheet URL or ID in `datasource.url`, the `id` is automatically embedded in the generated client JS. This allows you to connect to the target spreadsheet with just `new GassmaClient()`.
+
+Both full URLs and spreadsheet IDs are supported.
+
+```ts
+// Full URL
+datasource: {
+  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+}
+
+// Direct ID specification
+datasource: {
+  url: "XXXXX",
+}
+```
+
+### datasource Block in Schema
+
+You can also specify the URL by writing a `datasource` block in the schema file.
+
+```prisma
+datasource db {
+  provider = "google-spreadsheet"
+  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
+}
+```
+
+#### URL Resolution Priority
+
+1. `datasource` block in the schema (highest priority)
+2. `datasource.url` in `gassma.config.ts`
+
+### Schema Resolution Priority
+
+1. `--schema` option (highest priority)
+2. `schema` setting in `gassma.config.ts`
+3. Default `./gassma` directory
+
+Relative paths are resolved from different base directories: the `--schema` option is resolved from the current working directory, while `schema` in the config file is resolved **relative to the location of the config file** (same as Prisma).
+
+Running `gassma init` also auto-generates `gassma.config.ts`.
+
+## Multi-file Schema
+
+When you place multiple `.prisma` files in the same directory (and subdirectories), they are automatically **merged into a single schema**. This is equivalent to Prisma's [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) feature.
+
+```
+gassma/
+├── schema.prisma        ← Write the generator block here
+├── models/
+│   ├── user.prisma      ← User, Profile models
+│   └── post.prisma      ← Post, Comment models
+```
+
+The `generator` block only needs to be written in one file and is shared across all files. All models are consolidated into a single client output.
+
+## Multiple Schemas (Multiple Spreadsheets)
+
+When working with different spreadsheets, separate schemas into different directories and generate them individually. Type names are prefixed with the schema name, so there are no conflicts even with models of the same name.
+
+```
+schemas/
+├── user/
+│   └── schema.prisma    → userClient.js, user.d.ts
+└── order/
+    └── schema.prisma    → orderClient.js, order.d.ts
+```
+
+```ts
+import { GassmaClient as UserClient } from "./generated/user/schemaClient";
+import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
+
+const userGassma = new UserClient();
+const orderGassma = new OrderClient();
+```
+
+## Overview of Generated Types
+
+The generated `.d.ts` includes the following types:
+
+- **Model types**: Type definitions for each field (`GassmaUserUse`, etc.)
+- **Query types**: `FindData`, `CreateData`, `UpdateData`, `DeleteData`, `UpsertData`, etc.
+- **Select / Omit types**: Types for field selection and exclusion
+- **Filter types**: `WhereUse`, `FilterConditions` (including `FieldRef` support)
+- **OrderBy types**: Sort conditions (relation sort, `_count` sort, nulls control included)
+- **Include types**: Types for relation fetching (including `_count`)
+- **Nested Write types**: Create, connect, update, and delete operations for related records
+- **Numeric operation types**: `NumberOperation` (increment / decrement / multiply / divide)
+- **Common types**: `FieldRef`, `GassmaClientOptions`, error class group
+- **Configuration types**: `DefaultsConfig`, `UpdatedAtConfig`, `IgnoreConfig`, `AutoincrementConfig`, `MapConfig`, etc.
+- **Controller types**: Argument and return value types for all methods

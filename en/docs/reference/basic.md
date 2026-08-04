@@ -1,0 +1,63 @@
+
+# Basic
+
+## Creating an Instance
+
+If you have created a GAS on a specific spreadsheet and want to work with that spreadsheet, you can create an instance as follows:
+
+```ts
+const gassma = new Gassma.GassmaClient();
+```
+
+Alternatively, if you have created a GAS in a location other than a spreadsheet, or if you want to work with a spreadsheet located elsewhere, you can create an instance by passing the target spreadsheet's ID as an argument:
+
+```ts
+const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
+```
+
+### Initialization with an Options Object
+
+When you need advanced configuration such as relation definitions or global omit, pass an options object:
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  id: "XXXXXXXXXXXXXXXXXXX", // Optional
+  relations: {
+    // Relation definitions (see the relation definition reference for details)
+  },
+  omit: {
+    // Global omit settings (see the global omit reference for details)
+    Users: { password: true },
+  },
+});
+```
+
+| Option | Description | Reference |
+| --- | --- | --- |
+| `id` | Spreadsheet ID (uses the active spreadsheet when omitted) | - |
+| `relations` | Relation definitions | [Relation Definition](/docs/reference/relation/definition) |
+| `omit` | Global omit settings | [Global omit](/docs/reference/config/global-omit) |
+| `defaults` | Default values for fields | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | Auto-update timestamps | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | Field-level exclusion | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | Sheet-level exclusion | [ignore](/docs/reference/config/ignore) |
+| `map` | Field name mapping | [map](/docs/reference/config/map) |
+| `mapSheets` | Sheet name mapping | [map](/docs/reference/config/map) |
+| `autoincrement` | Auto-increment | [autoincrement](/docs/reference/config/autoincrement) |
+| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+## Checking Date Values
+
+GASsma runs as a GAS library in a script context separate from the calling script. As a result, checking a `Date` value returned by GASsma with `instanceof Date` evaluates to `false`. Use `Object.prototype.toString` instead:
+
+```ts
+const user = gassma.Users.findFirst({ where: { id: 1 } });
+
+user.createdAt instanceof Date;
+// => false (a Date crossing the library boundary cannot be checked with instanceof)
+
+Object.prototype.toString.call(user.createdAt) === "[object Date]";
+// => true
+```
+
+This limitation applies to `instanceof` on **built-in types** such as `Date`. GASsma's exported error classes (e.g., `Gassma.GassmaMissingArgumentError`) are referenced via the `Gassma` namespace (the library's global), so they can be checked with `instanceof`. For details, see the [error list](/docs/reference/errors).

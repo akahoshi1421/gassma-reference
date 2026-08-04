@@ -1,0 +1,256 @@
+
+# リレーション定義
+
+複数のシート間のリレーション（関連）を定義することで、`include` によるリレーション先データの取得や、`where` でのリレーション条件フィルタが可能になります。
+
+## 説明例用のシート
+
+以降のリレーションドキュメントでは、以下のシートを例として使用します。
+
+### Users シート
+
+| id | name | email |
+| --- | --- | --- |
+| 1 | Alice | alice@example.com |
+| 2 | Bob | bob@example.com |
+| 3 | Charlie | charlie@example.com |
+
+### Posts シート
+
+| id | title | authorId | published |
+| --- | --- | --- | --- |
+| 1 | 初めての投稿 | 1 | true |
+| 2 | GAS の使い方 | 1 | true |
+| 3 | 下書き記事 | 2 | false |
+
+### Profiles シート
+
+| id | userId | bio |
+| --- | --- | --- |
+| 1 | 1 | エンジニアです |
+| 2 | 2 | デザイナーです |
+
+### Tags シート
+
+| id | name |
+| --- | --- |
+| 1 | GAS |
+| 2 | JavaScript |
+
+### PostTags シート（中間テーブル）
+
+| postId | tagId |
+| --- | --- |
+| 1 | 1 |
+| 1 | 2 |
+| 2 | 1 |
+
+## 基本的な定義方法
+
+`GassmaClient` のコンストラクタに `relations` オプションを渡すことで、シート間のリレーションを定義できます。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    // シート名（スプレッドシート上の実際のシート名と一致させる）
+    Users: {
+      // リレーション名（自由な名前を付けられます。include や where で使用するキー名になります）
+      posts: {
+        type: "oneToMany",
+        to: "Posts",
+        field: "id",
+        reference: "authorId",
+      },
+    },
+  },
+});
+```
+
+スプレッドシート ID を指定する場合は `id` も一緒に渡します。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  id: "XXXXXXXXXXXXXXXXXXX",
+  relations: {
+    // ...
+  },
+});
+```
+
+## リレーション定義のキー
+
+| キー名 | 内容 | 省略 | 備考 |
+| --- | --- | --- | --- |
+| type | リレーションの種類 | 不可 | `oneToMany` / `oneToOne` / `manyToOne` / `manyToMany` |
+| to | 関連先のシート名 | 不可 | |
+| field | 自シート側のカラム名 | 不可 | FK または PK |
+| reference | 関連先シート側のカラム名 | 不可 | |
+| through | 中間テーブルの設定 | 可 | `manyToMany` の場合は必須 |
+| onDelete | 削除時のアクション | 可 | `Cascade` / `SetNull` / `Restrict` / `NoAction` |
+| onUpdate | PK 更新時のアクション | 可 | `Cascade` / `SetNull` / `Restrict` / `NoAction` |
+
+## リレーションの種類
+
+### oneToMany（1 対 多）
+
+1 つの親レコードに対して、複数の子レコードが紐づく関係です。
+
+例：1 人のユーザーが複数の投稿を持つ
+
+```ts
+relations: {
+  Users: {
+    posts: {
+      type: "oneToMany",
+      to: "Posts",
+      field: "id",          // Users の PK
+      reference: "authorId", // Posts の FK
+    },
+  },
+}
+```
+
+`include` で取得すると配列が返ります。
+
+### manyToOne（多 対 1）
+
+`oneToMany` の逆方向です。子レコードから親レコードへの参照を定義します。
+
+例：投稿から著者（ユーザー）を取得
+
+```ts
+relations: {
+  Posts: {
+    author: {
+      type: "manyToOne",
+      to: "Users",
+      field: "authorId",  // Posts の FK
+      reference: "id",    // Users の PK
+    },
+  },
+}
+```
+
+`include` で取得すると単一オブジェクトまたは `null` が返ります。
+
+`manyToOne` は **FK を保有する側**（Prisma スキーマで `@relation(fields: ...)` を書く側）の定義です。1 対 1 の関係であっても、FK を保有する側は `manyToOne` と定義します。
+
+### oneToOne（1 対 1）
+
+1 つのレコードに対して、1 つだけ紐づくレコードがある関係です。`oneToOne` は 1 対 1 のうち **FK を持たない側**専用の定義です。
+
+例：ユーザーとプロフィール（FK の `userId` を持つのは Profiles 側）
+
+```ts
+relations: {
+  Users: {
+    profile: {
+      type: "oneToOne",
+      to: "Profiles",
+      field: "id",       // Users の PK
+      reference: "userId", // Profiles の FK
+    },
+  },
+}
+```
+
+`include` で取得すると単一オブジェクトまたは `null` が返ります。同じ `reference` 値を持つレコードが複数存在する場合はエラーとなります。
+
+FK を保有する側（上の例では Profiles）から逆方向のリレーションを定義する場合は、1 対 1 であっても `manyToOne` を使用します。
+
+```ts
+relations: {
+  Profiles: {
+    user: {
+      type: "manyToOne",
+      to: "Users",
+      field: "userId",  // Profiles の FK
+      reference: "id",  // Users の PK
+    },
+  },
+}
+```
+
+### manyToMany（多 対 多）
+
+中間テーブルを経由して、多対多の関係を定義します。
+
+例：投稿とタグ
+
+```ts
+relations: {
+  Posts: {
+    tags: {
+      type: "manyToMany",
+      to: "Tags",
+      field: "id",          // Posts の PK
+      reference: "id",      // Tags の PK
+      through: {
+        sheet: "PostTags",    // 中間テーブルのシート名
+        field: "postId",      // 中間テーブルにおける Posts 側の FK
+        reference: "tagId",   // 中間テーブルにおける Tags 側の FK
+      },
+    },
+  },
+}
+```
+
+`include` で取得すると配列が返ります。
+
+## 複数リレーションの定義
+
+1 つのシートに複数のリレーションを定義できます。また、複数シートにまたがって定義することもできます。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  relations: {
+    Users: {
+      posts: {
+        type: "oneToMany",
+        to: "Posts",
+        field: "id",
+        reference: "authorId",
+      },
+      profile: {
+        type: "oneToOne",
+        to: "Profiles",
+        field: "id",
+        reference: "userId",
+      },
+    },
+    Posts: {
+      author: {
+        type: "manyToOne",
+        to: "Users",
+        field: "authorId",
+        reference: "id",
+      },
+      tags: {
+        type: "manyToMany",
+        to: "Tags",
+        field: "id",
+        reference: "id",
+        through: {
+          sheet: "PostTags",
+          field: "postId",
+          reference: "tagId",
+        },
+      },
+    },
+  },
+});
+```
+
+## バリデーション
+
+リレーション定義に誤りがある場合、`GassmaClient` のインスタンス生成時にエラーがスローされます。
+
+| エラー | 原因 |
+| --- | --- |
+| `RelationSheetNotFoundError` | `relations` のキー、`to`、`through.sheet` に指定したシート名が存在しない |
+| `RelationMissingPropertyError` | `type` / `to` / `field` / `reference` が欠けている。manyToMany で `through` が欠けている |
+| `RelationInvalidPropertyTypeError` | プロパティの型が string でない |
+| `RelationInvalidTypeError` | `type` が 4 種類のいずれでもない |
+| `RelationInvalidOnDeleteError` | `onDelete` が 4 種類のいずれでもない |
+| `RelationInvalidOnUpdateError` | `onUpdate` が 4 種類のいずれでもない |
+| `RelationColumnNotFoundError` | `field` / `reference` に指定したカラムがシート上に存在しない |

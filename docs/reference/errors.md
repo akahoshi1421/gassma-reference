@@ -1,0 +1,230 @@
+
+# エラー一覧
+
+GASsma で発生するエラークラスの一覧です。
+
+## エラーの捕捉
+
+GASsma のエラークラスは `Gassma` 名前空間から公開されています。`try` / `catch` で捕捉し、`instanceof` でエラーの種類を判定できます。
+
+```ts
+try {
+  gassma.sheet1.findFirst({ take: 5 });
+} catch (e) {
+  if (e instanceof Gassma.GassmaFindFirstTakeError) {
+    // findFirst の take が不正なときの処理
+  }
+}
+```
+
+公開されているエラークラスは 51 個で、これに `GassmaClient` / `GassmaController` / `FieldRef` / `skip` を加えた 55 個が `Gassma` 名前空間の公開実体です。
+
+`instanceof Date` のようなビルトイン型の判定はライブラリ境界を越えると `false` になります（[基本](/docs/reference/basic)を参照）。一方、GASsma のエラークラスは `Gassma` 名前空間（ライブラリの global）経由で参照するため、`instanceof` で正しく判定できます。
+
+## 検索・クエリ系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaFindSelectOmitConflictError` | Cannot use both select and omit in the same query | `select` と `omit` を同時に指定 |
+| `NotFoundError` | An operation failed because it depends on one or more records that were required but not found. | `findFirstOrThrow` でレコードが見つからない |
+| `GassmaSkipNegativeError` | Invalid value for skip argument: Value can only be positive, found: \{value\} | `skip` に**有限の**負数を指定（`include` の `skip` も同様）。`NaN` / `Infinity` / `-Infinity` / `null` は `GassmaInvalidValueError` になります |
+| `GassmaLimitNegativeError` | Invalid value for limit argument: Value can only be positive, found: \{value\} | `limit` に**有限の**負数を指定。`NaN` / `Infinity` / `-Infinity` / `null` は `GassmaInvalidValueError` になります |
+| `GassmaFindFirstTakeError` | The 'findFirst' operation cannot be used with a 'take' argument that isn't 1 or -1 | `findFirst` の `take` に `1` / `-1` 以外を指定（`NaN` / `Infinity` / `-Infinity` を含む）。`take: null` のみ `GassmaInvalidValueError` になります |
+
+## strictUndefinedChecks / Gassma.skip 系
+
+詳しくは [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) を参照してください。
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaUndefinedValueError` | Invalid value for argument \`\{path\}\`: explicitly \`undefined\` values are not allowed. | `strictUndefinedChecks` 有効時にクエリ入力へ明示的な `undefined` を指定。配列の要素（`in` / `AND` / `OR` / `orderBy` など）への `undefined` は有効・無効に関わらず発生 |
+| `GassmaSkipInArrayError` | Invalid value for argument \`\{path\}\`: Can not use \`Gassma.skip\` value within array. Use \`null\` or filter out \`Gassma.skip\` values. | 配列の要素に `Gassma.skip` を指定（`strictUndefinedChecks` の有効・無効に関わらず発生） |
+
+## orderBy 系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `RelationOrderByUnsupportedTypeError` | Cannot use orderBy on "\{relationName\}" (type: \{relationType\}). Only manyToOne and oneToOne are supported. | oneToMany / manyToMany のリレーションでフィールドソートを使用 |
+| `RelationOrderByCountUnsupportedTypeError` | Cannot use \_count orderBy on "\{relationName\}" (type: \{relationType\}). Only oneToMany and manyToMany are supported. | manyToOne / oneToOne のリレーションで `_count` ソートを使用 |
+
+## 集計系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaAggregateMaxError` | Cannot produce a maximum value of more than one type. | `_max` で異なる型が混在 |
+| `GassmaAggregateMinError` | Cannot produce a maximum value of more than one type. | `_min` で異なる型が混在 |
+| `GassmaAggregateSumError` | Cannot produce a maximum value of more than one type. | `_sum` で数値以外の型が混在 |
+| `GassmaAggregateAvgError` | Cannot produce a maximum value of more than one type. | `_avg` で数値以外の型が混在 |
+| `GassmaAggregateTypeError` | Only "number", "string", "boolean", and "Date" types are supported. | `_max` / `_min` でサポートされていない型 |
+| `GassmaAggregateSumTypeError` | Only "number" type is supported. | `_sum` で数値以外の型 |
+| `GassmaAggregateAvgTypeError` | Only "number" type is supported. | `_avg` で数値以外の型 |
+| `GassmaAggregateSelectionRequiredError` | At least one aggregation is required: specify \`_avg\`, \`_count\`, \`_max\`, \`_min\`, or \`_sum\` with at least one field. | `aggregate` で `_avg` / `_count` / `_max` / `_min` / `_sum` のいずれもフィールドを指定していない（`where` / `orderBy` / `take` だけの指定や、`_count: {}` のような空指定も含む） |
+
+`GassmaAggregateMinError` / `GassmaAggregateSumError` / `GassmaAggregateAvgError` は `GassmaAggregateMaxError` を継承しています。また `GassmaAggregateAvgTypeError` は `GassmaAggregateSumTypeError` を継承しています。そのため、基底クラスで `instanceof` 判定すると派生クラスもまとめて捕捉できます。
+
+## groupBy 系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaGroupByHavingDontWriteByError` | When using "having" other than "\_avg", "\_count", "\_max", "\_min", and "\_sum", column names can be used only if they are written in the "by" field. | `having` で `by` に含まれないカラムを使用 |
+
+## 設定系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaInValidColumnValueError` | startColumnValue and endColumnValue can only use number, \[a-z\] and \[A-Z\]. | `changeSettings` に無効な列値を指定 |
+
+## 引数系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaMissingArgumentError` | Argument \`\{argumentName\}\` is missing. | 必須引数（`data` / `where` / `create` / `update` / `by` など）を省略 |
+| `GassmaUnknownArgumentError` | Unknown argument \`\{argumentName\}\`. Did you mean \`\{suggestion\}\`? Available: \{availableArguments\} | クエリ入力に未知のキーを指定（トップレベル引数、`where` / `data` / `select` / `omit` / `orderBy` のカラム名、フィルタ演算子、`increment` などの更新演算子等）。`GassmaClient` のオプション（`map` / `defaults` / `updatedAt` / `autoincrement` / `ignore` / `omit`）が存在しないカラムを参照した場合も発生 |
+| `GassmaInvalidValueError` | Invalid value for argument \`\{argumentName\}\`. Expected \{expected\}. | 引数の値が受け付けられない形。発生条件が多いため[下記](#gassmainvalidvalueerror-の発生条件)にまとめています |
+
+`GassmaUnknownArgumentError` のメッセージのうち、`Did you mean ...?` は近い候補が見つかった場合のみ、`Available: ...` は候補一覧が空でない場合のみ含まれます。
+
+### GassmaInvalidValueError の発生条件
+
+メッセージは常に <code>Invalid value for argument \`\{argumentName\}\`. Expected \{expected\}.</code> の形式です。以下の表では `{expected}` の部分を示します。
+
+#### 形が正しくない引数
+
+| 条件 | `{argumentName}` | `{expected}` |
+| --- | --- | --- |
+| `OR` / `AND` / `NOT` に配列以外を指定 | `OR` など | an array |
+| `orderBy` の値が `"asc"` / `"desc"` でない（配列を渡した場合を含む） | `orderBy` | "asc" \| "desc" |
+| `orderBy` の `sort` が `"asc"` / `"desc"` でない | `sort` | "asc" \| "desc" |
+| `orderBy` の `nulls` が `"first"` / `"last"` でない | `nulls` | "first" \| "last" |
+| `orderBy` のリレーションキーにオブジェクト以外を指定 | リレーション名 | a relation orderBy object |
+| `select` に選択するフィールドが 1 つもない | `select` | at least one selected field |
+| `cursor` にカラムが 1 つもない | `cursor` | at least one column |
+| 単一行操作（`update` / `delete` / `upsert`）の `where` に条件が 1 つもない | `where` | at least one condition |
+
+#### ページング（`take` / `skip` / `limit`）の異常値
+
+| 値 | `{expected}` |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | a finite number, but received NaN |
+| `null` | a number, but received null |
+
+`take` / `skip` は `findMany` / `findFirst` / `count` / `aggregate` / `groupBy`、`limit` は `updateMany` / `updateManyAndReturn` / `deleteMany` が対象です。`undefined` は従来どおり「指定しなかった」扱いで無視されます。
+
+`findFirst` の `take` は `1` / `-1` の判定が先に行われるため、`NaN` / `Infinity` / `-Infinity` は `GassmaFindFirstTakeError` になります（`take: null` のみ `GassmaInvalidValueError`）。`include` 内の `take` / `skip` は `IncludeInvalidOptionTypeError` になります。
+
+#### 構造を期待する引数への `null`
+
+`{expected}` は末尾に `, but received null` が付きます（例: <code>Invalid value for argument \`where\`. Expected an object, but received null.</code>）。
+
+| `{argumentName}` | `{expected}` |
+| --- | --- |
+| `where` / `cursor` / `having` / `some` / `every` / `none` / `createMany` | an object |
+| `data` / `create` / `update` / `connect` / `connectOrCreate` / `set` / `deleteMany` / `updateMany` / `AND` / `OR` / `NOT` | an object or an array |
+| `orderBy` | an object or an array |
+| `distinct` / `by` | a field name or an array of field names |
+| `disconnect` / `delete` | a boolean or an object |
+| `contains` / `startsWith` / `endsWith` | a string |
+| `gt` / `gte` / `lt` / `lte` | a comparable value |
+| `increment` / `decrement` / `multiply` / `divide` | a number |
+| `cursor` のカラムの値 | a scalar value |
+
+配列の要素に `null` を入れた場合も同じエラーになります（`AND: [null]` / `distinct: [null]` / `createMany` の `data: [null]` など）。詳しくは [null の扱い](/docs/reference/crud/read/findMany#null-の扱い)を参照してください。
+
+#### セルに保存できない値
+
+書き込み（`data`）およびクエリ（`where` / `cursor` / `having`）の値が対象です。
+
+| 値 | `{expected}` |
+| --- | --- |
+| `NaN` / `Infinity` / `-Infinity` | a finite number, but received NaN |
+| Invalid Date | a valid Date, but the provided Date object is invalid |
+| 配列 | a scalar value, but received an array |
+| 関数 | a scalar value, but received a function |
+| Symbol | a scalar value, but received a symbol |
+| BigInt | a scalar value, but received a bigint |
+| `Map` / `Set` / `RegExp` / `Error` / `Promise` などの組み込みオブジェクト | a scalar value, but received a Map |
+| クラスインスタンスなどのその他のオブジェクト | a scalar value, but received an object |
+| `Gassma.raw`（`where` / `cursor` / `having` のみ） | a scalar value, but received a Gassma.raw value |
+
+`Date` / `Gassma.raw`（`data` のみ）/ `FieldRef` はオブジェクトですが、そのまま渡せます。組み込みオブジェクトの名前の部分は値の内部種別がそのまま入ります（`Set` なら `but received a Set.`）。
+
+#### 数値演算の結果
+
+`increment` / `decrement` / `multiply` / `divide` の**演算結果**が `NaN` / `Infinity` / `-Infinity` になる場合に発生します。`{argumentName}` は**カラム名**です。
+
+| `{expected}` |
+| --- |
+| a finite number, but received Infinity |
+
+詳しくは [update()](/docs/reference/crud/update/update#数値の原子的操作)を参照してください。
+
+## リレーション定義系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `RelationSheetNotFoundError` | Sheet "\{sheetName\}" is not found in the spreadsheet | リレーション定義のシートが存在しない |
+| `RelationMissingPropertyError` | Relation "\{relationName\}" on sheet "\{sheetName\}" is missing required property "\{property\}" | リレーション定義の必須プロパティが欠落 |
+| `RelationInvalidPropertyTypeError` | Relation "\{relationName\}" on sheet "\{sheetName\}": property "\{property\}" must be a \{expectedType\} | リレーション定義のプロパティの型が不正 |
+| `RelationInvalidTypeError` | Relation "\{relationName\}" on sheet "\{sheetName\}": type "\{value\}" is not valid. Must be one of: oneToMany, oneToOne, manyToOne, manyToMany | リレーションの `type` が無効 |
+| `RelationColumnNotFoundError` | Column "\{columnName\}" is not found in sheet "\{sheetName\}" | リレーション定義の `field` / `reference` のカラムが存在しない |
+| `RelationInvalidOnDeleteError` | Relation "\{relationName\}" on sheet "\{sheetName\}": onDelete "\{value\}" is not valid. Must be one of: Cascade, SetNull, Restrict, NoAction | `onDelete` の値が無効 |
+| `RelationInvalidOnUpdateError` | Relation "\{relationName\}" on sheet "\{sheetName\}": onUpdate "\{value\}" is not valid. Must be one of: Cascade, SetNull, Restrict, NoAction | `onUpdate` の値が無効 |
+| `RelationIgnoredColumnError` | Relation "\{relationName\}" on sheet "\{sheetName\}": column "\{columnName\}" is ignored on sheet "\{ignoredSheetName\}". Ignored columns are stripped from where conditions, so relation processing (onDelete/onUpdate/nested writes) could modify all rows in sheet "\{ignoredSheetName\}". Remove "\{columnName\}" from the ignore option or remove this relation | リレーションの `field` / `reference`（manyToMany では `through` の `field` / `reference` も）が `ignore` 指定されたカラムを参照している（クライアント初期化時に検出） |
+
+## リレーション操作系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaRelationNotFoundError` | Relation "\{relationName\}" is not defined for sheet "\{sheetName\}" | `include` で未定義のリレーション名を指定 |
+| `GassmaRelationDuplicateError` | Duplicate value "\{value\}" found in "\{sheetName\}.\{field\}" for a unique relation | oneToOne / manyToOne でリレーション先に重複値が存在 |
+| `GassmaThroughRequiredError` | Relation "\{relationName\}" is manyToMany but "through" is not defined | manyToMany で `through`（中間テーブル）が未定義 |
+| `RelationOnDeleteRestrictError` | Cannot delete: related records exist for relation "\{relationName\}" (onDelete: Restrict) | `onDelete: "Restrict"` 設定時に関連レコードが存在する状態で削除 |
+| `RelationOnUpdateRestrictError` | Cannot update: related records exist for relation "\{relationName\}" (onUpdate: Restrict) | `onUpdate: "Restrict"` 設定時に関連レコードが存在する状態で PK を更新 |
+
+## include 系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `IncludeWithoutRelationsError` | Cannot use include without defining relations in GassmaClient | リレーション定義なしで `include` を使用 |
+| `GassmaIncludeSelectConflictError` | Cannot use both include and select in the same query | トップレベルで `include` と `select` を同時使用 |
+| `IncludeInvalidOptionTypeError` | Include "\{relationName\}": option "\{option\}" must be \{expectedType\} | `include` のオプション値の型が不正。`take` / `skip` に `NaN` / `Infinity` / `-Infinity` を指定すると `must be a finite number`、`null` など数値以外を指定すると `must be a number` になります |
+| `IncludeSelectOmitConflictError` | Include "\{relationName\}": cannot use both select and omit at the same time | `include` 内で `select` と `omit` を同時指定 |
+| `IncludeSelectIncludeConflictError` | Include "\{relationName\}": cannot use both select and include at the same time | `include` 内で `select` と `include` を同時指定 |
+
+## where リレーションフィルタ系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `WhereRelationInvalidFilterError` | Filter "\{filterType\}" cannot be used on relation "\{relationName\}" of type "\{relationType\}" | リレーション型に不適切なフィルタを使用（例: oneToMany に `is` を使用） |
+| `WhereRelationWithoutContextError` | Cannot use relation filters in where clause without defining relations | リレーション定義なしでリレーションフィルタを使用 |
+
+## Nested Write 系
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `NestedWriteWithoutRelationsError` | Cannot use nested write operations without defining relations in GassmaClient | リレーション定義なしで Nested Write を使用 |
+| `NestedWriteConnectNotFoundError` | Nested write connect failed: no record found in "\{sheetName\}" | `connect` / `connectOrCreate` で対象レコードが見つからない |
+| `NestedWriteRelationNotFoundError` | Nested write failed: "\{fieldName\}" is not a defined relation | Nested Write で未定義のリレーション名を使用 |
+| `NestedWriteInvalidOperationError` | Nested write: operation "\{operation\}" is not valid for relation "\{relationName\}" of type "\{relationType\}" | リレーション型に非対応の操作を使用（例: manyToMany に `delete` を使用） |
+| `NestedWriteTargetNotFoundError` | Nested write \{operation\} failed: no record found in "\{sheetName\}" | 非FK側 oneToOne の nested `update` / `delete` でリレーション先レコードが存在しない |
+
+## トランザクション系
+
+詳しくは [$transaction](/docs/reference/transaction) を参照してください。
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | `$transaction` の開始時、`maxWait` 以内にスクリプトロックを取得できない |
+| `GassmaTransactionTimeoutError` | Transaction API error: A \{phase\} cannot be executed on an expired transaction. The timeout for this transaction was \{timeoutMs\} ms, however \{elapsedMs\} ms passed since the start of the transaction. Consider increasing the transaction timeout or doing less work in the transaction. | トランザクション開始からの経過時間が `timeout` を超過（tx 操作の呼び出し時またはコミット直前に検知） |
+| `GassmaNestedTransactionError` | Transaction API error: Nested transactions are not supported. Do not call $transaction inside an active transaction. | トランザクション内で `$transaction` を呼び出し |
+| `GassmaTransactionRollbackError` | Transaction API error: The transaction failed during commit and automatic rollback also failed. The affected sheets may be in an inconsistent state. Backup sheets are preserved for manual recovery: \{backupSheetNames\} | コミット中の書き込み失敗後、バックアップからの自動復元にも失敗（`backupSheetNames` プロパティに残されたバックアップシート名の一覧） |
+
+## CLI 設定ファイル系
+
+CLI コマンド（`gassma generate` 等）の実行時に発生するエラーです。
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `ConfigFileNotFoundError` | GASsmaConfigFileNotFoundError: config file not found at \{configPath\} | `--config` で指定した設定ファイルが存在しない |
+| `GassmaConfigLoadError` | GASsmaConfigLoadError: Failed to load config file at \{configPath\}. \{detail\} | 設定ファイルの構文エラー・実行時エラー、既知キー（`schema` / `datasource.url`）の型不正、config オブジェクト以外のエクスポート |
+| `GassmaConfigEnvError` | Cannot resolve environment variable: \{name\}. | `env()` で参照した環境変数が未設定または空文字 |

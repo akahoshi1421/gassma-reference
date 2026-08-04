@@ -1,0 +1,101 @@
+
+# create()
+
+該当シートに新しい 1 行を追加したい場合に利用します。
+
+## 使用できるキー
+
+| キー名  | 内容                       | 省略 | 備考                                             |
+| ------- | -------------------------- | ---- | ------------------------------------------------ |
+| data    | 登録するデータの指定       | 不可 |                                                  |
+| select  | 戻り値の取得列の表示設定   | 可   | `omit` / `include` と同時に使用できません        |
+| omit    | 戻り値の取得列の除外設定   | 可   | `select` と同時に使用できません                  |
+| include | リレーション先の取得       | 可   | [詳細はこちら](/docs/reference/relation/include) |
+
+`data` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `data` is missing.）がスローされます。
+
+`data` の値にはセルに保存できるスカラー値（文字列・数値・真偽値・`null`・`Date`）のみを指定できます。`Map` / `Set` / `RegExp` / クラスのインスタンス / `new String("x")` のようなラッパーオブジェクトなど、`Date` 以外のオブジェクトを渡すと `GassmaInvalidValueError` がスローされます。
+
+```ts
+gassma.sheet1.create({ data: { name: new Map() } });
+// => Invalid value for argument `name`. Expected a scalar value, but received a Map.
+
+gassma.sheet1.create({ data: { name: new Point(1, 2) } });
+// => Invalid value for argument `name`. Expected a scalar value, but received an object.
+```
+
+`Gassma.raw`（[raw](/docs/reference/raw) を参照）と `fields`（[fields](/docs/reference/fields) を参照）は書き込み時にそのまま渡せます。その他の対象値は[エラー一覧](/docs/reference/errors#セルに保存できない値)を参照してください。
+
+## 説明例用のシート
+
+![説明用シート](../../img/exampleSheet.png)
+
+## 説明
+
+上記例に以下の行を追加したいとします。
+
+- name => **Shibata**
+- age => **23**
+- pref => **Shimane**
+- postNumber => **690-8540**
+
+この場合以下のコードとなります。
+
+```ts
+const gassma = new Gassma.GassmaClient();
+
+// gassma.{{TARGET_SHEET_NAME}}.create
+const result = gassma.sheet1.create({
+  data: {
+    name: "Shibata",
+    age: 23,
+    pref: "Shimane",
+    postNumber: "690-8540",
+  },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  name: 'Shibata',
+  age: 23,
+  pref: 'Shimane',
+  postNumber: '690-8540'
+}
+```
+
+作成された行のデータが返されます。
+
+また、以下のように年齢を省くとその行の`age`列部分が空になります。値に `undefined` を渡した場合も省略と同じ扱いになります。
+
+```ts
+const gassma = new Gassma.GassmaClient();
+
+// gassma.{{TARGET_SHEET_NAME}}.create
+gassma.sheet1.create({
+  data: {
+    name: "Shibata",
+    pref: "Shimane",
+    postNumber: "690-8540",
+  },
+});
+```
+
+戻り値は以下の形式です。
+
+```ts
+{
+  name: 'Shibata',
+  age: null,
+  pref: 'Shimane',
+  postNumber: '690-8540'
+}
+```
+
+## Nested Write
+
+リレーション定義がある場合、`data` の中にリレーション先のレコードを同時に作成・関連付けする操作を記述できます。
+
+詳しくは [Nested Write のリファレンス](/docs/reference/relation/nested-write)を参照してください。
