@@ -91,3 +91,67 @@ gassma.Users.create({
 });
 // => id is 100 (auto-increment is not applied)
 ```
+
+## Adopting GASsma on a Sheet That Already Has Data
+
+The counter starts at 0 and **does not look at the values already in the sheet**. So if you adopt GASsma on a sheet whose `id` values run from 1 to 500, the first `create` assigns `id: 1` and collides with an existing row.
+
+Calling `$syncAutoincrement()` restarts the counter just after the largest value in that column. Call it once when you adopt GASsma.
+
+```ts
+// When the existing ids run from 1 to 500
+gassma.Users.$syncAutoincrement("id");
+// => 501
+
+gassma.Users.create({
+  data: { name: "Alice" },
+});
+// => { id: 501, name: "Alice" }
+```
+
+If rows are added by editing the spreadsheet by hand and the counter falls out of sync, calling `$syncAutoincrement()` again brings it back in the same way.
+
+## Operating the Counter
+
+In Prisma, `autoincrement()` takes no arguments, and the counter is adjusted with SQL such as `ALTER SEQUENCE ... RESTART WITH`. The GASsma counter lives in `PropertiesService` and can be reached neither from the schema nor from SQL, so it is exposed as methods on the model instead.
+
+All three methods speak in terms of **the value that will be issued next**. This is the same meaning as `ALTER SEQUENCE ... RESTART WITH 1000`.
+
+| Method | Return value | Description |
+| --- | --- | --- |
+| `$getAutoincrement(field)` | `number` | Returns the value that will be issued next (`1` if nothing has been issued yet) |
+| `$setAutoincrement(field, next)` | `void` | Makes `next` the value that will be issued next |
+| `$syncAutoincrement(field)` | `number` | Sets the counter to the largest value in the column + 1 and returns it |
+
+```ts
+gassma.Users.$getAutoincrement("id");
+// => 1
+
+gassma.Users.$setAutoincrement("id", 501);
+
+gassma.Users.$getAutoincrement("id");
+// => 501
+```
+
+Use `$setAutoincrement` when you want to decide the value yourself. If you only want to match the existing data, use `$syncAutoincrement`.
+
+### What $syncAutoincrement Looks At
+
+- It reads only the column of the target field (not the whole sheet)
+- It takes the maximum of **numeric values only**. Empty cells and non-numeric values are ignored
+- Decimals are truncated (if `3.7` is present, the next value is `4`)
+- If there are no numeric values at all, or only negative numbers, the next value is `1`
+
+### Related Errors
+
+| Error | Trigger condition |
+| --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | A field that is not configured with autoincrement is passed as `field` |
+| `GassmaAutoincrementInTransactionError` | `$setAutoincrement` / `$syncAutoincrement` is called inside `$transaction` |
+| `GassmaInvalidValueError` | The `next` of `$setAutoincrement` is not an integer of 1 or greater (`NaN` / `Infinity` / a decimal / 0 or less / a non-number) |
+
+For details, see the [Error List](/docs/reference/errors).
+
+:::caution
+`$setAutoincrement` / `$syncAutoincrement` cannot be called inside [$transaction](/docs/reference/transaction). The counter lives in `PropertiesService` and never enters the sheet buffer, so it is not rolled back when the transaction fails. `$getAutoincrement` only reads, so it can be called inside a transaction.
+:::
