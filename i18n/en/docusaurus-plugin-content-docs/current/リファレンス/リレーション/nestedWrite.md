@@ -350,6 +350,10 @@ Nested write is processed recursively, so you can create deep relation hierarchi
 
 For example, creating User → Posts → Tags at once:
 
+:::note
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
+:::
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {

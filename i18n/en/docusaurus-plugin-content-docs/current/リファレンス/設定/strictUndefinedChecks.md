@@ -28,14 +28,19 @@ const users = gassma.Users.findMany({
 
 `strictUndefinedChecks` is an opt-in feature. There are two ways to enable it.
 
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `previewFeatures = ["strictUndefinedChecks"]` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `strictUndefinedChecks: true` |
+
 ### Enable via previewFeatures (with CLI)
 
-If you are doing [local development with a Prisma schema](/docs/reference/type-generation), add `previewFeatures` to the `generator` block in `schema.prisma` (same syntax as Prisma).
+When using the CLI, add `previewFeatures` to the `generator` block in `schema.prisma` (same syntax as Prisma).
 
 ```prisma
 generator client {
   provider        = "prisma-client-js"
-  output          = "./generated/gassma"
+  output          = "./src/generated/gassma"
   previewFeatures = ["strictUndefinedChecks"]
 }
 ```

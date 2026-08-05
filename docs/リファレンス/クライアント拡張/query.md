@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/client-extensions/query
+description: "$extends の query で各操作にクエリフックを登録し、args の書き換え・結果の加工・実行の短絡を行う"
 ---
 
 # $extends（query）

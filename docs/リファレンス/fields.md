@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 13
 slug: /reference/fields
 description: "FieldRef を使って where 条件内で同じ行の列同士を比較する"
 ---
@@ -13,7 +13,7 @@ description: "FieldRef を使って where 条件内で同じ行の列同士を�
 各シートコントローラーの `fields` プロパティから `FieldRef` を取得し、フィルタ条件の値として渡します。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 const userSheet = gassma.Users;
 
 // firstName と lastName が同じ値のユーザーを検索

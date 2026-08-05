@@ -8,6 +8,24 @@ description: "Auto-increment fields using LockService + PropertiesService (GAS o
 
 This is the equivalent of Prisma's `autoincrement()`. It automatically assigns unique, monotonically increasing values during `create` operations.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `id Int @id @default(autoincrement())` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `autoincrement: { Users: "id" }` |
+
+```prisma
+model Users {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts

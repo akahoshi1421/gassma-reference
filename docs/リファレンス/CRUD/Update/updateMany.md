@@ -35,7 +35,7 @@ description: "条件に合致するすべてのレコードを更新し、更新
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateMany
 const result = gassma.sheet1.updateMany({

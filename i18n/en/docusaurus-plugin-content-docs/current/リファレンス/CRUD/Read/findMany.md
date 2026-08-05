@@ -35,7 +35,7 @@ Suppose you want to retrieve rows from the above example with the following cond
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -57,7 +57,7 @@ The return value has the following format:
 To specify multiple conditions:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -78,7 +78,7 @@ Conditional searches using greater than/less than and partial matching are also 
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -115,7 +115,7 @@ In addition to fixed values, you can use the `fields` property to specify a valu
 By specifying `mode: "insensitive"` with `equals`, `not`, `contains`, `startsWith`, or `endsWith`, you can compare without case sensitivity.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Matches "alice", "Alice", "ALICE", etc.
 const result = gassma.sheet1.findMany({
@@ -174,7 +174,7 @@ For example, to retrieve rows with the following conditions:
 Using AND:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -200,7 +200,7 @@ For example, to retrieve rows with the following condition:
 Using OR:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -227,7 +227,7 @@ For example, to retrieve rows with the following conditions:
 Using NOT:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -249,7 +249,7 @@ const result = gassma.sheet1.findMany({
 You can nest OR or NOT inside AND, for example. This nesting structure can be infinitely deep as long as the GAS call stack allows.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -346,7 +346,7 @@ You can limit the data returned in the response.
 For example, to retrieve only `age` and `pref`:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -385,6 +385,10 @@ A `select` with no selected fields at all, such as `select: {}`, throws a `Gassm
 ### Relation Options within select
 
 When relation definitions exist, you can specify options similar to `include` for relation fields within `select`. Instead of specifying `include` separately, you can control related data retrieval within `select`.
+
+:::note
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
+:::
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -455,7 +459,7 @@ You can sort the retrieved rows.
 For example, to sort by `age` in ascending order:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -482,7 +486,7 @@ The available values are:
 You can control the position of null values by specifying the `nulls` option in object format:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Place null values at the end
 const result = gassma.sheet1.findMany({
@@ -512,7 +516,7 @@ You can also specify multiple sort conditions. For example, to:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -532,6 +536,10 @@ An empty `orderBy` such as `orderBy: {}` is ignored (no sorting is performed). I
 ### Sorting by Relation Fields
 
 When relation definitions exist, you can sort by manyToOne / oneToOne relation target fields:
+
+:::note
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
+:::
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -604,7 +612,7 @@ You can specify the number of records to retrieve. Records are taken from the to
 For example, to get the top 2 rows from matching records:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -648,7 +656,7 @@ You can skip specific rows from the retrieved results.
 For example, to skip the first matching row:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -695,7 +703,7 @@ The same validation applies to `take` / `skip` in `count` / `aggregate` / `group
 Enables cursor-based pagination. Specify an object that uniquely identifies a record in `cursor` to use that record as the starting point:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Starting from the record with id: 3, retrieve 5 records
 const result = gassma.sheet1.findMany({
@@ -755,7 +763,7 @@ You can exclude specific columns from the return value. This is the inverse of `
 For example, to exclude `postNumber`:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -790,7 +798,7 @@ Specify column names to remove rows with duplicate values. When duplicates exist
 For example, to remove `age` duplicates:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({

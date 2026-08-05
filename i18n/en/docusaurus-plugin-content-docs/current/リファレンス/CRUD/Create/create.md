@@ -51,7 +51,7 @@ Suppose you want to add the following row to the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 const result = gassma.sheet1.create({
@@ -80,7 +80,7 @@ The data of the created row is returned.
 Also, if you omit the age as follows, the `age` column of that row will be empty. Passing `undefined` as the value is treated the same as omission:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 gassma.sheet1.create({

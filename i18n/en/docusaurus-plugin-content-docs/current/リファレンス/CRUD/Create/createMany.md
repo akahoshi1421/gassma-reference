@@ -42,7 +42,7 @@ Suppose you want to add the following rows to the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.createMany
 const result = gassma.sheet1.createMany({

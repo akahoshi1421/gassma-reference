@@ -9,7 +9,21 @@ export type SectionDef = {
 export const SECTIONS: SectionDef[] = [
   {
     title: "Getting Started",
-    routes: ["/docs/intro", "/docs/installation", "/docs/reference/basic"],
+    routes: [
+      "/docs/intro",
+      "/docs/quickstart",
+      "/docs/installation",
+      "/docs/reference/basic",
+    ],
+  },
+  { title: "Schema", routes: ["/docs/reference/schema"] },
+  {
+    title: "CLI",
+    routes: [
+      "/docs/reference/cli",
+      "/docs/reference/bootstrap",
+      "/docs/reference/migrate",
+    ],
   },
   { title: "Reading Data", routes: ["/docs/reference/crud/read"] },
   { title: "Writing Data", routes: ["/docs/reference/crud"] },
@@ -19,6 +33,7 @@ export const SECTIONS: SectionDef[] = [
     title: "Configuration",
     routes: ["/docs/reference/config", "/docs/reference/settings"],
   },
+  { title: "GAS Editor", routes: ["/docs/reference/gas-editor"] },
   { title: "Advanced", routes: ["/docs/reference"] },
 ];
 

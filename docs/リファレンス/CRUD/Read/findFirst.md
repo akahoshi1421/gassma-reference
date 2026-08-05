@@ -35,7 +35,7 @@ description: "where 条件に合致する最初のレコードを取得する。
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirst
 const result = gassma.sheet1.findFirst({

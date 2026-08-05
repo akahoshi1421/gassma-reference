@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 12
 slug: /reference/raw
 description: "Use Gassma.raw to opt out of formula-injection escaping per cell and write a formula as-is"
 ---
@@ -22,7 +22,7 @@ Since this protection is always on, it gets in the way when you intentionally wa
 Wrap a `data` value in `Gassma.raw()` and that cell alone skips escaping. The main use case is writing an aggregation formula into a number column.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 gassma.Report.create({
   data: {
@@ -108,7 +108,7 @@ readBack.total; // 120
 ```ts
 // DANGEROUS: passing form input straight into raw
 function onFormSubmit(e) {
-  const gassma = new Gassma.GassmaClient();
+  const gassma = new GassmaClient();
   gassma.Answers.create({
     data: {
       // If a malicious user enters "=IMPORTRANGE(...)",

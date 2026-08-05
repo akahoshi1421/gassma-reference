@@ -15,12 +15,21 @@ By operating spreadsheets like an ORM, it aims to make writing GoogleAppsScript 
 
 ## Getting Started
 
+There are two ways to use GASsma. Both give you the same features.
+
+| Approach | How to start |
+| --- | --- |
+| **CLI (local development)** | Generate sheet types from `schema.prisma` and write code with completion and type checking → [Quickstart](/docs/quickstart) |
+| **GAS editor only** | Add the library and start writing right away → the steps below |
+
+Below is the shortest example, using only the GAS editor.
+
 Create a new spreadsheet and enter the following data. (Name the sheet "sheet1")
 ![Example Sheet](./リファレンス/img/exampleSheet.png)
 
 Then open `Extensions` > `Apps Script` to launch the GAS editor.
 
-Once open, follow [this page](./installation) to install GASsma.
+Once open, follow [Installation](./installation) to add the GASsma library.
 
 Now let's consider how to extract and format data from the sheet we just created:
 
@@ -52,6 +61,10 @@ function myFunction() {
 That's it.
 
 **Simply create an instance and call the findMany method to extract data.** The library automatically reads column names for you.
+
+:::note
+When developing locally with TypeScript, you can generate sheet types from `schema.prisma`. Sheet and column names get completion, and mistakes surface at build time. See the [Quickstart](/docs/quickstart).
+:::
 
 ## Why is GASsma Needed
 

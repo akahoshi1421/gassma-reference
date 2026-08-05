@@ -38,5 +38,13 @@
   "sidebar.tutorialSidebar.category.設定": {
     "message": "Settings",
     "description": "The label for category 設定 in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.CLI": {
+    "message": "CLI",
+    "description": "The label for category CLI in sidebar tutorialSidebar"
+  },
+  "sidebar.tutorialSidebar.category.クライアント拡張": {
+    "message": "Client Extensions",
+    "description": "The label for category クライアント拡張 in sidebar tutorialSidebar"
   }
 }

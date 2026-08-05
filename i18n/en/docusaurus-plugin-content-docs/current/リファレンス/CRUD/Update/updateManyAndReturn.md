@@ -35,7 +35,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateManyAndReturn
 const result = gassma.sheet1.updateManyAndReturn({

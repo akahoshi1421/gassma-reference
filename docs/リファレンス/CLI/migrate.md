@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 3
 slug: /reference/migrate
 description: "npx gassma migrate / npx gassma db push で、スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成する"
 ---
@@ -68,7 +68,7 @@ function gassmaMigrate() {
 - モデルごとに 1 シートが対象になります。`@@map` / `@map` を付けている場合はマッピング後の物理名が使われます。
 - 列になるのはスカラーフィールドのみです。リレーションフィールド（上の例の `posts` / `author`）は列にならず、外部キー列（`authorId`）は列になります。
 - `@ignore` / `@@ignore` の付いたフィールド・モデルも**作成対象に含まれます**。Prisma と同じく、クライアントから除外されるだけでスプレッドシート上には実体が存在するためです。
-- [暗黙的 Many-to-Many](/docs/reference/type-generation#暗黙的-many-to-many) の中間シートも作成対象です（例: `_PostToTag`。列はモデル名のアルファベット順に `postId`, `tagId`）。
+- [暗黙的 Many-to-Many](/docs/reference/schema#暗黙的-many-to-many) の中間シートも作成対象です（例: `_PostToTag`。列はモデル名のアルファベット順に `postId`, `tagId`）。
 
 ## 生成後の手順
 

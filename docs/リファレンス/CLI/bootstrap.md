@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 1
 slug: /reference/bootstrap
 description: "npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma のローカル開発環境を一発でセットアップする"
 ---
@@ -295,4 +295,4 @@ npm / pnpm / yarn / bun を自動検出し（検出できない場合は npm）�
 3. `npm run deploy` でビルドして Apps Script に push する
 4. `npm run open` で Apps Script エディタを開く
 
-スキーマの書き方や `gassma generate` の詳細は [Prisma スキーマを利用したローカル開発](/docs/reference/type-generation) を参照してください。
+スキーマの書き方は[スキーマ](/docs/reference/schema)、`gassma generate` の詳細は [CLI コマンド](/docs/reference/cli/commands) を参照してください。

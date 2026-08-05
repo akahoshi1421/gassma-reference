@@ -51,7 +51,7 @@ gassma.sheet1.create({ data: { name: new Point(1, 2) } });
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 const result = gassma.sheet1.create({
@@ -80,7 +80,7 @@ const result = gassma.sheet1.create({
 また、以下のように年齢を省くとその行の`age`列部分が空になります。値に `undefined` を渡した場合も省略と同じ扱いになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 gassma.sheet1.create({

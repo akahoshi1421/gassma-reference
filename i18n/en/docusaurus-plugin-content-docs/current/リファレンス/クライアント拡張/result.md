@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/client-extensions/result
+description: "Add computed fields derived from existing scalar fields with the result component of $extends"
 ---
 
 # $extends (result)
