@@ -52,6 +52,18 @@ const gassma = new Gassma.GassmaClient({
 });
 ```
 
+### lock（`$transaction` を使う場合は必須）
+
+`lock` は、[$transaction](/docs/reference/transaction) と [autoincrement](/docs/reference/config/autoincrement) の採番で使うロックです。CLI を使う場合は生成されたクライアントが既定値（`LockService.getScriptLock()`）を埋めますが、**GAS エディタで書く場合は自分で渡す必要があります**。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
+`lock` を渡さないまま `$transaction` を呼ぶと `GassmaTransactionLockRequiredError` が throw されます（autoincrement の採番は、`lock` がなければロックを取らずに続行します）。粒度の選択肢は[ロック](/docs/reference/transaction#ロック)を参照してください。
+
 ## コンストラクタオプション一覧
 
 | オプション | 説明 | 参照 |
@@ -66,6 +78,7 @@ const gassma = new Gassma.GassmaClient({
 | `map` | フィールド名のマッピング | [map](/docs/reference/config/map) |
 | `mapSheets` | シート名のマッピング | [map](/docs/reference/config/map) |
 | `autoincrement` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | `$transaction` と autoincrement で使うロック | [ロック](/docs/reference/transaction#ロック) |
 | `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
 
 ## スキーマ版との対応
@@ -84,6 +97,7 @@ CLI を使う場合、上記のオプションの多くは `schema.prisma` の�
 | `mapSheets` | `@@map("...")` |
 | `strictUndefinedChecks` | `previewFeatures = ["strictUndefinedChecks"]` |
 | `omit` | スキーマ側の書き方はありません（CLI を使う場合もコンストラクタで指定します） |
+| `lock` | スキーマ側の書き方はありません（CLI を使う場合、生成されたクライアントが既定値を埋めます） |
 | `id` | `datasource` ブロックの `url`、または `gassma.config.ts` の `datasource.url` |
 
 各設定の詳細は[スキーマ](/docs/reference/schema)を参照してください。

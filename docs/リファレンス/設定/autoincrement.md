@@ -70,10 +70,12 @@ gassma.Users.createMany({
 
 ## 仕組み
 
-1. `LockService.getScriptLock().waitLock(10000)` で排他制御
+1. `GassmaClient` の [`lock`](/docs/reference/transaction#ロック) を `waitLock(10000)` で取得して排他制御
 2. `PropertiesService.getScriptProperties()` からカウンターを読み取り
 3. +1（createMany の場合は +N）して書き込み
 4. ロック解放
+
+`npx gassma generate` が生成するクライアントは、`lock` に `LockService.getScriptLock()` を既定で埋めます。`lock` を持たないクライアント（[GAS エディタ](/docs/reference/gas-editor)で `lock` を渡さずに生成した場合など）では、**ロックを取らずに採番します**（エラーにはなりません）。
 
 :::note
 GAS の `LockService` と `PropertiesService` を使用するため、GAS 環境でのみ動作します。
