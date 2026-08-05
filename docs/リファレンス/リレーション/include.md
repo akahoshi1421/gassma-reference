@@ -276,6 +276,10 @@ const result = gassma.Users.findMany({
 
 例えば、Users → Posts → Tags のようなリレーションを一度に取得できます。
 
+:::note
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
+:::
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {

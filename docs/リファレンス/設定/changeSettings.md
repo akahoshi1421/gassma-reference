@@ -51,7 +51,7 @@ gassma.sheet1.changeSettings(1, 2, 5);
 以上のテーブルの場合は以下のようなコードを書くことで正常にテーブルを読み込めます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // シートの操作をする前に必ず記述
 gassma.sheet1.changeSettings(4, "B", "E");
 
@@ -63,7 +63,7 @@ const result = gassma.sheet1.findMany({});
 ![別のデータがあるテーブル](./img/settingExample2.png)
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // シートの操作をする前に必ず記述
 gassma.sheet1.changeSettings(1, "A", "D");
 

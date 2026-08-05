@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 1
 slug: /reference/bootstrap
 description: "Set up a local development environment with clasp + esbuild + TypeScript + GASsma in one shot with npx gassma bootstrap"
 ---
@@ -294,4 +294,4 @@ When setup completes, the following steps are shown.
 3. Run `npm run deploy` to build and push to Apps Script
 4. Run `npm run open` to open the project in the Apps Script editor
 
-For how to write schemas and the details of `gassma generate`, see [Local Development with Prisma Schema](/docs/reference/type-generation).
+For how to write schemas see [Schema](/docs/reference/schema), and for the details of `gassma generate` see [CLI Commands](/docs/reference/cli/commands).

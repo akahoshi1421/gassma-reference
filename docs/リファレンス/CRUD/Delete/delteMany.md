@@ -32,7 +32,7 @@ description: "条件に合致するすべてのレコードを削除し、削除
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.deleteMany
 const result = gassma.sheet1.deleteMany({

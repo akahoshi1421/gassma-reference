@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 3
 slug: /reference/migrate
 description: "Generate a GAS function that syncs your spreadsheet's sheets and columns with the schema using npx gassma migrate / npx gassma db push"
 ---
@@ -68,7 +68,7 @@ If neither is available, a `MigrateOutputDirError` is raised.
 - One sheet per model. When `@@map` / `@map` are used, the mapped physical names are used.
 - Only scalar fields become columns. Relation fields (`posts` / `author` in the example above) do not become columns, while foreign key columns (`authorId`) do.
 - Fields and models with `@ignore` / `@@ignore` are **also included as creation targets**. As in Prisma, they are only excluded from the client and still exist physically in the spreadsheet.
-- Junction sheets for [implicit Many-to-Many](/docs/reference/type-generation#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
+- Junction sheets for [implicit Many-to-Many](/docs/reference/schema#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
 
 ## After Generating
 

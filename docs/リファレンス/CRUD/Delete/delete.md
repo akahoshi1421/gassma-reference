@@ -34,7 +34,7 @@ description: "レコードを 1 件削除し、削除したレコードを返す
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.delete
 const result = gassma.sheet1.delete({

@@ -8,6 +8,26 @@ description: "Auto-set field values on create with static values or functions (@
 
 This is the equivalent of Prisma's `@default()`. It automatically sets default values for fields during `create` operations.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `role String @default("USER")` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `defaults: { Users: { role: "USER" } }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts

@@ -8,6 +8,24 @@ description: "LockService + PropertiesService を使ったフィールドの自�
 
 Prisma の `autoincrement()` に相当する機能です。`create` 時に一意で単調増加する値を自動的に割り当てます。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `id Int @id @default(autoincrement())` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `autoincrement: { Users: "id" }` |
+
+```prisma
+model Users {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts

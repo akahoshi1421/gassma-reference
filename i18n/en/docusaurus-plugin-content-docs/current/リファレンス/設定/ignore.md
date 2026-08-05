@@ -8,6 +8,32 @@ description: "Exclude fields or whole sheets from all operations (@ignore / @@ig
 
 This is the equivalent of Prisma's `@ignore` (field-level) and `@@ignore` (model-level).
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `@ignore` / `@@ignore` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `ignore: { ... }` / `ignoreSheets: [ ... ]` |
+
+```prisma
+model Users {
+  id           Int    @id
+  name         String
+  secretColumn String @ignore
+}
+
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## ignore (Field-Level)
 
 Completely excludes specified fields from all operations.

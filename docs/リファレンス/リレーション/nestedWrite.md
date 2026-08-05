@@ -350,6 +350,10 @@ Nested write は再帰的に処理されるため、深い階層のリレーシ�
 
 例えば、ユーザー → 投稿 → タグ を一度に作成する場合：
 
+:::note
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
+:::
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {

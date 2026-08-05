@@ -1,6 +1,7 @@
 ---
 sidebar_position: 1
 slug: /reference/client-extensions/query
+description: "Register query hooks on each operation with the query component of $extends to rewrite args, transform results, or short-circuit execution"
 ---
 
 # $extends (query)

@@ -51,7 +51,7 @@ If your spreadsheet is in any of the following states, you **must** call `change
 For a table like the one above, you can read the table correctly by writing the following code.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // Must be called before any sheet operations
 gassma.sheet1.changeSettings(4, "B", "E");
 
@@ -63,7 +63,7 @@ const result = gassma.sheet1.findMany({});
 ![Table with other data](./img/settingExample2.png)
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // Must be called before any sheet operations
 gassma.sheet1.changeSettings(1, "A", "D");
 

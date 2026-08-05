@@ -35,7 +35,7 @@ description: "レコードを 1 件更新する。数値のアトミック操作
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.update
 const result = gassma.sheet1.update({

@@ -34,7 +34,7 @@ description: "findFirst と同様だが、レコードが見つからない場�
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirstOrThrow
 const result = gassma.sheet1.findFirstOrThrow({

@@ -8,6 +8,27 @@ description: "Map code-side names to spreadsheet headers and sheet names (@map /
 
 This is the equivalent of Prisma's `@map("name")` (field-level) and `@@map("name")` (model-level). It maps names in your code to names in the spreadsheet.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `@map("名前")` / `@@map("ユーザー一覧")` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `map: { ... }` / `mapSheets: { ... }` |
+
+```prisma
+model Users {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+
+  @@map("ユーザー一覧")
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## map (Field-Level)
 
 Maps field names in your code to different header names in the spreadsheet.

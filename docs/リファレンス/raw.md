@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 12
 slug: /reference/raw
 description: "Gassma.raw で数式インジェクション対策の自動エスケープをセル単位で回避し、セルに数式をそのまま書き込む"
 ---
@@ -22,7 +22,7 @@ GASsma は書き込み時、`=`・`+`・`-`・`@` のいずれかで始まる文
 `data` の値を `Gassma.raw()` で包むと、そのセルだけエスケープが行われません。主な用途は、数値カラムへの集計数式の書き込みです。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 gassma.Report.create({
   data: {
@@ -108,7 +108,7 @@ readBack.total; // 120
 ```ts
 // 危険: フォーム入力をそのまま raw に渡している
 function onFormSubmit(e) {
-  const gassma = new Gassma.GassmaClient();
+  const gassma = new GassmaClient();
   gassma.Answers.create({
     data: {
       // 悪意のあるユーザーが "=IMPORTRANGE(...)" を入力すると

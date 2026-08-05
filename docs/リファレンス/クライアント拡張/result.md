@@ -1,6 +1,7 @@
 ---
 sidebar_position: 2
 slug: /reference/client-extensions/result
+description: "$extends の result で既存のスカラーフィールドから算出フィールドを追加する"
 ---
 
 # $extends（result）

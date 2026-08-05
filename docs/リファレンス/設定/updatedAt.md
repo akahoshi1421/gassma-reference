@@ -8,6 +8,25 @@ description: "作成・更新時にタイムスタンプを自動設定する（
 
 Prisma の `@updatedAt` に相当する機能です。レコードの作成・更新時に指定カラムへ自動的に現在時刻をセットします。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `updatedAt DateTime @updatedAt` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `updatedAt: { Users: "updatedAt" }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  updatedAt DateTime @updatedAt
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts

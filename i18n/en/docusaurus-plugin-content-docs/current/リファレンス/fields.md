@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 13
 slug: /reference/fields
 description: "Compare columns within the same row in where filters using FieldRef"
 ---
@@ -13,7 +13,7 @@ Use the `fields` property within `where` conditions when you want to compare aga
 Obtain a `FieldRef` from the `fields` property of each sheet controller and pass it as a value in filter conditions.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 const userSheet = gassma.Users;
 
 // Search for users where firstName equals lastName

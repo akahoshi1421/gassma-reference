@@ -8,6 +8,17 @@ description: "Exclude fields from results by default per sheet"
 
 By specifying `omit` in the `GassmaClient` constructor, default field exclusion is applied to all queries for the specified sheets.
 
+## Schema vs. Constructor
+
+Unlike the other settings, `omit` is specified in the constructor rather than in the schema. It is written the same way when using the CLI.
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | No schema equivalent |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `omit: { Users: { password: true } }` |
+
+There is no schema attribute for `omit`. Specify it in the constructor even when using the CLI.
+
 ## Basic Usage
 
 ```ts
