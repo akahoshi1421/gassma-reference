@@ -149,6 +149,7 @@ Use `$setAutoincrement` when you want to decide the value yourself. If you only 
 | `GassmaAutoincrementNotConfiguredError` | A field that is not configured with autoincrement is passed as `field` |
 | `GassmaAutoincrementInTransactionError` | `$setAutoincrement` / `$syncAutoincrement` is called inside `$transaction` |
 | `GassmaInvalidValueError` | The `next` of `$setAutoincrement` is not an integer of 1 or greater (`NaN` / `Infinity` / a decimal / 0 or less / a non-number) |
+| `GassmaInvalidValueError` | `$syncAutoincrement` is called when the column of the field configured with autoincrement does not exist on the sheet (for example after the column was renamed) |
 
 For details, see the [Error List](/docs/reference/errors).
 

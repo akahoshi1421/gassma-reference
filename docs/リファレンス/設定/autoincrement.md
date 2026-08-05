@@ -149,6 +149,7 @@ gassma.Users.$getAutoincrement("id");
 | `GassmaAutoincrementNotConfiguredError` | autoincrement を設定していないフィールドを `field` に指定 |
 | `GassmaAutoincrementInTransactionError` | `$transaction` の中から `$setAutoincrement` / `$syncAutoincrement` を呼び出し |
 | `GassmaInvalidValueError` | `$setAutoincrement` の `next` が 1 以上の整数でない（`NaN` / `Infinity` / 小数 / 0 以下 / 数値以外） |
+| `GassmaInvalidValueError` | `$syncAutoincrement` で、autoincrement を設定したフィールドの列がシートに存在しない（列名を変えた場合など） |
 
 詳細は[エラー一覧](/docs/reference/errors)を参照してください。
 
