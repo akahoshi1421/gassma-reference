@@ -28,6 +28,10 @@ description: "フィールドでレコードをグループ化してグループ
 `by` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `by` is missing.）がスローされます。
 :::
 
+:::note
+`take` を指定した場合、または `skip` に 0 以外を指定した場合は `orderBy` が必須です。`orderBy` がないと `GassmaGroupByOrderByRequiredError`（メッセージ: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.）がスローされます。空の `orderBy` は指定したことになりません。
+:::
+
 :::tip
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
 :::
