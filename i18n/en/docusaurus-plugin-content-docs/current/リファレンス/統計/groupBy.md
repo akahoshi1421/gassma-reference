@@ -28,6 +28,10 @@ Use this when you want to group data.
 `by` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `by` is missing.).
 :::
 
+:::note
+`orderBy` is required when you specify `take`, or a `skip` other than 0. Without it, `GassmaGroupByOrderByRequiredError` is thrown (message: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.). An empty `orderBy` does not count as specified.
+:::
+
 :::tip
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
 :::

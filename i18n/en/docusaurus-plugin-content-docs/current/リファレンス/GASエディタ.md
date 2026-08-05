@@ -52,6 +52,18 @@ const gassma = new Gassma.GassmaClient({
 });
 ```
 
+### lock (Required to Use `$transaction`)
+
+`lock` is the lock used by [$transaction](/docs/reference/transaction) and by [autoincrement](/docs/reference/config/autoincrement) when it assigns numbers. When you use the CLI, the generated client fills in the default (`LockService.getScriptLock()`), but **when you write code in the GAS editor you have to pass it yourself**.
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
+Calling `$transaction` without passing `lock` throws `GassmaTransactionLockRequiredError` (autoincrement, on the other hand, keeps going without taking a lock when there is no `lock`). See [Lock](/docs/reference/transaction#lock) for the available granularities.
+
 ## Constructor Options
 
 | Option | Description | Reference |
@@ -66,6 +78,7 @@ const gassma = new Gassma.GassmaClient({
 | `map` | Field name mapping | [map](/docs/reference/config/map) |
 | `mapSheets` | Sheet name mapping | [map](/docs/reference/config/map) |
 | `autoincrement` | Auto-increment | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | Lock used by `$transaction` and autoincrement | [Lock](/docs/reference/transaction#lock) |
 | `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
 
 ## Schema Equivalents
@@ -84,6 +97,7 @@ When using the CLI, most of the options above are written as attributes in `sche
 | `mapSheets` | `@@map("...")` |
 | `strictUndefinedChecks` | `previewFeatures = ["strictUndefinedChecks"]` |
 | `omit` | No schema equivalent (specify it in the constructor even when using the CLI) |
+| `lock` | No schema equivalent (when using the CLI, the generated client fills in the default) |
 | `id` | The `url` of the `datasource` block, or `datasource.url` in `gassma.config.ts` |
 
 For details on each setting, see [Schema](/docs/reference/schema).
