@@ -96,3 +96,7 @@ const gassma = new Gassma.GassmaClient({
 ```ts
 ignoreSheets: "Logs",
 ```
+
+:::note
+`@@ignore` / `@ignore` はクライアントから見えなくするだけで、シートや列そのものには手を付けません。[migrate / db push](/docs/reference/migrate) でも作成対象一覧に残るため、`--accept-data-loss` を付けても削除されません。クライアントには出さずにシートだけ残したい場合に使えます（[消したくないシートを守る](/docs/reference/migrate#消したくないシートを守る)）。
+:::

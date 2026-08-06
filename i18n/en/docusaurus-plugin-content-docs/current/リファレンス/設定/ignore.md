@@ -96,3 +96,7 @@ For a single sheet, you can specify it as a string.
 ```ts
 ignoreSheets: "Logs",
 ```
+
+:::note
+`@@ignore` / `@ignore` only hide things from the client; the sheets and columns themselves are left alone. [migrate / db push](/docs/reference/migrate) keeps them on the list of targets, so they are not deleted even with `--accept-data-loss`. That makes them a way to keep a sheet while hiding it from the client (see [Protecting Sheets You Do Not Want Deleted](/docs/reference/migrate#protecting-sheets-you-do-not-want-deleted)).
+:::
