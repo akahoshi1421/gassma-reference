@@ -1,0 +1,146 @@
+
+# Quickstart
+
+Create a local development environment with `npx gassma bootstrap`, write a schema, generate a typed client, and start working with your spreadsheet.
+
+If you want to use only the GAS script editor, add the library as described in [Installation](/docs/installation) and see [Using the GAS Editor](/docs/reference/gas-editor).
+
+## Prerequisites
+
+[clasp](https://github.com/google/clasp) must be installed and logged in.
+
+```
+$ npm install -g @google/clasp
+$ clasp login
+```
+
+Also enable the Apps Script API on the [Apps Script settings page](https://script.google.com/home/usersettings).
+
+## 1. Create a Project
+
+```
+$ npx gassma bootstrap my-app
+```
+
+An interactive prompt walks you through creating the Apps Script project, the build configuration, the schema file, and installing dependencies. Answering **Yes** to "Create a new spreadsheet as well?" creates a new spreadsheet along with a script bound to it.
+
+The resulting directory looks like this:
+
+```
+my-app/
+├── gassma/
+│   └── schema.prisma
+├── src/
+│   └── index.ts
+├── gassma.config.ts
+├── esbuild.mjs
+├── tsconfig.json
+└── package.json
+```
+
+For the questions and the generated files in detail, see [bootstrap](/docs/reference/bootstrap).
+
+## 2. Write the Schema
+
+Define your models in `gassma/schema.prisma`. One model corresponds to one sheet.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  age       Int
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id @default(autoincrement())
+  title    String
+  authorId Int
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+The models and attributes you can write are covered in [Schema](/docs/reference/schema).
+
+## 3. Generate the Client
+
+```
+$ npx gassma generate
+```
+
+Type definitions and a client are generated into the directory specified by `output`. Settings such as relations and `@default` are already injected into the generated client.
+
+During development, adding `--watch` regenerates automatically as the schema changes.
+
+## 4. Create the Sheets in the Spreadsheet
+
+Prepare the sheets and columns from your schema on the spreadsheet side.
+
+```
+$ npx gassma migrate dev --name init
+```
+
+This command does not access the spreadsheet directly. Push the generated `gassma-migration.js` and run it once in the Apps Script editor.
+
+```
+$ npm run push
+```
+
+Open the Apps Script editor (`npm run open`) and run the `gassmaMigrate` function once. This creates the sheets and their header rows.
+
+Right after migrate, use `npm run push`. `npm run deploy` rebuilds from scratch and may delete `gassma-migration.js` before pushing.
+
+For the sync rules and `--accept-data-loss`, see [migrate / db push](/docs/reference/migrate).
+
+## 5. Write Code
+
+Import and use the generated client.
+
+```ts title="src/index.ts"
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
+export const main = () => {
+  gassma.User.create({
+    data: { name: "Alice", email: "alice@example.com", age: 28 },
+  });
+
+  const users = gassma.User.findMany({
+    where: { age: { gte: 20 } },
+    orderBy: { name: "asc" },
+    include: { posts: true },
+  });
+
+  console.log(users);
+};
+```
+
+Exported functions become GAS global functions as-is (when you choose the export style in bootstrap).
+
+## 6. Deploy and Run
+
+```
+$ npm run deploy
+```
+
+This builds and pushes to Apps Script. Open the editor with `npm run open` and run `main`.
+
+## What to Read Next
+
+| Page | Content |
+| --- | --- |
+| [Basic](/docs/reference/basic) | Client initialization and constructor options |
+| [Schema](/docs/reference/schema) | How to write models, attributes, and relations |
+| [findMany](/docs/reference/crud/read/findMany) | The core of reading: `where`, `orderBy`, pagination, and more |
+| [Relation Definition](/docs/reference/relation/definition) | Using relations with `include` and `where` |
+| [CLI Commands](/docs/reference/cli/commands) | Commands other than `generate` |

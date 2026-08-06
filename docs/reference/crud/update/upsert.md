@@ -30,7 +30,7 @@
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.upsert
 const result = gassma.sheet1.upsert({

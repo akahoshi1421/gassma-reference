@@ -25,7 +25,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.deleteMany
 const result = gassma.sheet1.deleteMany({
@@ -73,6 +73,6 @@ gassma.sheet1.deleteMany({ limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
+The finiteness check runs first, so `limit: -Infinity` throws `GassmaInvalidValueError` rather than `GassmaLimitNegativeError`. `undefined` is ignored (no upper bound).
 
 The `where` specification follows [findMany()](../read/findMany).

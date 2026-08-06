@@ -265,6 +265,8 @@ You can specify `include` within `include` to retrieve deep relation hierarchies
 
 For example, you can retrieve Users → Posts → Tags in a single query:
 
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {

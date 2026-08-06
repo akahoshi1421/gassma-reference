@@ -28,7 +28,7 @@
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateMany
 const result = gassma.sheet1.updateMany({
@@ -84,7 +84,7 @@ gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` は以前 `GassmaLimitNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`undefined` は従来どおり無視されます（上限なし）。
+`limit: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaLimitNegativeError` ではなく `GassmaInvalidValueError` になります。`undefined` は無視されます（上限なし）。
 
 ## 数値の原子的操作
 

@@ -1,6 +1,34 @@
 
 # Installation
 
+There are two ways to install GASsma. Both give you the same library and the same features.
+
+| Method | Best for |
+| --- | --- |
+| [CLI (local development)](#cli-local-development) | Type-safe development with editor completion and a build step |
+| [GAS script editor](#gas-script-editor) | Small scripts, or trying things out without a local environment |
+
+## CLI (local development)
+
+`npx gassma bootstrap` sets up a clasp + esbuild + TypeScript + GASsma environment in one command. No prior installation is needed.
+
+```bash
+npx gassma bootstrap my-app
+```
+
+The steps are covered in the [Quickstart](/docs/quickstart).
+
+To add GASsma to an existing project, install the package and then create the schema and config files with `gassma init`.
+
+```bash
+npm i gassma
+npx gassma init
+```
+
+For the full list of commands, see [CLI Commands](/docs/reference/cli/commands).
+
+## GAS script editor
+
 First, after opening Apps Script, click the "+" button in the Libraries section.
 
 ![Click the + button](./img/plusButton.png)
@@ -21,12 +49,6 @@ If "Gassma" appears in the Libraries section, you're all set!
 
 ![Success](./img/installSuccess.png)
 
-## CLI Tool Installation
+For how to write code, see [Using the GAS Editor](/docs/reference/gas-editor).
 
-When developing GoogleAppsScript locally using tools like clasp, you can install GASsma's TypeScript type file auto-generation tool with the following command.
-
-For detailed usage, see [here](./reference/type-generation)
-
-```bash
-npm i gassma
-```
+When you use `npx gassma bootstrap`, this library entry is added for you automatically (it is written into `dist/appsscript.json`).

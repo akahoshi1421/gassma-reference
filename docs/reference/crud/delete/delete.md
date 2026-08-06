@@ -27,7 +27,7 @@
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.delete
 const result = gassma.sheet1.delete({

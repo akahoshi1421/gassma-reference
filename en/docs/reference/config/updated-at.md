@@ -3,6 +3,25 @@
 
 This is the equivalent of Prisma's `@updatedAt`. It automatically sets the current timestamp on specified columns when a record is created or updated.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `updatedAt DateTime @updatedAt` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `updatedAt: { Users: "updatedAt" }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  updatedAt DateTime @updatedAt
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts

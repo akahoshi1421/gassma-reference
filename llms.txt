@@ -9,8 +9,20 @@
 ## Getting Started
 
 - [GASsma とは](https://gassma.io/docs/intro.md): 概要と動機: 素の GAS でのスプレッドシート操作が保守しにくい理由（getRange の指定ミスや数式インジェクション）と、GASsma がそれをどう解決するか
-- [導入方法](https://gassma.io/docs/installation.md): GAS スクリプトエディタへの導入方法と、ローカル開発向けの npm でのインストール方法
-- [基本](https://gassma.io/docs/reference/basic.md): GassmaClient の初期化、シートへのアクセス、コンストラクタオプション、共通クエリオプション（where, select, omit, orderBy, take, skip）
+- [クイックスタート](https://gassma.io/docs/quickstart.md): npx gassma bootstrap から始めて、スキーマ定義・クライアント生成・シート同期・デプロイまでを一通り行う
+- [導入方法](https://gassma.io/docs/installation.md): CLI（npm）でのインストールと、GAS スクリプトエディタへのライブラリ追加。2 つの導入方法
+- [基本](https://gassma.io/docs/reference/basic.md): 生成された GassmaClient の初期化、シートへのアクセス、コンストラクタオプション、共通クエリオプション（where, select, omit, orderBy, take, skip）
+
+## Schema
+
+- [スキーマ（schema.prisma）](https://gassma.io/docs/reference/schema.md): schema.prisma でモデル・フィールド・リレーション・enum を定義する。型マッピング、@default / @updatedAt / @ignore / @map、previewFeatures、マルチファイルスキーマ
+
+## CLI
+
+- [bootstrap（ローカル開発環境のセットアップ）](https://gassma.io/docs/reference/bootstrap.md): npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma のローカル開発環境を一発でセットアップする
+- [CLI コマンド](https://gassma.io/docs/reference/cli/commands.md): gassma CLI のコマンド一覧（generate / init / validate / format / studio / version）と、生成されるファイル・型の概要
+- [migrate / db push（シートの同期）](https://gassma.io/docs/reference/migrate.md): npx gassma migrate dev / migrate deploy / db push で、スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成する
+- [設定ファイル（gassma.config.ts）](https://gassma.io/docs/reference/cli/config.md): gassma.config.ts で CLI の設定（schema / datasource.url）を一元管理する。defineConfig・env()・探索規則・--config オプション
 
 ## Reading Data
 
@@ -57,17 +69,18 @@
 - [autoincrement](https://gassma.io/docs/reference/config/autoincrement.md): LockService + PropertiesService を使ったフィールドの自動インクリメント（GAS のみ）
 - [strictUndefinedChecks / Gassma.skip](https://gassma.io/docs/reference/config/strict-undefined-checks.md): Prisma の strictUndefinedChecks（Preview 機能）と Prisma.skip に相当する機能です。クエリ入力に紛れ込んだ意図しない undefined を実行時エラーとして検出し、フィールドを省略したい場合は Gassma.skip で明示的に指定できるようになります。
 
+## GAS Editor
+
+- [GAS エディタでの利用](https://gassma.io/docs/reference/gas-editor.md): CLI を使わず GAS スクリプトエディタだけで GASsma を使う方法。Gassma.GassmaClient の初期化とコンストラクタオプション一覧
+
 ## Advanced
 
-- [$extends（query）](https://gassma.io/docs/reference/client-extensions/query.md): $extends の query コンポーネントは、各操作の実行に割り込むクエリフックを登録するための機能です。Prisma のクライアント拡張（$extends の query）に相当します。フックの中で args を書き換える、結果を加工する、実際の操作を実行せずに短絡する、といった制御ができます。
-- [$extends（result）](https://gassma.io/docs/reference/client-extensions/result.md): $extends の result コンポーネントは、クエリ結果のレコードに算出フィールド（computed fields）を追加するための機能です。Prisma のクライアント拡張（$extends の result）に相当します。既存のスカラーフィールドから新しいフィールドを計算し、結果に含めることができます。
+- [$extends（query）](https://gassma.io/docs/reference/client-extensions/query.md): $extends の query で各操作にクエリフックを登録し、args の書き換え・結果の加工・実行の短絡を行う
+- [$extends（result）](https://gassma.io/docs/reference/client-extensions/result.md): $extends の result で既存のスカラーフィールドから算出フィールドを追加する
 - [$transaction（トランザクション）](https://gassma.io/docs/reference/transaction.md): $transaction でコールバック内の書き込みをまとめてコミットする。エラー時は 1 セルも書き込まれない。maxWait / timeout / rollback オプション
-- [Prisma スキーマを利用したローカル開発](https://gassma.io/docs/reference/type-generation.md): gassma CLI（generate/init/validate/format）と gassma.config.ts を使い、Prisma 形式のスキーマから型安全なクライアントを生成する
 - [書き込みの原子性と同時実行](https://gassma.io/docs/reference/write-atomicity.md): Nested write やカスケードは複数シートへの書き込みをバッファし、エラー時は 1 行も書かれない。この保証が及ばないケース（API 失敗・同時編集）と $transaction による対策
-- [bootstrap（ローカル開発環境のセットアップ）](https://gassma.io/docs/reference/bootstrap.md): npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma のローカル開発環境を一発でセットアップする
-- [fields（列同士の比較）](https://gassma.io/docs/reference/fields.md): FieldRef を使って where 条件内で同じ行の列同士を比較する
-- [migrate / db push（シートの同期）](https://gassma.io/docs/reference/migrate.md): npx gassma migrate / npx gassma db push で、スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成する
 - [raw（数式の書き込み）](https://gassma.io/docs/reference/raw.md): Gassma.raw で数式インジェクション対策の自動エスケープをセル単位で回避し、セルに数式をそのまま書き込む
+- [fields（列同士の比較）](https://gassma.io/docs/reference/fields.md): FieldRef を使って where 条件内で同じ行の列同士を比較する
 - [エラー一覧](https://gassma.io/docs/reference/errors.md): GASsma が投げるエラークラスの一覧と発生条件
 
 ## Optional

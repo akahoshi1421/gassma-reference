@@ -1,0 +1,479 @@
+
+# スキーマ（schema.prisma）
+
+GASsma は Prisma 形式のスキーマファイルからクライアントコードを生成します。シートの構造・リレーション・デフォルト値などはすべて `schema.prisma` に書き、`npx gassma generate` で型付きクライアントに反映します。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int     @id
+  name  String
+  email String?
+  age   Int
+}
+```
+
+Prisma のスキーマ構文をそのまま使えるため、Prisma を知っていれば新しく覚えることはほとんどありません。
+
+## スキーマファイルの置き場所
+
+デフォルトでは `./gassma` ディレクトリ配下の `.prisma` ファイルが探索されます。
+
+```
+my-project/
+├── gassma/
+│   └── schema.prisma    ← ここにスキーマを記述
+├── gassma.config.ts
+├── package.json
+└── ...
+```
+
+探索先は `--schema` オプションや `gassma.config.ts` の `schema` で変更できます（[設定ファイル](/docs/reference/cli/config)を参照）。
+
+## generator ブロック
+
+`generator` ブロックの `output` で生成先ディレクトリを指定します。`output` は必須です。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+```
+
+### previewFeatures
+
+`generator` ブロックに `previewFeatures` を指定すると、オプトインの機能を有効化できます（Prisma の `previewFeatures` と同じ書き方です）。
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  output          = "./src/generated/gassma"
+  previewFeatures = ["strictUndefinedChecks"]
+}
+```
+
+現在サポートされている機能:
+
+| 機能 | 説明 | 参照 |
+| --- | --- | --- |
+| `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+有効化すると、生成されるクライアント JS に `strictUndefinedChecks: true` が埋め込まれ、生成される型定義にも `Gassma.skip` を受け付ける型が反映されます。
+
+## 型マッピング
+
+Prisma の型は以下の TypeScript 型に変換されます。
+
+| Prisma 型 | TypeScript 型 |
+| --- | --- |
+| `Int` | `number` |
+| `Float` | `number` |
+| `Decimal` | `number` |
+| `BigInt` | `number` |
+| `String` | `string` |
+| `Boolean` | `boolean` |
+| `DateTime` | `Date` |
+| `Json` | `string` |
+| `Bytes` | `string` |
+
+`?` を付けるとオプショナルフィールドになります（`null` が許容されます）。
+
+## リレーション
+
+Prisma の `@relation` 属性を使うと、リレーション情報が自動的に抽出され、生成されたクライアントに注入されます。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
+}
+```
+
+上記の定義から以下のリレーション設定が自動生成されます。
+
+- `User.posts`: oneToMany（User → Post、onDelete: Cascade）
+- `Post.author`: manyToOne（Post → User）
+
+Prisma と同じく `onDelete` / `onUpdate` は FK を持つ側（`@relation` を書いた側）に指定しますが、生成されるリレーション設定では**参照される側**（`oneToMany` / 非 FK 側の `oneToOne`）に付きます。GASsma が参照アクションを発火させるのはこちら側です（[onDelete](/docs/reference/relation/on-delete)）。
+
+リレーションの種類ごとの意味や、`include` / `where` での使い方は[リレーション定義](/docs/reference/relation/definition)を参照してください。参照アクションは [onDelete](/docs/reference/relation/on-delete) / [onUpdate](/docs/reference/relation/on-update) にまとめています。
+
+### 暗黙的 Many-to-Many
+
+双方向の配列参照がある場合、暗黙的な Many-to-Many リレーションが自動検出されます。
+
+```prisma
+model Post {
+  id   Int   @id
+  tags Tag[]
+}
+
+model Tag {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+```
+
+生成されるクライアントでは、中間テーブル名が `_PostToTag`（モデル名のアルファベット順）として自動的に解決されます。`@relation("PostTags")` のようにリレーションに名前を付けた場合は、リレーション名がそのまま中間テーブル名（`_PostTags`）になります（Prisma と同じ規則です）。
+
+中間テーブル（シート）自体は [migrate / db push](/docs/reference/migrate) で自動作成できます（スプレッドシート側に同名のシートを手動で用意しても構いません）。
+中間テーブル名を変更したい場合は、`@relation` でリレーションに名前を付けてください。
+
+## enum
+
+Prisma の `enum` 定義からリテラルユニオン型が自動生成されます。
+
+```prisma
+enum Role {
+  ADMIN
+  USER
+  MODERATOR
+}
+
+model User {
+  id   Int  @id
+  role Role
+}
+```
+
+生成される型:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+### enum の @map
+
+enum メンバーに `@map` を付けると、コード上の名前とスプレッドシート上の値をマッピングできます。
+
+```prisma
+enum Role {
+  admin     @map("ADMIN")
+  user      @map("USER")
+  moderator @map("MODERATOR")
+}
+```
+
+生成される定数:
+
+```ts
+const Role = {
+  admin: "ADMIN",
+  user: "USER",
+  moderator: "MODERATOR",
+} as const;
+```
+
+型定義には `@map` の値が使用されます:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+## 属性
+
+各属性が対応する機能の詳細は、リンク先のページを参照してください。
+
+| 属性 | 効果 | 参照 |
+| --- | --- | --- |
+| `@id` | 主キー | - |
+| `@relation(...)` | リレーション定義 | [リレーション定義](/docs/reference/relation/definition) |
+| `@default(...)` | 作成時のデフォルト値 | [defaults](/docs/reference/config/defaults) |
+| `@default(autoincrement())` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
+| `@updatedAt` | 作成・更新時のタイムスタンプ自動設定 | [updatedAt](/docs/reference/config/updated-at) |
+| `@ignore` | フィールドを全操作から除外 | [ignore](/docs/reference/config/ignore) |
+| `@@ignore` | シート全体を除外 | [ignore](/docs/reference/config/ignore) |
+| `@map("name")` | フィールド名 → ヘッダー名のマッピング | [map](/docs/reference/config/map) |
+| `@@map("name")` | モデル名 → シート名のマッピング | [map](/docs/reference/config/map) |
+| `@unique` / `@@unique` | GASsma 上の効果は無し（Prisma がリレーションの検証に使う） | [@unique / @@unique](#unique--unique) |
+
+ここに無い属性は[使えない属性](#使えない属性)を参照してください。
+
+### @default
+
+`@default()` が付いたフィールドは、生成される Create 入力型でオプショナル（`?`）になります。
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+```
+
+生成される型:
+
+```ts
+"isActive"?: boolean   // @default(true) → オプショナル
+"createdAt"?: Date     // @default(now()) → オプショナル
+```
+
+生成されるクライアント JS には defaults 設定が自動的に埋め込まれます。
+
+| `@default()` | 生成される JS |
+| --- | --- |
+| `@default(true)` / `@default(false)` | `true` / `false` |
+| `@default(0)` (数値) | `0` |
+| `@default("USER")` (文字列) | `"USER"` |
+| `@default(ADMIN)` (enum 値) | `"ADMIN"` |
+| `@default(active)` (enum 値・`active @map("ACTIVE")`) | `"ACTIVE"`（`@map` 後の値） |
+| `@default(now())` | `() => new Date()` |
+| `@default(uuid())` | `() => Utilities.getUuid()` |
+| `@default(autoincrement())` | autoincrement 設定として別途生成 |
+
+### @updatedAt
+
+`@updatedAt` が付いたフィールドは Create 入力型でオプショナルになり、生成されるクライアント JS に updatedAt 設定が埋め込まれます。
+
+```prisma
+model Post {
+  id        Int      @id
+  title     String
+  updatedAt DateTime @updatedAt
+}
+```
+
+### @ignore
+
+`@ignore` が付いたフィールドは型定義から完全に除外され、生成されるクライアント JS に ignore 設定が埋め込まれます。
+
+```prisma
+model User {
+  id       Int    @id
+  name     String
+  secret   String @ignore   // 型定義に含まれない
+}
+```
+
+### @map
+
+`@map("name")` でフィールド名のマッピングを定義できます。生成されるクライアント JS に map 設定が埋め込まれます。
+
+```prisma
+model User {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+}
+```
+
+コード上は `firstName` / `lastName` で操作し、スプレッドシート上は「名前」「名字」カラムに対応します。
+
+### @@ignore
+
+モデルレベルの `@@ignore` でシート全体を除外できます。生成されるクライアント JS に ignoreSheets 設定が埋め込まれます。
+
+```prisma
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+### @@map
+
+モデルレベルの `@@map("name")` でシート名をマッピングできます。
+
+```prisma
+model Users {
+  id   Int    @id
+  name String
+
+  @@map("ユーザー一覧")
+}
+```
+
+コード上は `Users` でアクセスし、スプレッドシート上は「ユーザー一覧」シートに対応します。
+
+### @unique / @@unique
+
+`@unique` / `@@unique` は書けますが、**GASsma は一意性を強制しません**。重複した値を書き込んでもエラーにはならないため、重複を弾きたい場合はコード側でチェックしてください。
+
+それでも受け付けるのは、Prisma がこの 2 つを**リレーションの構造の検証**に使うためです。以下の 4 つのケースでは、`@unique` / `@@unique` が無いと Prisma 側がスキーマを受け付けません。
+
+| ケース | 必要な指定 |
+| --- | --- |
+| 単一の外部キーによる 1:1 | 外部キーのフィールドに `@unique` |
+| `@id` 以外のフィールドを `references` に指定した 1:N | 参照先のフィールドに `@unique` |
+| 複合外部キーによる 1:N | 参照先モデルに `@@unique([k1, k2])` |
+| 複合外部キーによる 1:1 | 外部キー側モデルに `@@unique([r1, r2])` |
+
+```prisma
+model User {
+  id      Int      @id
+  profile Profile?
+}
+
+model Profile {
+  id     Int  @id
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique   // 1:1 には @unique が必要
+}
+```
+
+上の表の下 2 つで必要になる複合外部キー自体は、GASsma ではまだ使えません（[複合外部キー](#複合外部キー)を参照）。
+
+## 使えない属性
+
+以下の属性は `npx gassma generate` / `npx gassma validate` でエラー（`GASsmaUnsupportedAttributeError`）になります。
+
+| 属性 | 弾く理由 |
+| --- | --- |
+| `@@id` | 複合主キーをスプレッドシートに宣言できないため。Prisma が `@@id` を要求することは無く、単一の `@id` で必ず代替できます。また GASsma の[暗黙的 Many-to-Many](#暗黙的-many-to-many) は中間シートの列名が `id` であることを前提にしているため、複合主キーにすると存在しない列を参照してしまいます |
+| `@@index` / `@@fulltext` | スプレッドシートにインデックスを作れないため。どのクエリもシート全体を読むので、書いても効果がありません |
+| `@db.VarChar(255)` などのネイティブ型 | スプレッドシートが値をどう保存するかを GASsma が制御できないため、書いても効果がありません |
+
+```prisma
+model User {
+  id   Int    @id
+  name String @db.VarChar(255)   // エラー
+
+  @@index([name])                // エラー
+}
+```
+
+エラーは属性ごとにまとめて報告されます。
+
+```
+GASsmaUnsupportedAttributeError: `@db.VarChar` on User.name is not supported.
+GASsma cannot control how a spreadsheet stores a value, so the native type has no effect.
+Remove it.
+
+`@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+### 複合外部キー
+
+`@relation` の `fields` / `references` に 2 列以上を指定する複合外部キーは**まだ使えません**（将来のサポート予定です）。`npx gassma generate` / `npx gassma validate` でエラー（`GASsmaCompositeRelationError`）になります。
+
+```prisma
+model A {
+  k1 Int
+  k2 Int
+  b  B[]
+
+  @@unique([k1, k2])
+}
+
+model B {
+  id Int @id
+  r1 Int
+  r2 Int
+  a  A   @relation(fields: [r1, r2], references: [k1, k2])   // エラー
+}
+```
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+## 型の拡張
+
+### @gassma.addType
+
+Prisma のフィールドコメント（`///`）に `@gassma.addType` を記述すると、フィールドの型にユニオン型を追加できます。
+
+```prisma
+model User {
+  /// @gassma.addType string
+  id    Int @id          // 生成型: number | string
+
+  /// @gassma.addType string, boolean
+  score Int              // 生成型: number | string | boolean
+
+  name  String           // 生成型: string（コメントなしなら通常通り）
+}
+```
+
+### @gassma.replaceType
+
+`@gassma.addType` は基底型とのユニオンですが、`@gassma.replaceType` は基底型を置換して指定した型のみ生成します。
+
+```prisma
+model User {
+  /// @gassma.replaceType "admin", "user", "moderator"
+  role String
+}
+```
+
+生成される型:
+
+```ts
+"role": "admin" | "user" | "moderator"  // string を含まない
+```
+
+優先順位: enum > replaceType > addType。enum がある場合は replaceType / addType は無視されます。
+
+## datasource ブロック
+
+スキーマファイル内に `datasource` ブロックを記述すると、対象のスプレッドシートを指定できます。
+
+```prisma
+datasource db {
+  provider = "google-spreadsheet"
+  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
+}
+```
+
+`url` は `gassma.config.ts` の `datasource.url` でも指定できます。スキーマ内の `datasource` ブロックが優先されます（[設定ファイル](/docs/reference/cli/config)を参照）。
+
+## マルチファイルスキーマ
+
+同じディレクトリ（およびサブディレクトリ）内に複数の `.prisma` ファイルを配置すると、自動的に **1 つのスキーマとして統合** されます。Prisma の [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) と同等の機能です。
+
+```
+gassma/
+├── schema.prisma        ← generator ブロックをここに記述
+├── models/
+│   ├── user.prisma      ← User, Profile モデル
+│   └── post.prisma      ← Post, Comment モデル
+```
+
+`generator` ブロックはいずれか 1 ファイルに記述すれば、全ファイルで共有されます。すべてのモデルが 1 つのクライアント出力にまとめられます。
+
+## 複数スキーマ（複数スプレッドシート）
+
+異なるスプレッドシートを扱う場合は、スキーマを別々のディレクトリに分けて個別に生成します。型名にはスキーマ名のプレフィックスが付与されるため、同名モデルがあっても衝突しません。
+
+```
+schemas/
+├── user/
+│   └── schema.prisma    → userClient.js, user.d.ts
+└── order/
+    └── schema.prisma    → orderClient.js, order.d.ts
+```
+
+```ts
+import { GassmaClient as UserClient } from "./generated/user/schemaClient";
+import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
+
+const userGassma = new UserClient();
+const orderGassma = new OrderClient();
+```

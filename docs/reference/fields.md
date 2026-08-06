@@ -8,7 +8,7 @@
 各シートコントローラーの `fields` プロパティから `FieldRef` を取得し、フィルタ条件の値として渡します。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 const userSheet = gassma.Users;
 
 // firstName と lastName が同じ値のユーザーを検索

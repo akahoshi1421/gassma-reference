@@ -9,7 +9,25 @@ Uses the sheet examples from [relation definition](/docs/reference/relation/defi
 
 ## Basic Usage
 
-Specify `onUpdate` in the [relation definition](/docs/reference/relation/definition):
+When using the CLI, specify `onUpdate` in the arguments of `@relation`.
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onUpdate: Cascade)
+}
+```
+
+When using the GAS editor alone, specify `onUpdate` in the [relation definition](/docs/reference/relation/definition):
 
 ```ts
 const gassma = new Gassma.GassmaClient({

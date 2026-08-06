@@ -47,7 +47,25 @@
 
 ## 基本的な定義方法
 
-`GassmaClient` のコンストラクタに `relations` オプションを渡すことで、シート間のリレーションを定義できます。
+CLI を使う場合、リレーションは `schema.prisma` に `@relation` で書きます。`npx gassma generate` を実行すると、生成されたクライアントに注入されます。
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id])
+}
+```
+
+GAS エディタだけで使う場合は、`GassmaClient` のコンストラクタに `relations` オプションを渡します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -76,6 +94,10 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 ```
+
+以降の説明では、リレーションの種類ごとの意味を示すためにコンストラクタ版の表記を使います。スキーマでの書き方は[スキーマ](/docs/reference/schema)を参照してください。
+
+`relations` をコンストラクタに渡せるのは、`new Gassma.GassmaClient()` を直接使う場合だけです。CLI が生成した `GassmaClient` はスキーマから読み取ったリレーションで上書きするため、コンストラクタに渡しても黙って無視されます（[コンストラクタオプション](/docs/reference/basic#コンストラクタオプション)を参照）。
 
 ## リレーション定義のキー
 

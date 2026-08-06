@@ -29,7 +29,7 @@ Suppose you want to retrieve a row from the above example with the following con
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirstOrThrow
 const result = gassma.sheet1.findFirstOrThrow({

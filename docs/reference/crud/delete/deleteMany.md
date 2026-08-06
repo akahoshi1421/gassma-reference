@@ -25,7 +25,7 @@
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.deleteMany
 const result = gassma.sheet1.deleteMany({
@@ -73,6 +73,6 @@ gassma.sheet1.deleteMany({ limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` は以前 `GassmaLimitNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`undefined` は従来どおり無視されます（上限なし）。
+`limit: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaLimitNegativeError` ではなく `GassmaInvalidValueError` になります。`undefined` は無視されます（上限なし）。
 
 また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。

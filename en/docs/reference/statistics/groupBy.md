@@ -11,15 +11,17 @@ Use this when you want to group data.
 | orderBy  | Sort settings                                 | Yes      | If specifying only one column, the array can be omitted                       |
 | take     | Set the number of records to retrieve         | Yes      |                                                                               |
 | skip     | Set the number of records to skip             | Yes      |                                                                               |
-| \_avg    | Average display settings                      | Yes      |                                                                               |
-| \_count  | Hit count display settings                    | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
-| \_max    | Maximum value display settings                | Yes      |                                                                               |
-| \_min    | Minimum value display settings                | Yes      |                                                                               |
-| \_sum    | Sum display settings                          | Yes      |                                                                               |
+| \_avg    | Average display settings                      | Yes      | Only numeric columns can be specified                                         |
+| \_count  | Hit count display settings                    | Yes      | Any column can be specified. `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
+| \_max    | Maximum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_min    | Minimum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_sum    | Sum display settings                          | Yes      | Only numeric columns can be specified                                         |
 | by       | Specify grouping conditions                   | No       |                                                                               |
 | having   | Specify conditions after grouping             | Yes      | If omitted, all data is retrieved                                             |
 
 `by` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `by` is missing.).
+
+`orderBy` is required when you specify `take`, or a `skip` other than 0. Without it, `GassmaGroupByOrderByRequiredError` is thrown (message: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.). An empty `orderBy` does not count as specified.
 
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
 
@@ -203,6 +205,8 @@ The return value is in the following format.
 ```
 
 In `_avg` / `_sum` / `_max` / `_min` and column-specified `_count`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null. `_count: { _all: true }` still counts those rows.
+
+The column types each aggregation key accepts are the same as in aggregate. See [Columns Each Aggregation Key Accepts in aggregate](/docs/reference/statistics/aggregate#columns-each-aggregation-key-accepts) for details.
 
 ### _count
 

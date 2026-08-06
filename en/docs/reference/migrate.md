@@ -1,15 +1,22 @@
 
 # migrate / db push (Syncing Sheets)
 
-`npx gassma migrate` and `npx gassma db push` are commands that generate a GAS function that syncs your spreadsheet's sheets and columns with the Prisma schema (the counterparts of Prisma's `prisma migrate dev` / `prisma db push`).
+`npx gassma migrate` and `npx gassma db push` are commands that generate a GAS function that syncs your spreadsheet's sheets and columns with the Prisma schema (the counterparts of Prisma's `prisma migrate dev` / `prisma migrate deploy` / `prisma db push`).
 
 ```
-$ npx gassma migrate                  # generate and record a trail (migrations/)
-$ npx gassma migrate --name add_tags  # name the trail entry
-$ npx gassma db push                  # generate without recording a trail
+$ npx gassma migrate dev                  # generate and record a trail (migrations/)
+$ npx gassma migrate dev --name add_tags  # name the trail entry
+$ npx gassma migrate deploy               # generate the latest recorded trail entry as it is
+$ npx gassma db push                      # generate without recording a trail
 ```
 
-The only difference between the two commands is **whether a trail (the `migrations/` directory) is recorded**. `migrate` leaves a `migration.js` under `migrations/` every time the schema changes, while `db push` never touches `migrations/`. The generated runnable stub is identical for both. Use `db push` when you do not need a migration history.
+| Command | Behavior |
+| --- | --- |
+| `migrate dev` | Generates the runnable stub from the schema and records a trail entry (`migrations/`). Asks for [confirmation](#drop-confirmation-migrate-dev) when something is deleted |
+| `migrate deploy` | Writes the latest recorded trail entry out as the runnable stub, as it is. It does not read the schema, does not record a trail, and does not ask anything |
+| `db push` | Generates the runnable stub from the schema. No trail is recorded |
+
+`npx gassma migrate` with no arguments prints the help.
 
 The commands themselves do not access the spreadsheet. The sheets are synced the moment you run the generated `gassmaMigrate` function once on the Apps Script side. `clasp push` is not run automatically either (see "After Generating" below).
 
@@ -54,14 +61,16 @@ function gassmaMigrate() {
 1. `--output <dir>` (highest priority)
 2. `rootDir` in `.clasp.json` in the current directory
 
-If neither is available, a `MigrateOutputDirError` is raised.
+If neither is available, a `MigrateOutputDirError` is raised. This is the same for all three commands.
 
 ### Sheet and Column Extraction Rules
+
+These are the rules `migrate dev` / `db push` follow when reading the schema (`migrate deploy` does not read the schema).
 
 - One sheet per model. When `@@map` / `@map` are used, the mapped physical names are used.
 - Only scalar fields become columns. Relation fields (`posts` / `author` in the example above) do not become columns, while foreign key columns (`authorId`) do.
 - Fields and models with `@ignore` / `@@ignore` are **also included as creation targets**. As in Prisma, they are only excluded from the client and still exist physically in the spreadsheet.
-- Junction sheets for [implicit Many-to-Many](/docs/reference/type-generation#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
+- Junction sheets for [implicit Many-to-Many](/docs/reference/schema#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
 
 ## After Generating
 
@@ -91,7 +100,7 @@ Gassma.migrateSheets: column "legacy" on sheet "User" is not in the schema. It i
 
 ## Deleting Data (--accept-data-loss)
 
-Pass `--accept-data-loss` to delete columns and sheets that are not in the schema. `acceptDataLoss: true` is embedded in the stub, and the deletion is performed when `gassmaMigrate` runs.
+When `acceptDataLoss: true` is embedded in the stub, running `gassmaMigrate` also deletes the columns and sheets that are not in the schema.
 
 Columns and sheets that still contain data are deleted after a warning that reports how much is left (the number of non-empty cells for a column, the number of data rows for a sheet). Empty ones are deleted without a warning.
 
@@ -99,9 +108,82 @@ Columns and sheets that still contain data are deleted after a warning that repo
 Gassma.migrateSheets: You are about to drop the column "legacy" on the sheet "User", which still contains 12 non-empty values.
 ```
 
+How the flag is set differs per command.
+
+| Command | How it is set |
+| --- | --- |
+| `db push` | Pass `--accept-data-loss` |
+| `migrate dev` | Answer `y` to the drop [confirmation](#drop-confirmation-migrate-dev) |
+| `migrate deploy` | The value recorded in the trail entry is used as it is |
+
+### Protecting Sheets You Do Not Want Deleted
+
+To keep a sheet, **leave its model in the schema** and mark it `@@ignore` instead of removing it. As described in [Sheet and Column Extraction Rules](#sheet-and-column-extraction-rules), a model with `@@ignore` stays on the list of targets, so it is not deleted even with `--accept-data-loss`. It stays invisible to the client while the sheet itself is protected.
+
+```prisma
+model Memo {
+  id      Int    @id
+  content String
+
+  @@map("メモ")
+  @@ignore
+}
+```
+
+Columns work the same way: a field marked `@ignore` stays on the list of targets. A model name cannot contain non-ASCII characters, so map a non-ASCII sheet name with `@@map` as in the example above (see [map](/docs/reference/config/map)).
+
+When you write fields as in the example above, the columns of that sheet are synced too. Columns that are not in the schema are deleted with `--accept-data-loss`, so what is protected is the sheet plus the columns you wrote in the schema.
+
+To protect every column as well, write a model with no fields at all. It is a valid Prisma schema, and GASsma then manages none of that sheet's columns: no column is added or deleted even with `--accept-data-loss`, and no "a column that is not in the schema" warning is logged.
+
+```prisma
+model Memo {
+  @@map("メモ")
+  @@ignore
+}
+```
+
+```
+Gassma.migrateSheets: model "メモ" declares no columns. The columns of sheet "メモ" are left untouched.
+```
+
+If the sheet does not exist yet, it is created just as it is for a model with fields (with no header row, since there are zero columns).
+
+Removing the model from the schema instead makes the sheet "a sheet that is not in the schema". Without `--accept-data-loss` it survives with a warning, but with it the sheet is deleted.
+
+## Drop Confirmation (migrate dev)
+
+`migrate dev` **compares the latest trail entry with the current schema**, and asks for confirmation before generating anything when a sheet or a column has disappeared.
+
+```
+
+⚠️ The following are recorded in gassma/migrations but are no longer in your schema:
+    • sheet "Legacy"
+    • column "nickname" in sheet "User"
+  Generating this migration deletes them together with every value they hold.
+  This is based on the recorded migrations, not on the spreadsheet itself:
+  sheets and columns changed by "gassma db push" or by hand are not reflected here.
+
+Continue? (y/N)
+```
+
+- Answering `y` / `yes` (case-insensitive) generates a stub that deletes (`acceptDataLoss: true`) and records the trail entry.
+- Anything else (including a bare Enter) **aborts**. Neither the stub nor the trail entry is written.
+
+```
+Aborted. gassma-migration.js and the migration were not written.
+```
+
+- When no sheet or column has disappeared, nothing is asked and the stub does not delete. Nothing is asked on the very first run either, when no trail entry exists yet.
+- When something is deleted in a non-interactive environment (CI and the like), there is no way to confirm, so the command aborts with a `MigrateConfirmationRequiredError`. Use `migrate deploy` when you want to run the recorded trail entry as it is.
+
+This confirmation compares against **the trail entries recorded in `migrations/`**, not against the spreadsheet itself. Running `db push` in between, or editing sheets by hand, makes the trail and the actual sheets drift apart. Read the list as "what disappeared from the schema since the last `migrate dev`".
+
+When the latest trail entry cannot be read, the command warns that deletions could not be checked and generates a stub that does not delete.
+
 ## Migration Trail (migrations/)
 
-`migrate` creates `<UTC timestamp>[_name]/migration.js` under the `migrations/` directory next to the schema. Its content is identical to the runnable stub.
+`migrate dev` creates `<UTC timestamp>[_name]/migration.js` under the `migrations/` directory next to the schema. Its content is identical to the runnable stub.
 
 ```
 gassma/
@@ -114,11 +196,28 @@ gassma/
 ```
 
 - If the content is the same as the latest trail entry, no new entry is created (`Already in sync, no schema change or pending migration was found.` is shown). The runnable stub itself is rewritten every time.
+- Re-running `migrate dev` on an unchanged schema keeps the `acceptDataLoss` recorded in the trail entry. A deletion you once answered `y` to is not taken back by a re-run.
 - `--name` names the trail entry. The name is sanitized by splitting camelCase, lowercasing, and replacing runs of non-alphanumeric characters with `_` (e.g. `--name "Add UserRole!"` → `20260801120000_add_user_role`).
+
+### migrate deploy
+
+`migrate deploy` writes the latest trail entry in `migrations/` out as the runnable stub, as it is. It does not read the schema, so the output does not change even if you have edited the schema.
+
+```
+$ npx gassma migrate deploy
+📄 Using gassma/migrations/20260802093000_add_tags/migration.js
+📄 Wrote dist/gassma-migration.js
+
+✅ Latest recorded migration prepared
+```
+
+The `acceptDataLoss` embedded in the trail entry is replayed as well, so the deletion decision you made in `dev` is what runs. CI never decides a deletion on its own.
+
+When no trail entry exists, a `NoMigrationTrailError` is raised. Run `migrate dev` first.
 
 ## Options
 
-### migrate
+### migrate dev
 
 | Option | Description |
 | --- | --- |
@@ -126,7 +225,13 @@ gassma/
 | `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
 | `--schema <path>` | Path to a specific `.prisma` file to migrate from |
 | `--config <path>` | Custom path to your GASsma config file |
-| `--accept-data-loss` | Delete sheets and columns that are not in the schema |
+
+### migrate deploy
+
+| Option | Description |
+| --- | --- |
+| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
+| `--config <path>` | Custom path to your GASsma config file |
 
 ### db push
 
@@ -140,7 +245,7 @@ gassma/
 ## Limitations
 
 - The header row is assumed to be **row 1 starting at column A** on every sheet. Header positions moved via [changeSettings](/docs/reference/settings/changeSettings) are not supported.
-- Since a spreadsheet must contain at least one sheet, the last remaining sheet is never deleted even with `--accept-data-loss`; only a warning is logged.
+- Since a spreadsheet must contain at least one sheet, the last remaining sheet is never deleted even with `acceptDataLoss: true`; only a warning is logged.
 
 ## Gassma.migrateSheets (Library API)
 

@@ -3,6 +3,26 @@
 
 Prisma の `@default()` に相当する機能です。`create` 時にフィールドのデフォルト値を自動設定します。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `role String @default("USER")` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `defaults: { Users: { role: "USER" } }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts

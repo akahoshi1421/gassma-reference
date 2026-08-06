@@ -7,7 +7,19 @@ A list of error classes that can occur in GASsma.
 
 GASsma's error classes are exported from the `Gassma` namespace. You can catch them with `try` / `catch` and determine the error type with `instanceof`.
 
+How you reach `Gassma` depends on how you use GASsma.
+
+| | How to write it |
+| --- | --- |
+| CLI (generated client) | `import { Gassma } from "./generated/gassma/schemaClient";` |
+| [GAS editor](/docs/reference/gas-editor) | The bare `Gassma`, with no import |
+
 ```ts
+// With the CLI
+import { Gassma, GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
 try {
   gassma.sheet1.findFirst({ take: 5 });
 } catch (e) {
@@ -17,7 +29,20 @@ try {
 }
 ```
 
-There are 51 exported error classes; together with `GassmaClient` / `GassmaController` / `FieldRef` / `skip`, the `Gassma` namespace exposes 55 public entities.
+```ts
+// In the GAS editor only
+const gassma = new Gassma.GassmaClient();
+
+try {
+  gassma.sheet1.findFirst({ take: 5 });
+} catch (e) {
+  if (e instanceof Gassma.GassmaFindFirstTakeError) {
+    // Handle an invalid take for findFirst
+  }
+}
+```
+
+There are 56 exported error classes; together with `GassmaClient` / `GassmaController` / `FieldRef` / `skip` / `raw` / `migrateSheets`, the `Gassma` namespace exposes 62 public entities.
 
 This `instanceof` limitation applies to built-in types such as `Date`, which evaluate to `false` across the library boundary (see [Basic](/docs/reference/basic)). GASsma's error classes, on the other hand, are referenced via the `Gassma` namespace (the library's global), so they can be checked correctly with `instanceof`.
 
@@ -67,12 +92,25 @@ For details, see [strictUndefinedChecks / Gassma.skip](/docs/reference/config/st
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
 | `GassmaGroupByHavingDontWriteByError` | When using "having" other than "\_avg", "\_count", "\_max", "\_min", and "\_sum", column names can be used only if they are written in the "by" field. | A column not included in `by` is used in `having` |
+| `GassmaGroupByOrderByRequiredError` | groupBy requires \`orderBy\` when using \{arguments\}. Specify \`orderBy\` with at least one field, or remove \{arguments\}. | `groupBy` specifies `take`, or a `skip` other than 0, without an `orderBy`. An empty `orderBy` does not count as specified. \{arguments\} holds the argument names actually used (`take` / `skip`, or `take` and `skip` when both) |
 
 ## Configuration Errors
 
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
 | `GassmaInValidColumnValueError` | startColumnValue and endColumnValue can only use number, \[a-z\] and \[A-Z\]. | An invalid column value is specified in `changeSettings` |
+| `GassmaInvalidLockError` | \`lock\` must be a Lock returned by LockService. LockService.getDocumentLock() returns null in a standalone script or a web app; use LockService.getScriptLock() instead. | A value that cannot be used as a Lock is passed as `lock` to `GassmaClient` (`LockService.getDocumentLock()` returns `null` when called from a standalone script or a web app) |
+
+## autoincrement Errors
+
+For details, see [autoincrement](/docs/reference/config/autoincrement).
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | Field \`\{field\}\` on \`\{sheetName\}\` is not configured with autoincrement. Autoincrement fields on \`\{sheetName\}\`: \{configuredFields\} | A field that is not configured with autoincrement is passed to `$getAutoincrement` / `$setAutoincrement` / `$syncAutoincrement` |
+| `GassmaAutoincrementInTransactionError` | \`\{methodName\}\` cannot be called inside $transaction. The autoincrement counter lives in ScriptProperties, so it is not rolled back when the transaction fails. Call it outside $transaction. | `$setAutoincrement` / `$syncAutoincrement` is called inside `$transaction` (`$getAutoincrement` only reads, so it can be called) |
+
+The second sentence of `GassmaAutoincrementNotConfiguredError` becomes <code>Sheet \`\{sheetName\}\` has no autoincrement fields.</code> when the sheet has no autoincrement fields at all.
 
 ## Argument Errors
 
@@ -100,6 +138,8 @@ The message always has the form <code>Invalid value for argument \`\{argumentNam
 | `select` selects no fields at all | `select` | at least one selected field |
 | `cursor` has no columns at all | `cursor` | at least one column |
 | The `where` of a single-row operation (`update` / `delete` / `upsert`) has no conditions at all | `where` | at least one condition |
+| The `next` of `$setAutoincrement` is not an integer of 1 or greater (`NaN` / `Infinity` / a decimal / 0 or less / a non-number) | `next` | an integer greater than or equal to 1 |
+| `$syncAutoincrement` is called when the column of the field configured with autoincrement does not exist on the sheet | `field` | a column that exists on \`\{modelName\}\` |
 
 #### Invalid pagination values (`take` / `skip` / `limit`)
 
@@ -214,10 +254,69 @@ For details, see [$transaction](/docs/reference/transaction).
 
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
-| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | The script lock could not be acquired within `maxWait` when starting `$transaction` |
+| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | The client's `lock` could not be acquired within `maxWait` when starting `$transaction` |
+| `GassmaTransactionLockRequiredError` | $transaction requires a lock. Pass \`lock\` when constructing GassmaClient, for example \`new GassmaClient(\{ lock: LockService.getScriptLock() \})\`. The client generated by \`npx gassma generate\` does this for you. | `$transaction` is called on a client that has no `lock` |
 | `GassmaTransactionTimeoutError` | Transaction API error: A \{phase\} cannot be executed on an expired transaction. The timeout for this transaction was \{timeoutMs\} ms, however \{elapsedMs\} ms passed since the start of the transaction. Consider increasing the transaction timeout or doing less work in the transaction. | The elapsed time since the transaction started exceeds `timeout` (detected when a tx operation is called or right before commit) |
 | `GassmaNestedTransactionError` | Transaction API error: Nested transactions are not supported. Do not call $transaction inside an active transaction. | `$transaction` is called inside a transaction |
 | `GassmaTransactionRollbackError` | Transaction API error: The transaction failed during commit and automatic rollback also failed. The affected sheets may be in an inconsistent state. Backup sheets are preserved for manual recovery: \{backupSheetNames\} | The automatic restore from the backups also failed after a write failure during commit (the `backupSheetNames` property holds the list of remaining backup sheet names) |
+
+## CLI Schema Errors
+
+Errors that occur while the CLI reads the schema. Unlike the runtime errors above, these are not exported from the `Gassma` namespace; you identify them from the message printed to the terminal.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `NoModelsError` | The schema defines no models at all (`generate` / `migrate dev` / `db push`) |
+| `UnsupportedAttributeError` | An [unsupported attribute](/docs/reference/schema#unsupported-attributes) (`@@id` / `@@index` / `@@fulltext` / a native type) is used (`generate` / `validate`) |
+| `CompositeRelationError` | `fields` / `references` on `@relation` list more than one column (`generate` / `validate`; see [Composite Foreign Keys](/docs/reference/schema#composite-foreign-keys)) |
+| `IgnoredRelationColumnError` | A `@relation` refers to a field marked `@ignore` |
+| `ThroughSheetConflictError` | The through sheet of an implicit Many-to-Many collides between two model pairs |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**NoModelsError**
+
+```
+GASsmaNoModelsError: You don't have any models defined in {schemaLocation}, so nothing will be generated.
+You can define a model like this:
+
+model User {
+  id   Int    @id
+  name String
+}
+```
+
+**UnsupportedAttributeError** (violations are reported grouped by attribute)
+
+```
+GASsmaUnsupportedAttributeError: `@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+**CompositeRelationError**
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+**IgnoredRelationColumnError**
+
+```
+GASsmaIgnoredRelationColumnError: @relation uses a column marked @ignore.
+  - The relation "{relationName}" runs on the column "{column}" of model "{model}", which is marked @ignore. GASsma drops @ignore columns from query conditions, so relation actions (onDelete / onUpdate) and nested writes lose the filter that narrows target rows and can rewrite or delete every row of the related sheet. Remove @ignore from "{model}.{column}", or remove the relation from the schema.
+```
+
+**ThroughSheetConflictError**
+
+```
+GASsmaThroughSheetConflictError: the through sheet "{sheetName}" would be shared by two different model pairs: {firstPair} and {secondPair}.
+An implicit many-to-many relation needs a through sheet of its own, so the two pairs would overwrite each other.
+Please give one of them a different relation name, e.g. @relation("OtherName") on both sides.
+```
 
 ## CLI Configuration File Errors
 
@@ -228,3 +327,67 @@ Errors that occur when running CLI commands (such as `gassma generate`).
 | `ConfigFileNotFoundError` | GASsmaConfigFileNotFoundError: config file not found at \{configPath\} | The config file specified with `--config` does not exist |
 | `GassmaConfigLoadError` | GASsmaConfigLoadError: Failed to load config file at \{configPath\}. \{detail\} | A syntax or runtime error in the config file, an invalid type for a known key (`schema` / `datasource.url`), or the config file does not export a config object |
 | `GassmaConfigEnvError` | Cannot resolve environment variable: \{name\}. | The environment variable referenced by `env()` is not set or is an empty string |
+
+## CLI migrate Errors
+
+See [migrate / db push](/docs/reference/migrate) for details.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `MigrateOutputDirError` | Neither `--output` nor `rootDir` in `.clasp.json` is available, so the output directory cannot be determined |
+| `MigrateConfirmationRequiredError` | `migrate dev` ran in a non-interactive environment and a drop [confirmation](/docs/reference/migrate#drop-confirmation-migrate-dev) was needed |
+| `NoMigrationTrailError` | `migrate deploy` ran but no trail entry has been recorded |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**MigrateOutputDirError**
+
+```
+GASsmaMigrateOutputDirError: could not determine where to write gassma-migration.js.
+Pass --output <dir> (e.g. npx gassma migrate dev --output ./dist), or run in a project whose .clasp.json has "rootDir".
+```
+
+**MigrateConfirmationRequiredError**
+
+```
+GASsmaMigrateConfirmationRequiredError: this migration deletes sheets or columns, which has to be confirmed in an interactive terminal.
+Run "gassma migrate dev" in a terminal to answer the confirmation, or run "gassma migrate deploy" to generate the latest recorded migration as it is.
+```
+
+**NoMigrationTrailError**
+
+```
+GASsmaNoMigrationTrailError: no recorded migration was found in {migrationsDir}.
+Run "gassma migrate dev" first to record one.
+```
+
+## CLI studio Errors
+
+Errors that occur while `gassma studio` resolves the spreadsheet to open. See [gassma studio](/docs/reference/cli/commands#gassma-studio) for details.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `NoDatasourceUrlError` | None of the `datasource` block in the schema, `datasource.url` in `gassma.config.ts`, and `parentId` in `.clasp.json` has a url |
+| `InvalidClaspJsonError` | `.clasp.json` exists but cannot be read as a JSON object |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**NoDatasourceUrlError**
+
+```
+GASsmaNoDatasourceUrlError: datasource url is not set.
+Looked at the datasource block in your schema, datasource.url in gassma.config.ts, and "parentId" in .clasp.json, but none of them had one.
+Please set datasource.url in gassma.config.ts or add a url to the datasource block in your schema.
+Example:
+  datasource db {
+    provider = "gassma"
+    url      = "https://docs.google.com/spreadsheets/d/XXXX/edit"
+  }
+```
+
+**InvalidClaspJsonError**
+
+```
+GASsmaInvalidClaspJsonError: .clasp.json at {claspJsonPath} is not a valid JSON object.
+Please fix its contents, or remove the file if you are not using clasp.
+```

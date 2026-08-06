@@ -3,55 +3,102 @@
 
 ## インスタンス生成
 
-もしあなたが、特定のスプレッドシート上に GAS を作成し、そのスプレッドシートを扱うのであれば以下の方法でインスタンス生成が可能です。
+`npx gassma generate` で生成されたクライアントから `GassmaClient` を import して、そのままインスタンス化します。リレーションやデフォルト値などスキーマに書いた設定は注入済みです。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
 ```
 
-あるいは、スプレッドシートではない場所に GAS を作成した、あるいは別の場所にあるスプレッドシートを扱うのであれば、引数に対象のスプレッドシートの ID を挿入することでインスタンス生成が可能です。
+Prisma と同じパターンでインスタンス化できます。
 
 ```ts
-const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
+// Prisma
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+// GASsma（同じパターン）
+import { GassmaClient } from "./generated/gassma/schemaClient";
+const gassma = new GassmaClient();
 ```
 
-### オプションオブジェクトでの初期化
+`gassma.config.ts` の `datasource.url`（またはスキーマの `datasource` ブロック）を設定していれば、対象のスプレッドシート ID は生成されたクライアントに埋め込まれるため、引数は不要です。
 
-リレーション定義やグローバル omit など、高度な設定を行う場合はオプションオブジェクトを渡します。
+CLI を使わず GAS のスクリプトエディタだけで使う場合は `new Gassma.GassmaClient()` の形になります。[GAS エディタでの利用](/docs/reference/gas-editor)を参照してください。
+
+## シートへのアクセス
+
+モデル名がそのままプロパティになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient({
-  id: "XXXXXXXXXXXXXXXXXXX", // 省略可
-  relations: {
-    // リレーション定義（詳細はリレーション定義のリファレンスを参照）
-  },
+const users = gassma.User.findMany({
+  where: { age: { gte: 20 } },
+  select: { name: true, email: true },
+});
+```
+
+## オプション付きの初期化
+
+コンストラクタにはオプションオブジェクトを渡せます。
+
+```ts
+const gassma = new GassmaClient({
+  id: "SPREAD_SHEET_ID",
   omit: {
-    // グローバル omit 設定（詳細はグローバル omit のリファレンスを参照）
-    Users: { password: true },
+    User: { password: true },
   },
 });
 ```
 
-| オプション | 説明 | 参照 |
-| --- | --- | --- |
-| `id` | スプレッドシート ID（省略時はアクティブスプレッドシート） | - |
-| `relations` | リレーション定義 | [リレーション定義](/docs/reference/relation/definition) |
-| `omit` | グローバル omit 設定 | [グローバル omit](/docs/reference/config/global-omit) |
-| `defaults` | フィールドのデフォルト値 | [defaults](/docs/reference/config/defaults) |
-| `updatedAt` | 自動更新タイムスタンプ | [updatedAt](/docs/reference/config/updated-at) |
-| `ignore` | フィールドレベルの除外 | [ignore](/docs/reference/config/ignore) |
-| `ignoreSheets` | シートレベルの除外 | [ignore](/docs/reference/config/ignore) |
-| `map` | フィールド名のマッピング | [map](/docs/reference/config/map) |
-| `mapSheets` | シート名のマッピング | [map](/docs/reference/config/map) |
-| `autoincrement` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
-| `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+生成された `GassmaClient` のコンストラクタが受け取るのはオプションオブジェクトのみです。スプレッドシート ID を直接渡すことはできないため、`id` プロパティに指定してください。
+
+```ts
+const gassma = new GassmaClient({ id: "SPREAD_SHEET_ID" }); // OK
+```
+
+### コンストラクタオプション
+
+| オプション | 説明 | 生成クライアントでの扱い | 参照 |
+| --- | --- | --- | --- |
+| `id` | スプレッドシート ID（省略時はアクティブスプレッドシート） | 渡した値が有効 | - |
+| `omit` | グローバル omit 設定 | 渡した値が有効 | [グローバル omit](/docs/reference/config/global-omit) |
+| `relations` | リレーション定義 | スキーマ由来（渡しても無視） | [リレーション定義](/docs/reference/relation/definition) |
+| `defaults` | フィールドのデフォルト値 | スキーマ由来（渡しても無視） | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | 自動更新タイムスタンプ | スキーマ由来（渡しても無視） | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | フィールドレベルの除外 | スキーマ由来（渡しても無視） | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | シートレベルの除外 | スキーマ由来（渡しても無視） | [ignore](/docs/reference/config/ignore) |
+| `map` | フィールド名のマッピング | スキーマ由来（渡しても無視） | [map](/docs/reference/config/map) |
+| `mapSheets` | シート名のマッピング | スキーマ由来（渡しても無視） | [map](/docs/reference/config/map) |
+| `autoincrement` | 自動採番 | スキーマ由来（渡しても無視） | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | `$transaction` と autoincrement で使うロック（既定は `LockService.getScriptLock()`） | 渡した値が有効 | [ロック](/docs/reference/transaction#ロック) |
+
+### スキーマ由来のオプションはコンストラクタ引数を上書きします
+
+生成された `GassmaClient` のコンストラクタは、`schema.prisma` から読み取った設定でオプションを上書きします。そのため上の表で「スキーマ由来」となっているオプションは、コンストラクタに渡しても**エラーにならず黙って無視されます**。これらの設定は `schema.prisma` に書いてください（[スキーマ](/docs/reference/schema)を参照）。
+
+上書きはオプション単位で行われ、渡した値との**マージはされません**。例えば `defaults` はスキーマの `@default` から作られた設定で丸ごと置き換わるため、コンストラクタに渡した全モデル分の `defaults` がまとめて消えます。
+
+```ts
+const gassma = new GassmaClient({
+  defaults: {
+    User: { role: "guest" }, // 無視される（schema.prisma の @default が使われる）
+  },
+});
+```
+
+`id` / `omit` / `lock` は上書きされないため、渡した値がそのまま使われます。`id` を渡した場合は、スキーマに埋め込まれたスプレッドシート ID より優先されます。
+
+上書きが起きるのは CLI が生成した `GassmaClient` だけです。CLI を使わず `new Gassma.GassmaClient()` を直接使う場合は、すべてのオプションが有効です（[GAS エディタでの利用](/docs/reference/gas-editor)）。
+
+`strictUndefinedChecks` は生成されたクライアントのコンストラクタオプションにはありません。CLI を使う場合は `generator` ブロックの `previewFeatures` で有効化してください。有効化すると生成されたクライアントが自動で渡します（[strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks)）。
 
 ## Date 値の判定
 
 GASsma は GAS ライブラリとして、呼び出し元スクリプトとは別のスクリプトコンテキストで動作します。そのため、GASsma が返した `Date` 値を `instanceof Date` で判定すると `false` になります。判定には `Object.prototype.toString` を使用してください。
 
 ```ts
-const user = gassma.Users.findFirst({ where: { id: 1 } });
+const user = gassma.User.findFirst({ where: { id: 1 } });
 
 user.createdAt instanceof Date;
 // => false（ライブラリ境界を越えた Date は instanceof で判定できない）

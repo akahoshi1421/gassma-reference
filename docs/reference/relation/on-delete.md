@@ -9,7 +9,25 @@
 
 ## 基本的な使い方
 
-[リレーション定義](/docs/reference/relation/definition)で `onDelete` を指定します。
+CLI を使う場合、`@relation` の引数に `onDelete` を指定します。
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+GAS エディタだけで使う場合は、[リレーション定義](/docs/reference/relation/definition)で `onDelete` を指定します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({

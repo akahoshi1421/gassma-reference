@@ -19,12 +19,21 @@ By operating spreadsheets like an ORM, it aims to make writing GoogleAppsScript 
 
 ## Getting Started
 
+There are two ways to use GASsma. Both give you the same features.
+
+| Approach | How to start |
+| --- | --- |
+| **CLI (local development)** | Generate sheet types from `schema.prisma` and write code with completion and type checking → [Quickstart](/docs/quickstart) |
+| **GAS editor only** | Add the library and start writing right away → the steps below |
+
+Below is the shortest example, using only the GAS editor.
+
 Create a new spreadsheet and enter the following data. (Name the sheet "sheet1")
 ![Example Sheet](./リファレンス/img/exampleSheet.png)
 
 Then open `Extensions` > `Apps Script` to launch the GAS editor.
 
-Once open, follow [this page](./installation) to install GASsma.
+Once open, follow [Installation](./installation) to add the GASsma library.
 
 Now let's consider how to extract and format data from the sheet we just created:
 
@@ -56,6 +65,8 @@ function myFunction() {
 That's it.
 
 **Simply create an instance and call the findMany method to extract data.** The library automatically reads column names for you.
+
+When developing locally with TypeScript, you can generate sheet types from `schema.prisma`. Sheet and column names get completion, and mistakes surface at build time. See the [Quickstart](/docs/quickstart).
 
 ## Why is GASsma Needed
 
@@ -143,9 +154,185 @@ The library that solves these problems is **"GASsma"**.
 
 Note that formula injection is prevented by automatic escaping at write time. If you intentionally want to write a formula, see [raw](/docs/reference/raw).
 
+# Quickstart (https://gassma.io/en/docs/quickstart)
+
+Start from npx gassma bootstrap and go all the way through defining a schema, generating the client, syncing sheets, and deploying
+
+Create a local development environment with `npx gassma bootstrap`, write a schema, generate a typed client, and start working with your spreadsheet.
+
+If you want to use only the GAS script editor, add the library as described in [Installation](/docs/installation) and see [Using the GAS Editor](/docs/reference/gas-editor).
+
+## Prerequisites
+
+[clasp](https://github.com/google/clasp) must be installed and logged in.
+
+```
+$ npm install -g @google/clasp
+$ clasp login
+```
+
+Also enable the Apps Script API on the [Apps Script settings page](https://script.google.com/home/usersettings).
+
+## 1. Create a Project
+
+```
+$ npx gassma bootstrap my-app
+```
+
+An interactive prompt walks you through creating the Apps Script project, the build configuration, the schema file, and installing dependencies. Answering **Yes** to "Create a new spreadsheet as well?" creates a new spreadsheet along with a script bound to it.
+
+The resulting directory looks like this:
+
+```
+my-app/
+├── gassma/
+│   └── schema.prisma
+├── src/
+│   └── index.ts
+├── gassma.config.ts
+├── esbuild.mjs
+├── tsconfig.json
+└── package.json
+```
+
+For the questions and the generated files in detail, see [bootstrap](/docs/reference/bootstrap).
+
+## 2. Write the Schema
+
+Define your models in `gassma/schema.prisma`. One model corresponds to one sheet.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  age       Int
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id @default(autoincrement())
+  title    String
+  authorId Int
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+The models and attributes you can write are covered in [Schema](/docs/reference/schema).
+
+## 3. Generate the Client
+
+```
+$ npx gassma generate
+```
+
+Type definitions and a client are generated into the directory specified by `output`. Settings such as relations and `@default` are already injected into the generated client.
+
+During development, adding `--watch` regenerates automatically as the schema changes.
+
+## 4. Create the Sheets in the Spreadsheet
+
+Prepare the sheets and columns from your schema on the spreadsheet side.
+
+```
+$ npx gassma migrate dev --name init
+```
+
+This command does not access the spreadsheet directly. Push the generated `gassma-migration.js` and run it once in the Apps Script editor.
+
+```
+$ npm run push
+```
+
+Open the Apps Script editor (`npm run open`) and run the `gassmaMigrate` function once. This creates the sheets and their header rows.
+
+Right after migrate, use `npm run push`. `npm run deploy` rebuilds from scratch and may delete `gassma-migration.js` before pushing.
+
+For the sync rules and `--accept-data-loss`, see [migrate / db push](/docs/reference/migrate).
+
+## 5. Write Code
+
+Import and use the generated client.
+
+```ts title="src/index.ts"
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
+export const main = () => {
+  gassma.User.create({
+    data: { name: "Alice", email: "alice@example.com", age: 28 },
+  });
+
+  const users = gassma.User.findMany({
+    where: { age: { gte: 20 } },
+    orderBy: { name: "asc" },
+    include: { posts: true },
+  });
+
+  console.log(users);
+};
+```
+
+Exported functions become GAS global functions as-is (when you choose the export style in bootstrap).
+
+## 6. Deploy and Run
+
+```
+$ npm run deploy
+```
+
+This builds and pushes to Apps Script. Open the editor with `npm run open` and run `main`.
+
+## What to Read Next
+
+| Page | Content |
+| --- | --- |
+| [Basic](/docs/reference/basic) | Client initialization and constructor options |
+| [Schema](/docs/reference/schema) | How to write models, attributes, and relations |
+| [findMany](/docs/reference/crud/read/findMany) | The core of reading: `where`, `orderBy`, pagination, and more |
+| [Relation Definition](/docs/reference/relation/definition) | Using relations with `include` and `where` |
+| [CLI Commands](/docs/reference/cli/commands) | Commands other than `generate` |
+
 # Installation (https://gassma.io/en/docs/installation)
 
-How to install GASsma in the GAS script editor or via npm for local development
+The two ways to install GASsma: via the CLI (npm) for local development, or by adding the library in the GAS script editor
+
+There are two ways to install GASsma. Both give you the same library and the same features.
+
+| Method | Best for |
+| --- | --- |
+| [CLI (local development)](#cli-local-development) | Type-safe development with editor completion and a build step |
+| [GAS script editor](#gas-script-editor) | Small scripts, or trying things out without a local environment |
+
+## CLI (local development)
+
+`npx gassma bootstrap` sets up a clasp + esbuild + TypeScript + GASsma environment in one command. No prior installation is needed.
+
+```bash
+npx gassma bootstrap my-app
+```
+
+The steps are covered in the [Quickstart](/docs/quickstart).
+
+To add GASsma to an existing project, install the package and then create the schema and config files with `gassma init`.
+
+```bash
+npm i gassma
+npx gassma init
+```
+
+For the full list of commands, see [CLI Commands](/docs/reference/cli/commands).
+
+## GAS script editor
 
 First, after opening Apps Script, click the "+" button in the Libraries section.
 
@@ -167,71 +354,112 @@ If "Gassma" appears in the Libraries section, you're all set!
 
 ![Success](./img/installSuccess.png)
 
-## CLI Tool Installation
+For how to write code, see [Using the GAS Editor](/docs/reference/gas-editor).
 
-When developing GoogleAppsScript locally using tools like clasp, you can install GASsma's TypeScript type file auto-generation tool with the following command.
-
-For detailed usage, see [here](./reference/type-generation)
-
-```bash
-npm i gassma
-```
+When you use `npx gassma bootstrap`, this library entry is added for you automatically (it is written into `dist/appsscript.json`).
 
 # Basic (https://gassma.io/en/docs/reference/basic)
 
-Initializing GassmaClient, accessing sheets, constructor options, and the common query options (where, select, omit, orderBy, take, skip)
+Initializing the generated GassmaClient, accessing sheets, constructor options, and the common query options (where, select, omit, orderBy, take, skip)
 
 ## Creating an Instance
 
-If you have created a GAS on a specific spreadsheet and want to work with that spreadsheet, you can create an instance as follows:
+Import `GassmaClient` from the client generated by `npx gassma generate` and instantiate it directly. Settings written in the schema — relations, default values, and so on — are already injected.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
 ```
 
-Alternatively, if you have created a GAS in a location other than a spreadsheet, or if you want to work with a spreadsheet located elsewhere, you can create an instance by passing the target spreadsheet's ID as an argument:
+You can instantiate it using the same pattern as Prisma.
 
 ```ts
-const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
+// Prisma
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+// GASsma (same pattern)
+import { GassmaClient } from "./generated/gassma/schemaClient";
+const gassma = new GassmaClient();
 ```
 
-### Initialization with an Options Object
+If you have set `datasource.url` in `gassma.config.ts` (or the `datasource` block in the schema), the target spreadsheet ID is embedded in the generated client, so no argument is needed.
 
-When you need advanced configuration such as relation definitions or global omit, pass an options object:
+When using the GAS script editor alone without the CLI, the form is `new Gassma.GassmaClient()`. See [Using the GAS Editor](/docs/reference/gas-editor).
+
+## Accessing Sheets
+
+Each model name becomes a property.
 
 ```ts
-const gassma = new Gassma.GassmaClient({
-  id: "XXXXXXXXXXXXXXXXXXX", // Optional
-  relations: {
-    // Relation definitions (see the relation definition reference for details)
-  },
+const users = gassma.User.findMany({
+  where: { age: { gte: 20 } },
+  select: { name: true, email: true },
+});
+```
+
+## Initialization with Options
+
+The constructor accepts an options object.
+
+```ts
+const gassma = new GassmaClient({
+  id: "SPREAD_SHEET_ID",
   omit: {
-    // Global omit settings (see the global omit reference for details)
-    Users: { password: true },
+    User: { password: true },
   },
 });
 ```
 
-| Option | Description | Reference |
-| --- | --- | --- |
-| `id` | Spreadsheet ID (uses the active spreadsheet when omitted) | - |
-| `relations` | Relation definitions | [Relation Definition](/docs/reference/relation/definition) |
-| `omit` | Global omit settings | [Global omit](/docs/reference/config/global-omit) |
-| `defaults` | Default values for fields | [defaults](/docs/reference/config/defaults) |
-| `updatedAt` | Auto-update timestamps | [updatedAt](/docs/reference/config/updated-at) |
-| `ignore` | Field-level exclusion | [ignore](/docs/reference/config/ignore) |
-| `ignoreSheets` | Sheet-level exclusion | [ignore](/docs/reference/config/ignore) |
-| `map` | Field name mapping | [map](/docs/reference/config/map) |
-| `mapSheets` | Sheet name mapping | [map](/docs/reference/config/map) |
-| `autoincrement` | Auto-increment | [autoincrement](/docs/reference/config/autoincrement) |
-| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+The generated `GassmaClient` constructor accepts an options object only. A spreadsheet ID cannot be passed directly — specify it in the `id` property.
+
+```ts
+const gassma = new GassmaClient({ id: "SPREAD_SHEET_ID" }); // OK
+```
+
+### Constructor Options
+
+| Option | Description | In the Generated Client | Reference |
+| --- | --- | --- | --- |
+| `id` | Spreadsheet ID (uses the active spreadsheet when omitted) | The value you pass takes effect | - |
+| `omit` | Global omit settings | The value you pass takes effect | [Global omit](/docs/reference/config/global-omit) |
+| `relations` | Relation definitions | Comes from the schema (ignored when passed) | [Relation Definition](/docs/reference/relation/definition) |
+| `defaults` | Default values for fields | Comes from the schema (ignored when passed) | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | Auto-update timestamps | Comes from the schema (ignored when passed) | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | Field-level exclusion | Comes from the schema (ignored when passed) | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | Sheet-level exclusion | Comes from the schema (ignored when passed) | [ignore](/docs/reference/config/ignore) |
+| `map` | Field name mapping | Comes from the schema (ignored when passed) | [map](/docs/reference/config/map) |
+| `mapSheets` | Sheet name mapping | Comes from the schema (ignored when passed) | [map](/docs/reference/config/map) |
+| `autoincrement` | Auto-increment | Comes from the schema (ignored when passed) | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | Lock used by `$transaction` and autoincrement (defaults to `LockService.getScriptLock()`) | The value you pass takes effect | [Lock](/docs/reference/transaction#lock) |
+
+### Schema-Derived Options Override Constructor Arguments
+
+The generated `GassmaClient` constructor overrides the options with the settings read from `schema.prisma`. As a result, the options marked "Comes from the schema" in the table above are **silently ignored — with no error — when passed to the constructor**. Write these settings in `schema.prisma` instead (see [Schema](/docs/reference/schema)).
+
+The override happens per option; the value you pass is **not merged**. For example, `defaults` is replaced wholesale by the settings built from `@default` in the schema, so every model's `defaults` you passed to the constructor disappears at once.
+
+```ts
+const gassma = new GassmaClient({
+  defaults: {
+    User: { role: "guest" }, // ignored (the @default in schema.prisma is used)
+  },
+});
+```
+
+`id` / `omit` / `lock` are not overridden, so the values you pass are used as-is. When you pass `id`, it takes precedence over the spreadsheet ID embedded from the schema.
+
+The override only happens in the `GassmaClient` generated by the CLI. When using `new Gassma.GassmaClient()` directly without the CLI, every option takes effect ([Using the GAS Editor](/docs/reference/gas-editor)).
+
+`strictUndefinedChecks` is not a constructor option on the generated client. When using the CLI, enable it via `previewFeatures` in the `generator` block; once enabled, the generated client passes it automatically ([strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks)).
 
 ## Checking Date Values
 
 GASsma runs as a GAS library in a script context separate from the calling script. As a result, checking a `Date` value returned by GASsma with `instanceof Date` evaluates to `false`. Use `Object.prototype.toString` instead:
 
 ```ts
-const user = gassma.Users.findFirst({ where: { id: 1 } });
+const user = gassma.User.findFirst({ where: { id: 1 } });
 
 user.createdAt instanceof Date;
 // => false (a Date crossing the library boundary cannot be checked with instanceof)
@@ -241,6 +469,1538 @@ Object.prototype.toString.call(user.createdAt) === "[object Date]";
 ```
 
 This limitation applies to `instanceof` on **built-in types** such as `Date`. GASsma's exported error classes (e.g., `Gassma.GassmaMissingArgumentError`) are referenced via the `Gassma` namespace (the library's global), so they can be checked with `instanceof`. For details, see the [error list](/docs/reference/errors).
+
+# Schema (schema.prisma) (https://gassma.io/en/docs/reference/schema)
+
+Define models, fields, relations, and enums in schema.prisma. Type mapping, @default / @updatedAt / @ignore / @map, previewFeatures, and multi-file schemas
+
+GASsma generates client code from a Prisma-format schema file. Sheet structures, relations, default values, and more are all written in `schema.prisma` and reflected into a typed client by `npx gassma generate`.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int     @id
+  name  String
+  email String?
+  age   Int
+}
+```
+
+Prisma's schema syntax works as-is, so if you know Prisma there is almost nothing new to learn.
+
+## Where Schema Files Live
+
+By default, `.prisma` files under the `./gassma` directory are searched.
+
+```
+my-project/
+├── gassma/
+│   └── schema.prisma    ← Write your schema here
+├── gassma.config.ts
+├── package.json
+└── ...
+```
+
+The search location can be changed with the `--schema` option or the `schema` setting in `gassma.config.ts` (see [Config File](/docs/reference/cli/config)).
+
+## The generator Block
+
+Specify the output directory in the `generator` block's `output` field. `output` is required.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+```
+
+### previewFeatures
+
+You can enable opt-in features by specifying `previewFeatures` in the `generator` block (same syntax as Prisma's `previewFeatures`).
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  output          = "./src/generated/gassma"
+  previewFeatures = ["strictUndefinedChecks"]
+}
+```
+
+Currently supported features:
+
+| Feature | Description | Reference |
+| --- | --- | --- |
+| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+When enabled, `strictUndefinedChecks: true` is embedded into the generated client JS, and the generated type definitions also accept `Gassma.skip`.
+
+## Type Mapping
+
+Prisma types are converted to the following TypeScript types:
+
+| Prisma Type | TypeScript Type |
+| --- | --- |
+| `Int` | `number` |
+| `Float` | `number` |
+| `Decimal` | `number` |
+| `BigInt` | `number` |
+| `String` | `string` |
+| `Boolean` | `boolean` |
+| `DateTime` | `Date` |
+| `Json` | `string` |
+| `Bytes` | `string` |
+
+Adding `?` makes the field optional (`null` is allowed).
+
+## Relations
+
+Using Prisma's `@relation` attribute, relation information is automatically extracted and injected into the generated client.
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
+}
+```
+
+The following relation settings are auto-generated from the above definition:
+
+- `User.posts`: oneToMany (User -> Post, onDelete: Cascade)
+- `Post.author`: manyToOne (Post -> User)
+
+As in Prisma, you write `onDelete` / `onUpdate` on the side that holds the FK (the side with `@relation`), but in the generated relation config they land on the **referenced** side (`oneToMany`, or the non-FK side of a `oneToOne`). That is the side on which GASsma fires referential actions ([onDelete](/docs/reference/relation/on-delete)).
+
+For what each relation type means and how to use them with `include` / `where`, see [Relation Definitions](/docs/reference/relation/definition). Referential actions are covered in [onDelete](/docs/reference/relation/on-delete) / [onUpdate](/docs/reference/relation/on-update).
+
+### Implicit Many-to-Many
+
+When bidirectional array references exist, an implicit Many-to-Many relation is automatically detected.
+
+```prisma
+model Post {
+  id   Int   @id
+  tags Tag[]
+}
+
+model Tag {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+```
+
+In the generated client, the junction table name is automatically resolved as `_PostToTag` (model names in alphabetical order). If you name the relation like `@relation("PostTags")`, the relation name is used as the junction table name (`_PostTags`) — the same rule as Prisma.
+
+The junction table (sheet) itself can be created automatically with [migrate / db push](/docs/reference/migrate) (you can also prepare a sheet with the same name manually in the spreadsheet).
+If you want to change the junction table name, give the relation a name with `@relation`.
+
+## enum
+
+Literal union types are auto-generated from Prisma's `enum` definitions.
+
+```prisma
+enum Role {
+  ADMIN
+  USER
+  MODERATOR
+}
+
+model User {
+  id   Int  @id
+  role Role
+}
+```
+
+Generated type:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+### enum @map
+
+Adding `@map` to enum members allows you to map between the name used in code and the value stored in the spreadsheet.
+
+```prisma
+enum Role {
+  admin     @map("ADMIN")
+  user      @map("USER")
+  moderator @map("MODERATOR")
+}
+```
+
+Generated constant:
+
+```ts
+const Role = {
+  admin: "ADMIN",
+  user: "USER",
+  moderator: "MODERATOR",
+} as const;
+```
+
+The `@map` values are used in the type definition:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+## Attributes
+
+For details on the feature each attribute drives, see the linked page.
+
+| Attribute | Effect | Reference |
+| --- | --- | --- |
+| `@id` | Primary key | - |
+| `@relation(...)` | Relation definition | [Relation Definitions](/docs/reference/relation/definition) |
+| `@default(...)` | Default value on create | [defaults](/docs/reference/config/defaults) |
+| `@default(autoincrement())` | Auto-increment | [autoincrement](/docs/reference/config/autoincrement) |
+| `@updatedAt` | Auto-set timestamps on create/update | [updatedAt](/docs/reference/config/updated-at) |
+| `@ignore` | Exclude a field from all operations | [ignore](/docs/reference/config/ignore) |
+| `@@ignore` | Exclude an entire sheet | [ignore](/docs/reference/config/ignore) |
+| `@map("name")` | Map a field name to a spreadsheet header | [map](/docs/reference/config/map) |
+| `@@map("name")` | Map a model name to a sheet name | [map](/docs/reference/config/map) |
+| `@unique` / `@@unique` | No effect in GASsma (Prisma uses them to validate relations) | [@unique / @@unique](#unique--unique) |
+
+For attributes that are not listed here, see [Unsupported Attributes](#unsupported-attributes).
+
+### @default
+
+Fields with `@default()` become optional (`?`) in the generated Create input type.
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+```
+
+Generated type:
+
+```ts
+"isActive"?: boolean   // @default(true) -> Optional
+"createdAt"?: Date     // @default(now()) -> Optional
+```
+
+The defaults settings are automatically embedded in the generated client JS.
+
+| `@default()` | Generated JS |
+| --- | --- |
+| `@default(true)` / `@default(false)` | `true` / `false` |
+| `@default(0)` (number) | `0` |
+| `@default("USER")` (string) | `"USER"` |
+| `@default(ADMIN)` (enum value) | `"ADMIN"` |
+| `@default(active)` (enum value with `active @map("ACTIVE")`) | `"ACTIVE"` (the `@map`-applied value) |
+| `@default(now())` | `() => new Date()` |
+| `@default(uuid())` | `() => Utilities.getUuid()` |
+| `@default(autoincrement())` | Generated separately as an autoincrement setting |
+
+### @updatedAt
+
+Fields with `@updatedAt` become optional in the Create input type, and the updatedAt setting is embedded in the generated client JS.
+
+```prisma
+model Post {
+  id        Int      @id
+  title     String
+  updatedAt DateTime @updatedAt
+}
+```
+
+### @ignore
+
+Fields with `@ignore` are completely excluded from the type definition, and the ignore setting is embedded in the generated client JS.
+
+```prisma
+model User {
+  id       Int    @id
+  name     String
+  secret   String @ignore   // Not included in the type definition
+}
+```
+
+### @map
+
+`@map("name")` defines a field name mapping. The map setting is embedded in the generated client JS.
+
+```prisma
+model User {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+}
+```
+
+In code, you work with `firstName` / `lastName`, which correspond to the columns named "名前" and "名字" in the spreadsheet.
+
+### @@ignore
+
+The model-level `@@ignore` excludes an entire sheet. The ignoreSheets setting is embedded in the generated client JS.
+
+```prisma
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+### @@map
+
+The model-level `@@map("name")` maps a sheet name.
+
+```prisma
+model Users {
+  id   Int    @id
+  name String
+
+  @@map("ユーザー一覧")
+}
+```
+
+In code, you access it as `Users`, which corresponds to the sheet named "ユーザー一覧" in the spreadsheet.
+
+### @unique / @@unique
+
+You can write `@unique` / `@@unique`, but **GASsma does not enforce uniqueness**. Writing a duplicate value raises no error, so check for duplicates in your own code when you need to reject them.
+
+They are still accepted because Prisma uses them to **validate the shape of a relation**. In the four cases below, Prisma rejects the schema without them.
+
+| Case | Required |
+| --- | --- |
+| One-to-one with a single foreign key | `@unique` on the foreign key field |
+| One-to-many that `references` a field other than `@id` | `@unique` on the referenced field |
+| One-to-many with a composite foreign key | `@@unique([k1, k2])` on the referenced model |
+| One-to-one with a composite foreign key | `@@unique([r1, r2])` on the model holding the foreign key |
+
+```prisma
+model User {
+  id      Int      @id
+  profile Profile?
+}
+
+model Profile {
+  id     Int  @id
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique   // A one-to-one needs @unique
+}
+```
+
+The composite foreign keys required by the last two cases cannot be used in GASsma yet (see [Composite Foreign Keys](#composite-foreign-keys)).
+
+## Unsupported Attributes
+
+The attributes below make `npx gassma generate` / `npx gassma validate` fail with a `GASsmaUnsupportedAttributeError`.
+
+| Attribute | Why it is rejected |
+| --- | --- |
+| `@@id` | A composite primary key cannot be declared on a spreadsheet. Prisma never requires `@@id` -- a single `@id` always covers it -- and GASsma's [implicit Many-to-Many](#implicit-many-to-many) assumes the join columns are named `id`, so a composite primary key would point at a column that does not exist. |
+| `@@index` / `@@fulltext` | An index cannot be created on a spreadsheet. Every query reads the whole sheet either way, so it has no effect. |
+| Native types such as `@db.VarChar(255)` | GASsma cannot control how a spreadsheet stores a value, so the native type has no effect. |
+
+```prisma
+model User {
+  id   Int    @id
+  name String @db.VarChar(255)   // Error
+
+  @@index([name])                // Error
+}
+```
+
+Violations are reported grouped by attribute.
+
+```
+GASsmaUnsupportedAttributeError: `@db.VarChar` on User.name is not supported.
+GASsma cannot control how a spreadsheet stores a value, so the native type has no effect.
+Remove it.
+
+`@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+### Composite Foreign Keys
+
+A composite foreign key -- `fields` / `references` on `@relation` listing more than one column -- **cannot be used yet** (support is planned). It makes `npx gassma generate` / `npx gassma validate` fail with a `GASsmaCompositeRelationError`.
+
+```prisma
+model A {
+  k1 Int
+  k2 Int
+  b  B[]
+
+  @@unique([k1, k2])
+}
+
+model B {
+  id Int @id
+  r1 Int
+  r2 Int
+  a  A   @relation(fields: [r1, r2], references: [k1, k2])   // Error
+}
+```
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+## Extending Types
+
+### @gassma.addType
+
+By writing `@gassma.addType` in a Prisma field comment (`///`), you can add union types to the field's type.
+
+```prisma
+model User {
+  /// @gassma.addType string
+  id    Int @id          // Generated type: number | string
+
+  /// @gassma.addType string, boolean
+  score Int              // Generated type: number | string | boolean
+
+  name  String           // Generated type: string (normal when no comment)
+}
+```
+
+### @gassma.replaceType
+
+While `@gassma.addType` creates a union with the base type, `@gassma.replaceType` replaces the base type and generates only the specified types.
+
+```prisma
+model User {
+  /// @gassma.replaceType "admin", "user", "moderator"
+  role String
+}
+```
+
+Generated type:
+
+```ts
+"role": "admin" | "user" | "moderator"  // Does not include string
+```
+
+Priority: enum > replaceType > addType. When an enum exists, replaceType / addType are ignored.
+
+## The datasource Block
+
+You can specify the target spreadsheet by writing a `datasource` block in the schema file.
+
+```prisma
+datasource db {
+  provider = "google-spreadsheet"
+  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
+}
+```
+
+`url` can also be specified as `datasource.url` in `gassma.config.ts`. The `datasource` block in the schema takes precedence (see [Config File](/docs/reference/cli/config)).
+
+## Multi-file Schema
+
+When you place multiple `.prisma` files in the same directory (and subdirectories), they are automatically **merged into a single schema**. This is equivalent to Prisma's [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) feature.
+
+```
+gassma/
+├── schema.prisma        ← Write the generator block here
+├── models/
+│   ├── user.prisma      ← User, Profile models
+│   └── post.prisma      ← Post, Comment models
+```
+
+The `generator` block only needs to be written in one file and is shared across all files. All models are consolidated into a single client output.
+
+## Multiple Schemas (Multiple Spreadsheets)
+
+When working with different spreadsheets, separate schemas into different directories and generate them individually. Type names are prefixed with the schema name, so there are no conflicts even with models of the same name.
+
+```
+schemas/
+├── user/
+│   └── schema.prisma    → userClient.js, user.d.ts
+└── order/
+    └── schema.prisma    → orderClient.js, order.d.ts
+```
+
+```ts
+import { GassmaClient as UserClient } from "./generated/user/schemaClient";
+import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
+
+const userGassma = new UserClient();
+const orderGassma = new OrderClient();
+```
+
+# bootstrap (Local Development Environment Setup) (https://gassma.io/en/docs/reference/bootstrap)
+
+Set up a local development environment with clasp + esbuild + TypeScript + GASsma in one shot with npx gassma bootstrap
+
+`npx gassma bootstrap` is a command that sets up a local GAS development environment (clasp + esbuild + TypeScript + GASsma library) for a new project in one shot.
+
+```
+$ npx gassma bootstrap my-app   # create my-app/ and set up inside it
+$ npx gassma bootstrap          # ask for a directory first (default: gassma-project)
+$ npx gassma bootstrap .        # set up in the current directory
+```
+
+Since it runs via `npx`, no prior installation is required. When executed, it walks you through interactive questions and completes everything from creating the target directory and the Apps Script project to build configuration, schema file generation, and dependency installation.
+
+The target directory is created by the command itself, so you do not need to prepare one in advance. Passing `.` sets up in the existing current directory. Existing files are skipped or merged instead of overwritten (see "Directory Handling" and "Idempotency" below).
+
+## Prerequisites
+
+[clasp](https://github.com/google/clasp) must be installed and you must be logged in.
+
+```
+$ npm install -g @google/clasp
+$ clasp login
+```
+
+Also, enable the Apps Script API on the [Apps Script API settings page](https://script.google.com/home/usersettings) (clasp needs it to create projects).
+
+If clasp is not found, the command shows the following message and exits safely (no files are modified).
+
+```
+clasp is required but was not found in your PATH.
+Install it with: npm install -g @google/clasp
+Then log in with: clasp login
+```
+
+## Interactive Flow
+
+You will be asked the following questions in order (the prompts are the actual wording).
+
+### 1. Project directory?
+
+The directory to set up the project in. Defaults to `gassma-project`; entering `.` sets up in the current directory. A directory that does not exist is created, and if it exists and is not empty, a confirmation is asked before continuing (see "Directory Handling" below).
+
+If you pass a directory as a command argument (`npx gassma bootstrap my-app` or `npx gassma bootstrap .`), this question is skipped.
+
+### 2. Project title?
+
+The title of the Apps Script project to create. Defaults to the target directory name (the name of the directory given as the argument or in question 1).
+
+### 3. Create a new spreadsheet as well?
+
+With **Yes** (the default), a new spreadsheet is created together with a container-bound script attached to it (`clasp create-script --type sheets`). With **No**, a standalone script is created (`--type standalone`).
+
+After this, `clasp create-script` runs and generates `.clasp.json` (with `rootDir` set to `./dist`). Then the GASsma library dependency and other settings are automatically applied to `dist/appsscript.json` (see "What Gets Generated" below).
+
+If `.clasp.json` already exists, this question and `clasp create-script` are skipped (`Found an existing .clasp.json. Skipping clasp create-script.`).
+
+### 4. Function exposure style?
+
+Choose how functions are exposed to GAS. Sample code for each style is shown before the choices.
+
+**export (recommended)** — Uses `@gassma/gas-esbuild-plugin`; exported functions become GAS global functions as-is.
+
+```ts
+export const main = () => console.log("Hello GAS!");
+```
+
+**global** (esbuild-gas-plugin style) — Uses `esbuild-gas-plugin`; functions are exposed by assigning to the `global` object.
+
+```ts
+const main = () => console.log("Hello GAS!");
+
+interface Global {
+  main: typeof main;
+}
+
+declare const global: Global;
+
+global.main = main;
+```
+
+The plugin in the generated `esbuild.mjs` and the devDependencies in `package.json` are switched according to the selected style.
+
+### 5. Linter and formatter setup?
+
+Choose the linter and formatter setup.
+
+| Choice | Description |
+| --- | --- |
+| `oxlint + oxfmt` | recommended (the default) |
+| `eslint + prettier` | ESLint (typescript-eslint) + Prettier |
+| `none` | No linter or formatter |
+
+With `--yes`, the default `oxlint + oxfmt` is selected. The devDependencies in `package.json`, the `lint` / `lint:fix` / `format` / `format:check` scripts, and the generated config files change according to the choice (see "Linter and Formatter Choice" below).
+
+### 6. Generate a sample src/index.ts?
+
+With **Yes** (the default), sample code for the selected style is generated as `src/index.ts`.
+
+### 7. Install dependencies now?
+
+With **Yes** (the default), dependencies are installed with the detected package manager (e.g. `Install dependencies now? (npm install)`). This question is not asked when `--skip-install` is specified.
+
+## What Gets Generated
+
+| File | Description |
+| --- | --- |
+| `.clasp.json` | Generated by `clasp create-script` (`rootDir: ./dist`) |
+| `dist/appsscript.json` | GASsma library dependency, `timeZone`, `exceptionLogging: STACKDRIVER`, and `runtimeVersion: V8` are set automatically |
+| `package.json` | `build` / `push` / `open` / `deploy` scripts and dependencies (plus lint / format scripts depending on question 5) |
+| `esbuild.mjs` | Build configuration for the selected style |
+| `tsconfig.json` | TypeScript configuration for GAS (`@types/google-apps-script`) |
+| `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*` (except `dist/appsscript.json`) |
+| `.oxlintrc.json` | oxlint configuration (only if you chose `oxlint + oxfmt` in question 5) |
+| `eslint.config.mjs` / `.prettierrc` | ESLint / Prettier configuration (only if you chose `eslint + prettier` in question 5) |
+| `src/index.ts` | Sample code (only if you answered Yes to question 6) |
+| `AGENTS.md` | Project guidance for coding agents (commands, development flow, constraints, and a pointer to the GASsma reference) |
+| `gassma/schema.prisma` / `gassma.config.ts` | Equivalent to `gassma init` (schema with a sample User model and the config file) |
+
+### dist/appsscript.json
+
+The `timeZone` is detected automatically from your environment (falls back to `America/New_York` if detection fails). The GASsma library is added as the following entry.
+
+```json
+{
+  "userSymbol": "Gassma",
+  "libraryId": "1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH",
+  "version": "<latest version resolved at run time>",
+  "developmentMode": false
+}
+```
+
+If the existing manifest already has `exceptionLogging` or `runtimeVersion` set, those values are preserved.
+
+### package.json Scripts
+
+| Script | Description |
+| --- | --- |
+| `build` | `node esbuild.mjs` (bundles `src/index.ts` into `dist/index.js`) |
+| `push` | `clasp push` |
+| `open` | `clasp open-script` |
+| `deploy` | `npm run build && npm run push` |
+
+If you chose `oxlint + oxfmt` or `eslint + prettier` in question 5, `lint` / `lint:fix` / `format` / `format:check` are added on top of these (see the next section for their contents).
+
+Note that in a newly generated `package.json`, `devDependencies` are written out sorted alphabetically (formatter checks expect them to be sorted).
+
+### Linter and Formatter Choice
+
+The devDependencies, npm scripts, and config files that get added depend on your answer to question 5.
+
+#### oxlint + oxfmt (recommended)
+
+`oxlint@^1.76.0` and `oxfmt@^0.61.0` are added to devDependencies.
+
+| Script | Description |
+| --- | --- |
+| `lint` | `oxlint` |
+| `lint:fix` | `oxlint --fix` |
+| `format` | `oxfmt` |
+| `format:check` | `oxfmt --check` |
+
+`.oxlintrc.json` is generated.
+
+```json
+{
+  "plugins": ["typescript"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["dist/**", "src/generated/**"]
+}
+```
+
+#### eslint + prettier
+
+`eslint@^10.8.0` / `eslint-config-prettier@^10.1.8` / `prettier@^3.9.6` / `typescript-eslint@^8.65.0` are added to devDependencies.
+
+| Script | Description |
+| --- | --- |
+| `lint` | `eslint .` |
+| `lint:fix` | `eslint . --fix` |
+| `format` | `prettier --write .` |
+| `format:check` | `prettier --check .` |
+
+`eslint.config.mjs` and `.prettierrc` are generated.
+
+```js
+import { defineConfig, globalIgnores } from "eslint/config";
+import prettier from "eslint-config-prettier/flat";
+import tseslint from "typescript-eslint";
+
+export default defineConfig([
+  globalIgnores(["dist/**", "src/generated/**"]),
+  {
+    files: ["**/*.ts"],
+    extends: [tseslint.configs.recommended, prettier],
+  },
+]);
+```
+
+```json
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all"
+}
+```
+
+#### none
+
+No devDependencies, scripts, or config files are added.
+
+The above is all bootstrap sets up. The following are **not** included (add them yourself if you need them).
+
+- pre-commit hooks (husky / lint-staged and the like)
+- oxlint type-aware linting (`oxlint-tsgolint`)
+- an oxfmt config file (it is used with its defaults)
+
+### About .gitignore
+
+`.clasp.json` and `.clasprc.json` are gitignored following the official clasp CI guide (they contain credentials and the script ID). When sharing the project with your team, restore them from your team's secret store. The same guidance is shown when setup completes.
+
+```
+Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
+```
+
+## Arguments and Options
+
+| Argument | Description |
+| --- | --- |
+| `[directory]` | Directory to set up the project in (`.` for the current directory). Omitting it prompts for one |
+
+| Option | Description |
+| --- | --- |
+| `--yes` | Answer all prompts with their default values (non-interactive mode). Without an argument, `./gassma-project` is created and set up, and the non-empty directory confirmation is answered with continue |
+| `--skip-install` | Skip dependency installation |
+| `--dry-run` | Show planned actions without writing files, creating directories, or running commands (directory creation is also shown as a plan entry like `create directory my-app`) |
+
+In a non-interactive terminal (such as CI), `--yes` is required. Without it, the command exits with
+`An interactive terminal is required. Run with --yes for non-interactive mode.`
+
+## Behavior Details
+
+### Directory Handling
+
+- If the specified directory does not exist, it is created and the project is set up inside it.
+- If it exists and is not empty, `Directory "my-app" is not empty. Continue?` (default **No**) is asked. Choosing No exits safely with `Bootstrap cancelled.` without changing anything. With `--yes`, the command continues automatically.
+- Because of this, an interrupted setup can be resumed simply by running the same command again and answering Yes to the confirmation (already generated files are skipped/merged as described in "Idempotency" below).
+- If a **non-directory file** with the same name already exists, the command exits with the error `"my-app" already exists and is not a directory.`
+
+### Idempotency
+
+The command is designed to be safe to re-run.
+
+- If `.clasp.json` exists, `clasp create-script` is skipped.
+- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` are skipped if they already exist.
+- The linter / formatter config files (`.oxlintrc.json` / `eslint.config.mjs` / `.prettierrc`, generated only for the choice made in question 5) are likewise skipped if they already exist.
+- If `package.json` already exists, the bootstrap settings are **merged** into it (existing values win).
+- If `.gitignore` already exists, only the missing entries are appended.
+- If `dist/appsscript.json` already has the GASsma library entry, it is not added twice.
+
+### GASsma Library Version Resolution
+
+The latest GASsma library version written to `dist/appsscript.json` is resolved automatically at run time.
+
+1. Fetch the latest library version number via `clasp list-versions`
+2. If that fails, fetch it from GASsma's `package.json` on GitHub
+
+If both fail (e.g. offline), adding the library entry is skipped and manual instructions for adding it in the Apps Script editor (including the script ID) are shown. Re-running `gassma bootstrap` while online adds the entry automatically.
+
+### Package Manager Auto-Detection
+
+npm / pnpm / yarn / bun are detected automatically (falling back to npm), and the install command and the completion guidance reflect the detected package manager.
+
+## Next Steps After Setup
+
+When setup completes, the following steps are shown.
+
+1. Edit `gassma/schema.prisma` to define your models
+2. Run `npx gassma generate` to generate the typed client
+3. Run `npm run deploy` to build and push to Apps Script
+4. Run `npm run open` to open the project in the Apps Script editor
+
+For how to write schemas see [Schema](/docs/reference/schema), and for the details of `gassma generate` see [CLI Commands](/docs/reference/cli/commands).
+
+# CLI Commands (https://gassma.io/en/docs/reference/cli/commands)
+
+The gassma CLI commands (generate / init / validate / format / studio / version) and an overview of the generated files and types
+
+Once the `gassma` package is installed, you can run the CLI with `npx gassma <command>`.
+
+```
+$ npm i gassma
+```
+
+| Command | Description |
+| --- | --- |
+| [`bootstrap`](/docs/reference/bootstrap) | Set up a local development environment (clasp + esbuild + TypeScript + GASsma) in one shot |
+| [`init`](#gassma-init) | Generate a schema file and a config file |
+| [`generate`](#gassma-generate) | Generate type files and client code from the schema |
+| [`migrate dev` / `migrate deploy` / `db push`](/docs/reference/migrate) | Generate a GAS function that syncs sheets and columns with the schema |
+| [`validate`](#gassma-validate) | Check the schema file's syntax and consistency |
+| [`format`](#gassma-format) | Format `.prisma` files |
+| [`studio`](#gassma-studio) | Open the target spreadsheet in your browser |
+| [`version`](#gassma-version) | Display the CLI version |
+
+## gassma generate
+
+Generates type files and client code.
+
+```
+$ npx gassma generate
+```
+
+By default, `.prisma` files in the `./gassma` directory are searched. You can specify a particular schema file or directory using the `--schema` option (equivalent to Prisma's `prisma generate --schema`).
+
+```
+$ npx gassma generate --schema gassma/user.prisma
+$ npx gassma generate --schema ./schemas
+```
+
+The `--watch` option monitors schema file changes and automatically regenerates.
+
+```
+$ npx gassma generate --watch
+```
+
+It can also be combined with `--schema`.
+
+The `--config` option lets you explicitly specify the path to the config file (equivalent to Prisma's `--config`).
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+If the specified file does not exist, a `ConfigFileNotFoundError` is thrown. When omitted, the default locations are searched (see "Config File Search Rules" in [Config File](/docs/reference/cli/config)).
+
+### Generated Files
+
+The following files are generated based on the schema file name. For example, for `schema.prisma`:
+
+| File | Content |
+| --- | --- |
+| `schema.d.ts` | Type definitions (model types, query types, common types) |
+| `schemaClient.js` | Client implementation (with auto-injected relation definitions) |
+| `schemaClient.d.ts` | Client type definitions |
+
+The output directory is the directory specified by the `generator` block's `output`.
+
+### Overview of Generated Types
+
+The generated `.d.ts` includes the following types:
+
+- **Model types**: Type definitions for each field (`GassmaUserUse`, etc.)
+- **Query types**: `FindData`, `CreateData`, `UpdateData`, `DeleteData`, `UpsertData`, etc.
+- **Select / Omit types**: Types for field selection and exclusion
+- **Filter types**: `WhereUse`, `FilterConditions` (including `FieldRef` support)
+- **OrderBy types**: Sort conditions (relation sort, `_count` sort, nulls control included)
+- **Include types**: Types for relation fetching (including `_count`)
+- **Nested Write types**: Create, connect, update, and delete operations for related records
+- **Numeric operation types**: `NumberOperation` (increment / decrement / multiply / divide)
+- **Common types**: `FieldRef`, `GassmaClientOptions`, error class group
+- **Configuration types**: `DefaultsConfig`, `UpdatedAtConfig`, `IgnoreConfig`, `AutoincrementConfig`, `MapConfig`, etc.
+- **Controller types**: Argument and return value types for all methods
+
+For how to use the generated client, see [Basics](/docs/reference/basic).
+
+## gassma init
+
+Initializes a project and auto-generates a schema file and configuration file.
+
+```
+$ npx gassma init
+```
+
+The following files are generated:
+
+- `gassma/schema.prisma` -- Initial schema
+- `gassma.config.ts` -- Configuration file
+
+| Option | Description |
+| --- | --- |
+| `--output <path>` | Customize the output path |
+| `--with-model` | Generate a schema with a sample User model |
+
+If `schema.prisma` already exists, it safely stops with an error.
+
+When starting a new project, [`gassma bootstrap`](/docs/reference/bootstrap) is convenient: in addition to what `init` produces, it also sets up clasp, esbuild, and TypeScript.
+
+## gassma validate
+
+Performs syntax checking and consistency checking of the schema file (equivalent to Prisma's `prisma validate`).
+
+```
+$ npx gassma validate
+```
+
+```
+$ npx gassma validate --schema gassma/test.prisma
+```
+
+You can also specify the path to the config file with the `--config` option.
+
+Check items:
+
+- Syntax errors (parser error detection)
+- `generator` block existence check
+- `output` field required check
+- At least one model is defined
+
+On success, the following is output:
+
+```
+The schema at /path/to/gassma/test.prisma is valid 🚀
+```
+
+## gassma format
+
+Formats `.prisma` files with the same formatting as the official Prisma formatter (uses `@prisma/internals`' `formatSchema`).
+
+```
+$ npx gassma format
+```
+
+| Option | Description |
+| --- | --- |
+| `--schema <path>` | Format only a specific file |
+| `--config <path>` | Specify the path to the config file |
+| `--check` | Check if already formatted (for CI; exits with code 1 if unformatted) |
+
+## gassma studio
+
+Opens the spreadsheet configured in `datasource` in your OS's default browser.
+
+```
+$ npx gassma studio
+```
+
+| Option | Description |
+| --- | --- |
+| `--config <path>` | Specify the path to the config file |
+
+The URL is resolved in the following order:
+
+1. The `url` of the `datasource` block in the schema
+2. `datasource.url` in `gassma.config.ts`
+3. `parentId` in `.clasp.json` in the current directory
+
+A full URL (`https://...`) is opened as-is; a spreadsheet ID is turned into `https://docs.google.com/spreadsheets/d/<id>/edit` and opened. If none of them has a URL, a `NoDatasourceUrlError` occurs.
+
+`parentId` in `.clasp.json` is the ID of the spreadsheet the GAS project is bound to. It may be either a string or an array; the first element is used for an array.
+
+```json
+{
+  "scriptId": "XXXXX",
+  "rootDir": "dist",
+  "parentId": ["SPREAD_SHEET_ID"]
+}
+```
+
+`.clasp.json` is read only when neither the schema nor `gassma.config.ts` has a URL. If `.clasp.json` exists at that point but cannot be read as a JSON object, an `InvalidClaspJsonError` occurs.
+
+## gassma version
+
+Displays the GASsma CLI version.
+
+```
+$ npx gassma version
+```
+
+You can also check with the `--version` / `-V` flag.
+
+| Option | Description |
+| --- | --- |
+| `--json` | Output version information as JSON |
+
+With `--json`, the version is output as JSON (`{"gassma":"<version>"}`).
+
+```
+$ npx gassma version --json
+{"gassma":"1.2.3"}
+```
+
+# migrate / db push (Syncing Sheets) (https://gassma.io/en/docs/reference/migrate)
+
+Generate a GAS function that syncs your spreadsheet's sheets and columns with the schema using npx gassma migrate dev / migrate deploy / db push
+
+`npx gassma migrate` and `npx gassma db push` are commands that generate a GAS function that syncs your spreadsheet's sheets and columns with the Prisma schema (the counterparts of Prisma's `prisma migrate dev` / `prisma migrate deploy` / `prisma db push`).
+
+```
+$ npx gassma migrate dev                  # generate and record a trail (migrations/)
+$ npx gassma migrate dev --name add_tags  # name the trail entry
+$ npx gassma migrate deploy               # generate the latest recorded trail entry as it is
+$ npx gassma db push                      # generate without recording a trail
+```
+
+| Command | Behavior |
+| --- | --- |
+| `migrate dev` | Generates the runnable stub from the schema and records a trail entry (`migrations/`). Asks for [confirmation](#drop-confirmation-migrate-dev) when something is deleted |
+| `migrate deploy` | Writes the latest recorded trail entry out as the runnable stub, as it is. It does not read the schema, does not record a trail, and does not ask anything |
+| `db push` | Generates the runnable stub from the schema. No trail is recorded |
+
+`npx gassma migrate` with no arguments prints the help.
+
+The commands themselves do not access the spreadsheet. The sheets are synced the moment you run the generated `gassmaMigrate` function once on the Apps Script side. `clasp push` is not run automatically either (see "After Generating" below).
+
+## What Gets Generated
+
+A runnable stub `gassma-migration.js` (plain JS) is generated in the output directory. Its content is a single `gassmaMigrate` function that calls the GASsma library's `migrateSheets`, with the sheet and column names extracted from the schema embedded in it.
+
+```prisma
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId Int
+}
+```
+
+The schema above generates the following.
+
+```js
+function gassmaMigrate() {
+  Gassma.migrateSheets({
+    spreadsheetId: "XXXXX",
+    models: [
+      { name: "User", columns: ["id", "name"] },
+      { name: "Post", columns: ["id", "title", "authorId"] }
+    ]
+  });
+}
+```
+
+- The spreadsheet ID is resolved from the `datasource` block in the schema first, then from `datasource.url` in `gassma.config.ts`. If neither is set, it is not embedded and the spreadsheet bound to the script is targeted at runtime.
+- Running the function requires the GASsma library to be registered in the GAS project (an environment set up with [bootstrap](/docs/reference/bootstrap) works as-is). The call symbol (the `Gassma.` part in the example) is automatically resolved from the `userSymbol` of the library registered in `appsscript.json` in the output directory (falling back to `Gassma` when not found).
+
+### Output Directory Resolution
+
+1. `--output <dir>` (highest priority)
+2. `rootDir` in `.clasp.json` in the current directory
+
+If neither is available, a `MigrateOutputDirError` is raised. This is the same for all three commands.
+
+### Sheet and Column Extraction Rules
+
+These are the rules `migrate dev` / `db push` follow when reading the schema (`migrate deploy` does not read the schema).
+
+- One sheet per model. When `@@map` / `@map` are used, the mapped physical names are used.
+- Only scalar fields become columns. Relation fields (`posts` / `author` in the example above) do not become columns, while foreign key columns (`authorId`) do.
+- Fields and models with `@ignore` / `@@ignore` are **also included as creation targets**. As in Prisma, they are only excluded from the client and still exist physically in the spreadsheet.
+- Junction sheets for [implicit Many-to-Many](/docs/reference/schema#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
+
+## After Generating
+
+Run the two Next steps shown on success, and the sheets get synced.
+
+```
+✅ Migration generated
+
+Next steps:
+  1. Run "clasp push" (or "npm run push") to upload gassma-migration.js
+  2. In the Apps Script editor, run the "gassmaMigrate" function once
+```
+
+Push with `clasp push` directly (or `npm run push`, which only calls `clasp push`). A full clean build (such as `npm run deploy` generated by bootstrap) may wipe the output directory and delete `gassma-migration.js` before it is pushed.
+
+## Sync Rules
+
+The sync performed by `gassmaMigrate` (`Gassma.migrateSheets`) is idempotent and safe to run any number of times.
+
+- Sheets that are in the schema but not in the spreadsheet are created, with the headers written to row 1.
+- On existing sheets, only the missing columns are appended to the right end of the header row. **Existing columns are never reordered**, and data rows are never written to.
+- Columns and sheets that are not in the schema are not deleted by default; a warning is logged and they are left untouched.
+
+```
+Gassma.migrateSheets: column "legacy" on sheet "User" is not in the schema. It is left untouched.
+```
+
+## Deleting Data (--accept-data-loss)
+
+When `acceptDataLoss: true` is embedded in the stub, running `gassmaMigrate` also deletes the columns and sheets that are not in the schema.
+
+Columns and sheets that still contain data are deleted after a warning that reports how much is left (the number of non-empty cells for a column, the number of data rows for a sheet). Empty ones are deleted without a warning.
+
+```
+Gassma.migrateSheets: You are about to drop the column "legacy" on the sheet "User", which still contains 12 non-empty values.
+```
+
+How the flag is set differs per command.
+
+| Command | How it is set |
+| --- | --- |
+| `db push` | Pass `--accept-data-loss` |
+| `migrate dev` | Answer `y` to the drop [confirmation](#drop-confirmation-migrate-dev) |
+| `migrate deploy` | The value recorded in the trail entry is used as it is |
+
+### Protecting Sheets You Do Not Want Deleted
+
+To keep a sheet, **leave its model in the schema** and mark it `@@ignore` instead of removing it. As described in [Sheet and Column Extraction Rules](#sheet-and-column-extraction-rules), a model with `@@ignore` stays on the list of targets, so it is not deleted even with `--accept-data-loss`. It stays invisible to the client while the sheet itself is protected.
+
+```prisma
+model Memo {
+  id      Int    @id
+  content String
+
+  @@map("メモ")
+  @@ignore
+}
+```
+
+Columns work the same way: a field marked `@ignore` stays on the list of targets. A model name cannot contain non-ASCII characters, so map a non-ASCII sheet name with `@@map` as in the example above (see [map](/docs/reference/config/map)).
+
+When you write fields as in the example above, the columns of that sheet are synced too. Columns that are not in the schema are deleted with `--accept-data-loss`, so what is protected is the sheet plus the columns you wrote in the schema.
+
+To protect every column as well, write a model with no fields at all. It is a valid Prisma schema, and GASsma then manages none of that sheet's columns: no column is added or deleted even with `--accept-data-loss`, and no "a column that is not in the schema" warning is logged.
+
+```prisma
+model Memo {
+  @@map("メモ")
+  @@ignore
+}
+```
+
+```
+Gassma.migrateSheets: model "メモ" declares no columns. The columns of sheet "メモ" are left untouched.
+```
+
+If the sheet does not exist yet, it is created just as it is for a model with fields (with no header row, since there are zero columns).
+
+Removing the model from the schema instead makes the sheet "a sheet that is not in the schema". Without `--accept-data-loss` it survives with a warning, but with it the sheet is deleted.
+
+## Drop Confirmation (migrate dev)
+
+`migrate dev` **compares the latest trail entry with the current schema**, and asks for confirmation before generating anything when a sheet or a column has disappeared.
+
+```
+
+⚠️ The following are recorded in gassma/migrations but are no longer in your schema:
+    • sheet "Legacy"
+    • column "nickname" in sheet "User"
+  Generating this migration deletes them together with every value they hold.
+  This is based on the recorded migrations, not on the spreadsheet itself:
+  sheets and columns changed by "gassma db push" or by hand are not reflected here.
+
+Continue? (y/N)
+```
+
+- Answering `y` / `yes` (case-insensitive) generates a stub that deletes (`acceptDataLoss: true`) and records the trail entry.
+- Anything else (including a bare Enter) **aborts**. Neither the stub nor the trail entry is written.
+
+```
+Aborted. gassma-migration.js and the migration were not written.
+```
+
+- When no sheet or column has disappeared, nothing is asked and the stub does not delete. Nothing is asked on the very first run either, when no trail entry exists yet.
+- When something is deleted in a non-interactive environment (CI and the like), there is no way to confirm, so the command aborts with a `MigrateConfirmationRequiredError`. Use `migrate deploy` when you want to run the recorded trail entry as it is.
+
+This confirmation compares against **the trail entries recorded in `migrations/`**, not against the spreadsheet itself. Running `db push` in between, or editing sheets by hand, makes the trail and the actual sheets drift apart. Read the list as "what disappeared from the schema since the last `migrate dev`".
+
+When the latest trail entry cannot be read, the command warns that deletions could not be checked and generates a stub that does not delete.
+
+## Migration Trail (migrations/)
+
+`migrate dev` creates `<UTC timestamp>[_name]/migration.js` under the `migrations/` directory next to the schema. Its content is identical to the runnable stub.
+
+```
+gassma/
+├── schema.prisma
+└── migrations/
+    ├── 20260801120000_init/
+    │   └── migration.js
+    └── 20260802093000_add_tags/
+        └── migration.js
+```
+
+- If the content is the same as the latest trail entry, no new entry is created (`Already in sync, no schema change or pending migration was found.` is shown). The runnable stub itself is rewritten every time.
+- Re-running `migrate dev` on an unchanged schema keeps the `acceptDataLoss` recorded in the trail entry. A deletion you once answered `y` to is not taken back by a re-run.
+- `--name` names the trail entry. The name is sanitized by splitting camelCase, lowercasing, and replacing runs of non-alphanumeric characters with `_` (e.g. `--name "Add UserRole!"` → `20260801120000_add_user_role`).
+
+### migrate deploy
+
+`migrate deploy` writes the latest trail entry in `migrations/` out as the runnable stub, as it is. It does not read the schema, so the output does not change even if you have edited the schema.
+
+```
+$ npx gassma migrate deploy
+📄 Using gassma/migrations/20260802093000_add_tags/migration.js
+📄 Wrote dist/gassma-migration.js
+
+✅ Latest recorded migration prepared
+```
+
+The `acceptDataLoss` embedded in the trail entry is replayed as well, so the deletion decision you made in `dev` is what runs. CI never decides a deletion on its own.
+
+When no trail entry exists, a `NoMigrationTrailError` is raised. Run `migrate dev` first.
+
+## Options
+
+### migrate dev
+
+| Option | Description |
+| --- | --- |
+| `--name <name>` | Name for the new migration |
+| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
+| `--schema <path>` | Path to a specific `.prisma` file to migrate from |
+| `--config <path>` | Custom path to your GASsma config file |
+
+### migrate deploy
+
+| Option | Description |
+| --- | --- |
+| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
+| `--config <path>` | Custom path to your GASsma config file |
+
+### db push
+
+| Option | Description |
+| --- | --- |
+| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
+| `--schema <path>` | Path to a specific `.prisma` file to push from |
+| `--config <path>` | Custom path to your GASsma config file |
+| `--accept-data-loss` | Delete sheets and columns that are not in the schema |
+
+## Limitations
+
+- The header row is assumed to be **row 1 starting at column A** on every sheet. Header positions moved via [changeSettings](/docs/reference/settings/changeSettings) are not supported.
+- Since a spreadsheet must contain at least one sheet, the last remaining sheet is never deleted even with `acceptDataLoss: true`; only a warning is logged.
+
+## Gassma.migrateSheets (Library API)
+
+`Gassma.migrateSheets`, which the stub calls, is a public GASsma API. You can also call it directly with the sheets and columns you want to sync, without using the CLI.
+
+```ts
+Gassma.migrateSheets({
+  spreadsheetId: "SPREAD_SHEET_ID", // defaults to the bound spreadsheet
+  models: [{ name: "User", columns: ["id", "name"] }],
+  acceptDataLoss: false,
+});
+```
+
+`models` is required; omitting it raises a `GassmaMissingArgumentError`. The sync rules and limitations are the same as when going through the CLI.
+
+# Config File (gassma.config.ts) (https://gassma.io/en/docs/reference/cli/config)
+
+Centrally manage CLI settings (schema / datasource.url) in gassma.config.ts, with defineConfig, env(), search rules, and the --config option
+
+By placing `gassma.config.ts` at the project root, you can centrally manage CLI settings (equivalent to Prisma's `prisma.config.ts`). Extensions other than TypeScript (`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`) and placement in the `.config/` directory are also supported (see "Config File Search Rules" below).
+
+Running `gassma init` or `gassma bootstrap` also auto-generates `gassma.config.ts`.
+
+## Configuration Interface
+
+There are two ways to write the configuration file.
+
+**1. Using the `defineConfig` helper (recommended):**
+
+```ts
+import { defineConfig } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+});
+```
+
+**2. Using the `satisfies` operator:**
+
+```ts
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+The `GassmaConfig` type can be imported from the root of the `gassma` package.
+
+## Configuration Options
+
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `schema` | `string` | No | Path to the schema file or directory (default: `./gassma`) |
+| `datasource.url` | `string` | No | Spreadsheet URL or ID |
+
+## datasource.url
+
+When you specify a spreadsheet URL or ID in `datasource.url`, the `id` is automatically embedded in the generated client JS. This allows you to connect to the target spreadsheet with just `new GassmaClient()`.
+
+Both full URLs and spreadsheet IDs are supported.
+
+```ts
+// Full URL
+datasource: {
+  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+}
+
+// Direct ID specification
+datasource: {
+  url: "XXXXX",
+}
+```
+
+### URL Resolution Priority
+
+1. `datasource` block in the schema (highest priority)
+2. `datasource.url` in `gassma.config.ts`
+
+For the `datasource` block in the schema, see [Schema](/docs/reference/schema).
+
+Only [`gassma studio`](/docs/reference/cli/commands#gassma-studio) goes as far as `parentId` in `.clasp.json`. The `id` embedded in the generated client, and the `spreadsheetId` that [migrate / db push](/docs/reference/migrate) embeds in the stub, are resolved from the two above only.
+
+## Schema Resolution Priority
+
+1. `--schema` option (highest priority)
+2. `schema` setting in `gassma.config.ts`
+3. Default `./gassma` directory
+
+Relative paths are resolved from different base directories: the `--schema` option is resolved from the current working directory, while `schema` in the config file is resolved **relative to the location of the config file** (same as Prisma).
+
+## env() Helper
+
+Using the `env()` function, you can retrieve the spreadsheet URL from an environment variable (equivalent to Prisma's `env()`).
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+It can also be used with the `satisfies` pattern.
+
+```ts
+import "dotenv/config";
+import type { GassmaConfig } from "gassma";
+import { env } from "gassma/config";
+
+export default {
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+} satisfies GassmaConfig;
+```
+
+### Typed env()
+
+By passing an interface of your environment variables as a type argument, the names you can pass to `env()` are restricted to its keys, and you get autocompletion.
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+interface Env {
+  SPREADSHEET_URL: string;
+}
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env<Env>("SPREADSHEET_URL"),
+  },
+});
+```
+
+Only keys whose values are of type `string` (or `string | undefined`) can be specified. Specifying a nonexistent key results in a compile error.
+
+`env()` throws a `GassmaConfigEnvError` if the environment variable is not set or is an empty string. For optional environment variables, use `process.env` directly.
+
+## Config File Search Rules
+
+The config file is searched in the following order, and the **first file found** is used:
+
+1. `gassma.config.js`
+2. `gassma.config.ts`
+3. `gassma.config.mjs`
+4. `gassma.config.cjs`
+5. `gassma.config.mts`
+6. `gassma.config.cts`
+7. `.config/gassma.js`
+8. `.config/gassma.ts`
+9. `.config/gassma.mjs`
+10. `.config/gassma.cjs`
+11. `.config/gassma.mts`
+12. `.config/gassma.cts`
+
+All extensions of `gassma.config.*` directly under the project root are searched first, followed by `gassma.*` in the `.config/` directory. This is the same order as Prisma's config file search, including `.js` taking precedence over `.ts`.
+
+## --config Option
+
+The `generate` (including `--watch`), `validate`, `format`, and `studio` commands accept the `--config` option to explicitly specify the path to the config file (equivalent to Prisma's `--config`).
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+- Relative paths are resolved from the current working directory.
+- If the specified file does not exist, a `ConfigFileNotFoundError` is thrown.
+- When omitted, the default locations are searched according to the search rules above.
+
+## Load Behavior
+
+When running `gassma generate`, the following is displayed when the config file is loaded successfully:
+
+```
+⚙️ Loaded config from gassma.config.ts
+```
+
+- If the config file has a syntax or runtime error, or if a known key (`schema` / `datasource.url`) has an invalid type, a `GassmaConfigLoadError` is thrown.
+- If the config contains unknown keys, a warning is displayed and those keys are ignored (no error is thrown).
+
+```
+Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
+```
+
+# Using the GAS Editor (https://gassma.io/en/docs/reference/gas-editor)
+
+Using GASsma from the GAS script editor alone, without the CLI: initializing Gassma.GassmaClient and the full list of constructor options
+
+GASsma also works from the GAS script editor alone, without the CLI. Once you add the library you can start writing immediately, which suits small scripts or trying things out without setting up a local environment.
+
+This page covers how to write code when using only the GAS editor. For the CLI workflow, see [Basics](/docs/reference/basic).
+
+Both styles use the same library and the same features. The only difference is **where you write the configuration**: with the CLI you write it in `schema.prisma`, and with the GAS editor alone you pass it to the constructor.
+
+## Adding the Library
+
+Add script ID `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH` as a library. See [Installation](/docs/installation) for the steps.
+
+Once added, you can create a client from the global `Gassma` namespace.
+
+## Creating an Instance
+
+If your GAS project is bound to a spreadsheet (container-bound), you can create an instance with no arguments.
+
+```ts
+const gassma = new Gassma.GassmaClient();
+```
+
+If you created the GAS project somewhere other than a spreadsheet, or want to work with a different spreadsheet, pass the target spreadsheet ID.
+
+```ts
+const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
+```
+
+### Initialization with an Options Object
+
+When you need configuration such as relation definitions or global omit, pass an options object.
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  id: "XXXXXXXXXXXXXXXXXXX", // optional
+  relations: {
+    Users: {
+      posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId" },
+    },
+  },
+  omit: {
+    Users: { password: true },
+  },
+});
+```
+
+### lock (Required to Use `$transaction`)
+
+`lock` is the lock used by [$transaction](/docs/reference/transaction) and by [autoincrement](/docs/reference/config/autoincrement) when it assigns numbers. When you use the CLI, the generated client fills in the default (`LockService.getScriptLock()`), but **when you write code in the GAS editor you have to pass it yourself**.
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
+Calling `$transaction` without passing `lock` throws `GassmaTransactionLockRequiredError` (autoincrement, on the other hand, keeps going without taking a lock when there is no `lock`). See [Lock](/docs/reference/transaction#lock) for the available granularities.
+
+## Constructor Options
+
+| Option | Description | Reference |
+| --- | --- | --- |
+| `id` | Spreadsheet ID (defaults to the active spreadsheet) | - |
+| `relations` | Relation definitions | [Relation Definitions](/docs/reference/relation/definition) |
+| `omit` | Global omit settings | [Global omit](/docs/reference/config/global-omit) |
+| `defaults` | Field default values | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | Auto-updated timestamps | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | Field-level exclusion | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | Sheet-level exclusion | [ignore](/docs/reference/config/ignore) |
+| `map` | Field name mapping | [map](/docs/reference/config/map) |
+| `mapSheets` | Sheet name mapping | [map](/docs/reference/config/map) |
+| `autoincrement` | Auto-increment | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | Lock used by `$transaction` and autoincrement | [Lock](/docs/reference/transaction#lock) |
+| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+## Schema Equivalents
+
+When using the CLI, most of the options above are written as attributes in `schema.prisma`.
+
+| Constructor option | How to write it in the schema |
+| --- | --- |
+| `relations` | `@relation(fields: [...], references: [...])` |
+| `defaults` | `@default(...)` |
+| `autoincrement` | `@default(autoincrement())` |
+| `updatedAt` | `@updatedAt` |
+| `ignore` | `@ignore` |
+| `ignoreSheets` | `@@ignore` |
+| `map` | `@map("...")` |
+| `mapSheets` | `@@map("...")` |
+| `strictUndefinedChecks` | `previewFeatures = ["strictUndefinedChecks"]` |
+| `omit` | No schema equivalent (specify it in the constructor even when using the CLI) |
+| `lock` | No schema equivalent (when using the CLI, the generated client fills in the default) |
+| `id` | The `url` of the `datasource` block, or `datasource.url` in `gassma.config.ts` |
+
+For details on each setting, see [Schema](/docs/reference/schema).
+
+## About Types
+
+The GAS editor has no generated type definitions, so there is no completion or type checking for sheet names and column names. Mistakes in sheet or column names surface at runtime.
+
+If you want type-safe development, consider using the CLI ([Quickstart](/docs/quickstart)).
+
+## Referring to Error Classes
+
+The error classes GASsma throws are available from the `Gassma` namespace.
+
+```ts
+try {
+  gassma.Users.findFirstOrThrow({ where: { id: 999 } });
+} catch (e) {
+  if (e instanceof Gassma.NotFoundError) {
+    console.log("Not found");
+  }
+}
+```
+
+For the full list, see [Error List](/docs/reference/errors).
+
+Built-in types such as `Date` cannot be checked with `instanceof` across the library boundary. See [Basics](/docs/reference/basic#checking-date-values) for details.
 
 # create() (https://gassma.io/en/docs/reference/crud/create/create)
 
@@ -287,7 +2047,7 @@ Suppose you want to add the following row to the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 const result = gassma.sheet1.create({
@@ -316,7 +2076,7 @@ The data of the created row is returned.
 Also, if you omit the age as follows, the `age` column of that row will be empty. Passing `undefined` as the value is treated the same as omission:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 gassma.sheet1.create({
@@ -383,7 +2143,7 @@ Suppose you want to add the following rows to the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.createMany
 const result = gassma.sheet1.createMany({
@@ -459,7 +2219,7 @@ Suppose you want to add the following rows to the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.createManyAndReturn
 const result = gassma.sheet1.createManyAndReturn({
@@ -554,7 +2314,7 @@ Suppose you want to retrieve rows from the above example with the following cond
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -576,7 +2336,7 @@ The return value has the following format:
 To specify multiple conditions:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -597,7 +2357,7 @@ Conditional searches using greater than/less than and partial matching are also 
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -634,7 +2394,7 @@ In addition to fixed values, you can use the `fields` property to specify a valu
 By specifying `mode: "insensitive"` with `equals`, `not`, `contains`, `startsWith`, or `endsWith`, you can compare without case sensitivity.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Matches "alice", "Alice", "ALICE", etc.
 const result = gassma.sheet1.findMany({
@@ -691,7 +2451,7 @@ For example, to retrieve rows with the following conditions:
 Using AND:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -717,7 +2477,7 @@ For example, to retrieve rows with the following condition:
 Using OR:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -744,7 +2504,7 @@ For example, to retrieve rows with the following conditions:
 Using NOT:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -766,7 +2526,7 @@ const result = gassma.sheet1.findMany({
 You can nest OR or NOT inside AND, for example. This nesting structure can be infinitely deep as long as the GAS call stack allows.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -857,7 +2617,7 @@ You can limit the data returned in the response.
 For example, to retrieve only `age` and `pref`:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -894,6 +2654,8 @@ A `select` with no selected fields at all, such as `select: {}`, throws a `Gassm
 ### Relation Options within select
 
 When relation definitions exist, you can specify options similar to `include` for relation fields within `select`. Instead of specifying `include` separately, you can control related data retrieval within `select`.
+
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -962,7 +2724,7 @@ You can sort the retrieved rows.
 For example, to sort by `age` in ascending order:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -989,7 +2751,7 @@ The available values are:
 You can control the position of null values by specifying the `nulls` option in object format:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Place null values at the end
 const result = gassma.sheet1.findMany({
@@ -1017,7 +2779,7 @@ You can also specify multiple sort conditions. For example, to:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1037,6 +2799,8 @@ An empty `orderBy` such as `orderBy: {}` is ignored (no sorting is performed). I
 ### Sorting by Relation Fields
 
 When relation definitions exist, you can sort by manyToOne / oneToOne relation target fields:
+
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -1103,7 +2867,7 @@ You can specify the number of records to retrieve. Records are taken from the to
 For example, to get the top 2 rows from matching records:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1147,7 +2911,7 @@ You can skip specific rows from the retrieved results.
 For example, to skip the first matching row:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1181,7 +2945,7 @@ gassma.sheet1.findMany({ skip: null });
 | A finite negative number | `take` reads from the end; `skip` throws `GassmaSkipNegativeError` |
 | `undefined` | Treated as "not specified" and ignored |
 
-`skip: -Infinity` used to throw `GassmaSkipNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `GassmaSkipNegativeError` is thrown only for **finite** negative numbers.
+The finiteness check runs first, so `skip: -Infinity` throws `GassmaInvalidValueError`. `GassmaSkipNegativeError` is thrown only for **finite** negative numbers.
 
 The same validation applies to `take` / `skip` in `count` / `aggregate` / `groupBy`. The `take` of `findFirst` has [a different restriction](./findFirst#take).
 
@@ -1190,7 +2954,7 @@ The same validation applies to `take` / `skip` in `count` / `aggregate` / `group
 Enables cursor-based pagination. Specify an object that uniquely identifies a record in `cursor` to use that record as the starting point:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // Starting from the record with id: 3, retrieve 5 records
 const result = gassma.sheet1.findMany({
@@ -1246,7 +3010,7 @@ You can exclude specific columns from the return value. This is the inverse of `
 For example, to exclude `postNumber`:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1279,7 +3043,7 @@ Specify column names to remove rows with duplicate values. When duplicates exist
 For example, to remove `age` duplicates:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1341,7 +3105,7 @@ Suppose you want to retrieve a row from the above example with the following con
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirst
 const result = gassma.sheet1.findFirst({
@@ -1448,7 +3212,7 @@ Suppose you want to retrieve a row from the above example with the following con
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirstOrThrow
 const result = gassma.sheet1.findFirstOrThrow({
@@ -1522,7 +3286,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.update
 const result = gassma.sheet1.update({
@@ -1687,7 +3451,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateMany
 const result = gassma.sheet1.updateMany({
@@ -1743,7 +3507,7 @@ gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
+The finiteness check runs first, so `limit: -Infinity` throws `GassmaInvalidValueError` rather than `GassmaLimitNegativeError`. `undefined` is ignored (no upper bound).
 
 ## Atomic Number Operations
 
@@ -1798,7 +3562,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateManyAndReturn
 const result = gassma.sheet1.updateManyAndReturn({
@@ -1891,7 +3655,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.upsert
 const result = gassma.sheet1.upsert({
@@ -1976,7 +3740,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.delete
 const result = gassma.sheet1.delete({
@@ -2058,7 +3822,7 @@ Suppose you want to perform the following operation on the above example:
 The code would be:
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.deleteMany
 const result = gassma.sheet1.deleteMany({
@@ -2106,7 +3870,7 @@ gassma.sheet1.deleteMany({ limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
+The finiteness check runs first, so `limit: -Infinity` throws `GassmaInvalidValueError` rather than `GassmaLimitNegativeError`. `undefined` is ignored (no upper bound).
 
 The `where` specification follows [findMany()](../read/findMany).
 
@@ -2125,11 +3889,11 @@ Use this when you want to perform statistical calculations such as averages and 
 | take     | Set the number of records to retrieve | Yes |                                                                               |
 | skip     | Set the number of records to skip    | Yes |                                                                               |
 | cursor   | Cursor-based pagination          | Yes      | See [findMany cursor](/docs/reference/crud/read/findMany#cursor) for details  |
-| \_avg    | Average display settings         | Yes      |                                                                               |
-| \_count  | Hit count display settings       | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
-| \_max    | Maximum value display settings   | Yes      |                                                                               |
-| \_min    | Minimum value display settings   | Yes      |                                                                               |
-| \_sum    | Sum display settings             | Yes      |                                                                               |
+| \_avg    | Average display settings         | Yes      | Only numeric columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_count  | Hit count display settings       | Yes      | Any column can be specified. `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
+| \_max    | Maximum value display settings   | Yes      | Number / string / boolean / date columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_min    | Minimum value display settings   | Yes      | Number / string / boolean / date columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_sum    | Sum display settings             | Yes      | Only numeric columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
 
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
 
@@ -2173,6 +3937,53 @@ The return value is in the following format.
 ```
 
 In `_avg` / `_sum` / `_max` / `_min`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null.
+
+## Columns Each Aggregation Key Accepts
+
+The column types you can specify differ per aggregation key.
+
+| Aggregation Key | Accepted Column Types |
+| --- | --- |
+| \_avg | Number |
+| \_sum | Number |
+| \_max | Number / string / boolean / date |
+| \_min | Number / string / boolean / date |
+| \_count | Any column (it only counts rows, so the type does not matter) |
+
+When using the CLI, `_avg` / `_sum` accept only columns whose TypeScript type is `number` (`Int` / `Float` / `Decimal` / `BigInt`); writing any other column is a type error. `_max` / `_min` / `_count` accept every column (see [Type Mapping](/docs/reference/schema#type-mapping)).
+
+The result of `_max` / `_min` depends on the column type.
+
+- Number: the largest / smallest number
+- String: the largest / smallest string in lexicographic order
+- Date: the newest / oldest date
+- Boolean: the maximum is `true` if at least one value is `true`; the minimum is `true` only when every value is `true`
+
+Types are checked at runtime against the values in the sheet. When using the GAS editor alone, or when the sheet holds values of a type other than the declared one, the following errors are thrown.
+
+- A non-numeric column specified in `_avg` / `_sum`: `GassmaAggregateAvgTypeError` / `GassmaAggregateSumTypeError`
+- A column of a type other than the four above specified in `_max` / `_min`: `GassmaAggregateTypeError`
+- Values of multiple types mixed in a single column: `GassmaAggregateAvgError` / `GassmaAggregateSumError` / `GassmaAggregateMaxError` / `GassmaAggregateMinError`
+
+See the [error list](/docs/reference/errors) for details.
+
+### Aggregations Cannot Cross Relations
+
+An aggregation key accepts **only the columns of the model itself**. Columns of a related model cannot be specified (the same behavior as Prisma). The same applies to `by` in `groupBy`.
+
+To aggregate values of a related model, fetch them with [include](/docs/reference/relation/include) and aggregate them in your own code.
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+`where` does accept [relation filters](/docs/reference/relation/where-relation-filter), so you can narrow the rows by a condition on a related model and then aggregate your own columns.
 
 ## _count
 
@@ -2305,15 +4116,17 @@ Use this when you want to group data.
 | orderBy  | Sort settings                                 | Yes      | If specifying only one column, the array can be omitted                       |
 | take     | Set the number of records to retrieve         | Yes      |                                                                               |
 | skip     | Set the number of records to skip             | Yes      |                                                                               |
-| \_avg    | Average display settings                      | Yes      |                                                                               |
-| \_count  | Hit count display settings                    | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
-| \_max    | Maximum value display settings                | Yes      |                                                                               |
-| \_min    | Minimum value display settings                | Yes      |                                                                               |
-| \_sum    | Sum display settings                          | Yes      |                                                                               |
+| \_avg    | Average display settings                      | Yes      | Only numeric columns can be specified                                         |
+| \_count  | Hit count display settings                    | Yes      | Any column can be specified. `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
+| \_max    | Maximum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_min    | Minimum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_sum    | Sum display settings                          | Yes      | Only numeric columns can be specified                                         |
 | by       | Specify grouping conditions                   | No       |                                                                               |
 | having   | Specify conditions after grouping             | Yes      | If omitted, all data is retrieved                                             |
 
 `by` is required. Omitting it throws `GassmaMissingArgumentError` (message: Argument `by` is missing.).
+
+`orderBy` is required when you specify `take`, or a `skip` other than 0. Without it, `GassmaGroupByOrderByRequiredError` is thrown (message: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.). An empty `orderBy` does not count as specified.
 
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
 
@@ -2498,6 +4311,8 @@ The return value is in the following format.
 
 In `_avg` / `_sum` / `_max` / `_min` and column-specified `_count`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null. `_count: { _all: true }` still counts those rows.
 
+The column types each aggregation key accepts are the same as in aggregate. See [Columns Each Aggregation Key Accepts in aggregate](/docs/reference/statistics/aggregate#columns-each-aggregation-key-accepts) for details.
+
 ### _count
 
 With `_count`, you can count the number of rows in each group. If you specify a column name, only rows whose value in that column is not a missing value — null (an empty cell), `NaN`, or an invalid Date (Invalid Date) — are counted, while `_all: true` counts all rows, including missing values.
@@ -2609,7 +4424,25 @@ The following sheets are used as examples throughout the relation documentation.
 
 ## Basic Definition
 
-You can define relations between sheets by passing a `relations` option to the `GassmaClient` constructor.
+When using the CLI, relations are written in `schema.prisma` with `@relation`. Running `npx gassma generate` injects them into the generated client.
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id])
+}
+```
+
+When using the GAS editor alone, pass a `relations` option to the `GassmaClient` constructor.
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -2638,6 +4471,10 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 ```
+
+The rest of this page uses the constructor form to describe what each relation type means. For how to write relations in the schema, see [Schema](/docs/reference/schema).
+
+You can pass `relations` to the constructor only when using `new Gassma.GassmaClient()` directly. The `GassmaClient` generated by the CLI overrides it with the relations read from the schema, so passing it to the constructor is silently ignored (see [Constructor Options](/docs/reference/basic#constructor-options)).
 
 ## Relation Definition Keys
 
@@ -3084,6 +4921,8 @@ const result = gassma.Users.findMany({
 You can specify `include` within `include` to retrieve deep relation hierarchies.
 
 For example, you can retrieve Users → Posts → Tags in a single query:
+
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -3604,7 +5443,25 @@ Uses the sheet examples from [relation definition](/docs/reference/relation/defi
 
 ## Basic Usage
 
-Specify `onDelete` in the [relation definition](/docs/reference/relation/definition):
+When using the CLI, specify `onDelete` in the arguments of `@relation`.
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+When using the GAS editor alone, specify `onDelete` in the [relation definition](/docs/reference/relation/definition):
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -4141,6 +5998,8 @@ Nested write is processed recursively, so you can create deep relation hierarchi
 
 For example, creating User → Posts → Tags at once:
 
+This example shows the relation definitions in the constructor. When using the CLI, relations are written in `schema.prisma` ([Relation Definition](/docs/reference/relation/definition)).
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {
@@ -4221,7 +6080,25 @@ Uses the sheet examples from [relation definition](/docs/reference/relation/defi
 
 ## Basic Usage
 
-Specify `onUpdate` in the [relation definition](/docs/reference/relation/definition):
+When using the CLI, specify `onUpdate` in the arguments of `@relation`.
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onUpdate: Cascade)
+}
+```
+
+When using the GAS editor alone, specify `onUpdate` in the [relation definition](/docs/reference/relation/definition):
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -4885,7 +6762,7 @@ If your spreadsheet is in any of the following states, you **must** call `change
 For a table like the one above, you can read the table correctly by writing the following code.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // Must be called before any sheet operations
 gassma.sheet1.changeSettings(4, "B", "E");
 
@@ -4897,7 +6774,7 @@ const result = gassma.sheet1.findMany({});
 ![Table with other data](./img/settingExample2.png)
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // Must be called before any sheet operations
 gassma.sheet1.changeSettings(1, "A", "D");
 
@@ -4909,6 +6786,17 @@ const result = gassma.sheet1.findMany({});
 Exclude fields from results by default per sheet
 
 By specifying `omit` in the `GassmaClient` constructor, default field exclusion is applied to all queries for the specified sheets.
+
+## Schema vs. Constructor
+
+Unlike the other settings, `omit` is specified in the constructor rather than in the schema. It is written the same way when using the CLI.
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | No schema equivalent |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `omit: { Users: { password: true } }` |
+
+There is no schema attribute for `omit`. Specify it in the constructor even when using the CLI.
 
 ## Basic Usage
 
@@ -5029,6 +6917,26 @@ Auto-set field values on create with static values or functions (@default)
 
 This is the equivalent of Prisma's `@default()`. It automatically sets default values for fields during `create` operations.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `role String @default("USER")` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `defaults: { Users: { role: "USER" } }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts
@@ -5099,6 +7007,25 @@ Auto-set timestamps on create/update (@updatedAt)
 
 This is the equivalent of Prisma's `@updatedAt`. It automatically sets the current timestamp on specified columns when a record is created or updated.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `updatedAt DateTime @updatedAt` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `updatedAt: { Users: "updatedAt" }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  updatedAt DateTime @updatedAt
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts
@@ -5154,6 +7081,32 @@ If a value is explicitly specified by the user, the explicit value takes priorit
 Exclude fields or whole sheets from all operations (@ignore / @@ignore)
 
 This is the equivalent of Prisma's `@ignore` (field-level) and `@@ignore` (model-level).
+
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `@ignore` / `@@ignore` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `ignore: { ... }` / `ignoreSheets: [ ... ]` |
+
+```prisma
+model Users {
+  id           Int    @id
+  name         String
+  secretColumn String @ignore
+}
+
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
 
 ## ignore (Field-Level)
 
@@ -5218,11 +7171,34 @@ For a single sheet, you can specify it as a string.
 ignoreSheets: "Logs",
 ```
 
+`@@ignore` / `@ignore` only hide things from the client; the sheets and columns themselves are left alone. [migrate / db push](/docs/reference/migrate) keeps them on the list of targets, so they are not deleted even with `--accept-data-loss`. That makes them a way to keep a sheet while hiding it from the client (see [Protecting Sheets You Do Not Want Deleted](/docs/reference/migrate#protecting-sheets-you-do-not-want-deleted)).
+
 # map / mapSheets (@map / @@map) (https://gassma.io/en/docs/reference/config/map)
 
 Map code-side names to spreadsheet headers and sheet names (@map / @@map)
 
 This is the equivalent of Prisma's `@map("name")` (field-level) and `@@map("name")` (model-level). It maps names in your code to names in the spreadsheet.
+
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `@map("名前")` / `@@map("ユーザー一覧")` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `map: { ... }` / `mapSheets: { ... }` |
+
+```prisma
+model Users {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+
+  @@map("ユーザー一覧")
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
 
 ## map (Field-Level)
 
@@ -5294,6 +7270,24 @@ Auto-increment fields using LockService + PropertiesService (GAS only)
 
 This is the equivalent of Prisma's `autoincrement()`. It automatically assigns unique, monotonically increasing values during `create` operations.
 
+## Schema vs. Constructor
+
+When using the CLI, this setting is written in `schema.prisma`. When using the GAS editor alone, you pass it to the `GassmaClient` constructor (the examples on the rest of this page use the constructor form).
+
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `id Int @id @default(autoincrement())` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `autoincrement: { Users: "id" }` |
+
+```prisma
+model Users {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+```
+
+For how to write schemas, see [Schema](/docs/reference/schema).
+
 ## Basic Usage
 
 ```ts
@@ -5338,10 +7332,12 @@ gassma.Users.createMany({
 
 ## How It Works
 
-1. Exclusive control via `LockService.getScriptLock().waitLock(10000)`
+1. Exclusive control by acquiring the `GassmaClient`'s [`lock`](/docs/reference/transaction#lock) with `waitLock(10000)`
 2. Read the counter from `PropertiesService.getScriptProperties()`
 3. Increment by +1 (+N for createMany) and write back
 4. Release the lock
+
+The client generated by `npx gassma generate` fills `lock` with `LockService.getScriptLock()` by default. On a client that has no `lock` (for example one constructed in the [GAS editor](/docs/reference/gas-editor) without passing `lock`), numbers are **assigned without taking a lock** (this is not an error).
 
 This feature only works in the GAS environment because it uses GAS's `LockService` and `PropertiesService`.
 
@@ -5355,6 +7351,71 @@ gassma.Users.create({
 });
 // => id is 100 (auto-increment is not applied)
 ```
+
+## Adopting GASsma on a Sheet That Already Has Data
+
+The counter starts at 0 and **does not look at the values already in the sheet**. So if you adopt GASsma on a sheet whose `id` values run from 1 to 500, the first `create` assigns `id: 1` and collides with an existing row.
+
+Calling `$syncAutoincrement()` restarts the counter just after the largest value in that column. Call it once when you adopt GASsma.
+
+```ts
+// When the existing ids run from 1 to 500
+gassma.Users.$syncAutoincrement("id");
+// => 501
+
+gassma.Users.create({
+  data: { name: "Alice" },
+});
+// => { id: 501, name: "Alice" }
+```
+
+If rows are added by editing the spreadsheet by hand and the counter falls out of sync, calling `$syncAutoincrement()` again brings it back in the same way.
+
+## Operating the Counter
+
+In Prisma, `autoincrement()` takes no arguments, and the counter is adjusted with SQL such as `ALTER SEQUENCE ... RESTART WITH`. The GASsma counter lives in `PropertiesService` and can be reached neither from the schema nor from SQL, so it is exposed as methods on the model instead.
+
+All three methods speak in terms of **the value that will be issued next**. This is the same meaning as `ALTER SEQUENCE ... RESTART WITH 1000`.
+
+| Method | Return value | Description |
+| --- | --- | --- |
+| `$getAutoincrement(field)` | `number` | Returns the value that will be issued next (`1` if nothing has been issued yet) |
+| `$setAutoincrement(field, next)` | `void` | Makes `next` the value that will be issued next |
+| `$syncAutoincrement(field)` | `number` | Sets the counter to the largest value in the column + 1 and returns it |
+
+```ts
+gassma.Users.$getAutoincrement("id");
+// => 1
+
+gassma.Users.$setAutoincrement("id", 501);
+
+gassma.Users.$getAutoincrement("id");
+// => 501
+```
+
+Use `$setAutoincrement` when you want to decide the value yourself. If you only want to match the existing data, use `$syncAutoincrement`.
+
+With the CLI, the type of `field` on all three methods is narrowed to **the fields of that model that have autoincrement configured**. Writing a field name that is not configured is a type error, and on a model with no autoincrement field at all the type of `field` is `never`, so the methods cannot be called.
+
+### What $syncAutoincrement Looks At
+
+- It reads only the column of the target field (not the whole sheet)
+- It takes the maximum of **numeric values only**. Empty cells and non-numeric values are ignored
+- Decimals are truncated (if `3.7` is present, the next value is `4`)
+- If there are no numeric values at all, or only negative numbers, the next value is `1`
+
+### Related Errors
+
+| Error | Trigger condition |
+| --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | A field that is not configured with autoincrement is passed as `field` |
+| `GassmaAutoincrementInTransactionError` | `$setAutoincrement` / `$syncAutoincrement` is called inside `$transaction` |
+| `GassmaInvalidValueError` | The `next` of `$setAutoincrement` is not an integer of 1 or greater (`NaN` / `Infinity` / a decimal / 0 or less / a non-number) |
+| `GassmaInvalidValueError` | `$syncAutoincrement` is called when the column of the field configured with autoincrement does not exist on the sheet (for example after the column was renamed) |
+
+For details, see the [Error List](/docs/reference/errors).
+
+`$setAutoincrement` / `$syncAutoincrement` cannot be called inside [$transaction](/docs/reference/transaction). The counter lives in `PropertiesService` and never enters the sheet buffer, so it is not rolled back when the transaction fails. `$getAutoincrement` only reads, so it can be called inside a transaction.
 
 # strictUndefinedChecks / Gassma.skip (https://gassma.io/en/docs/reference/config/strict-undefined-checks)
 
@@ -5383,14 +7444,19 @@ const users = gassma.Users.findMany({
 
 `strictUndefinedChecks` is an opt-in feature. There are two ways to enable it.
 
+| | How to write it |
+| --- | --- |
+| Schema (CLI) | `previewFeatures = ["strictUndefinedChecks"]` |
+| Constructor ([GAS editor](/docs/reference/gas-editor)) | `strictUndefinedChecks: true` |
+
 ### Enable via previewFeatures (with CLI)
 
-If you are doing [local development with a Prisma schema](/docs/reference/type-generation), add `previewFeatures` to the `generator` block in `schema.prisma` (same syntax as Prisma).
+When using the CLI, add `previewFeatures` to the `generator` block in `schema.prisma` (same syntax as Prisma).
 
 ```prisma
 generator client {
   provider        = "prisma-client-js"
-  output          = "./generated/gassma"
+  output          = "./src/generated/gassma"
   previewFeatures = ["strictUndefinedChecks"]
 }
 ```
@@ -5507,7 +7573,7 @@ gassma.Users.findMany({
 
 # $extends (query) (https://gassma.io/en/docs/reference/client-extensions/query)
 
-The query component of $extends lets you register query hooks that intercept the execution of each operation. It corresponds to Prisma's client extensions (the query component of $extends). Inside a hook you can rewrite args, transform the result, or short-circuit without running the actual operation.
+Register query hooks on each operation with the query component of $extends to rewrite args, transform results, or short-circuit execution
 
 The `query` component of `$extends` lets you register query hooks that intercept the execution of each operation. It corresponds to Prisma's client extensions (the `query` component of `$extends`). Inside a hook you can rewrite `args`, transform the result, or short-circuit without running the actual operation.
 
@@ -5747,7 +7813,7 @@ const extended = gassma.$extends({
 
 # $extends (result) (https://gassma.io/en/docs/reference/client-extensions/result)
 
-The result component of $extends lets you add computed fields to the records in query results. It corresponds to Prisma's client extensions (the result component of $extends). You can compute new fields from existing scalar fields and include them in the result.
+Add computed fields derived from existing scalar fields with the result component of $extends
 
 The `result` component of `$extends` lets you add **computed fields** to the records in query results. It corresponds to Prisma's client extensions (the `result` component of `$extends`). You can compute new fields from existing scalar fields and include them in the result.
 
@@ -6092,6 +8158,48 @@ gassma.$transaction((tx) => {
 });
 ```
 
+## Lock
+
+`$transaction` starts only after acquiring the `lock` passed to `GassmaClient`.
+
+The client generated by `npx gassma generate` fills this `lock` with `LockService.getScriptLock()` as the default. That `LockService.getScriptLock()` **is evaluated in your own project**, so the lock it returns is **your script project's lock**. When you use the CLI, nothing changes in how you write your code.
+
+```ts
+const gassma = new GassmaClient(); // lock is filled in for you
+```
+
+This `lock` is also used when [autoincrement](/docs/reference/config/autoincrement) assigns numbers.
+
+### Lock Granularity
+
+Specifying `lock` in the constructor overrides the default.
+
+```ts
+const gassma = new GassmaClient({
+  lock: LockService.getDocumentLock(),
+});
+```
+
+| Value | Scope that gets serialized |
+| --- | --- |
+| `LockService.getScriptLock()` (default) | Executions of the same script project |
+| `LockService.getDocumentLock()` | Executions on the same document (the bound spreadsheet) |
+| `LockService.getUserLock()` | Executions by the same user |
+
+There is no `lock` in the second argument of `$transaction`. The granularity is decided when the client is constructed.
+
+`LockService.getDocumentLock()` **returns `null` when called from a standalone script or a web app** (it does not throw). Even a script bound to a spreadsheet gets `null` when it runs through a web app. Passing `null` as `lock` throws `GassmaInvalidLockError`.
+
+### When No lock Is Passed
+
+Calling `$transaction` on a client that has no `lock` throws `GassmaTransactionLockRequiredError`. When using the GAS editor alone, pass it yourself (see [Using the GAS Editor](/docs/reference/gas-editor)).
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
 ## Options
 
 Options can be passed as the second argument.
@@ -6113,7 +8221,7 @@ gassma.$transaction(
 
 ### maxWait
 
-A transaction starts only after acquiring a script lock. If another execution holds the same lock (such as another running `$transaction`), it waits up to `maxWait` milliseconds for the lock to be released, and throws `GassmaTransactionLockTimeoutError` if it still cannot be acquired.
+A transaction starts only after acquiring the client's [`lock`](#lock). If another execution holds the same lock (such as another running `$transaction`), it waits up to `maxWait` milliseconds for the lock to be released, and throws `GassmaTransactionLockTimeoutError` if it still cannot be acquired.
 
 ### timeout
 
@@ -6138,793 +8246,17 @@ With `rollback` enabled, the cost of duplicating the backups (`copyTo`) is **pro
 ## Limitations
 
 - The lock only serializes work that goes through GASsma. It cannot stop manual edits to the spreadsheet or changes from other scripts that do not use GASsma. See [Write Atomicity and Concurrency](/docs/reference/write-atomicity) for what can happen under concurrent access.
-- **The lock belongs to the GASsma library, not to your project.** GASsma runs as a library, so the lock `$transaction` takes is the library's own and is shared with every script project that uses GASsma. If a transaction is running in someone else's project, yours waits for it.
+- **What gets serialized is determined by the lock you pass as `lock`.** With the default `LockService.getScriptLock()`, only **executions of the same script project** are serialized. When **a different GAS project touches the same spreadsheet, the two transactions are not serialized against each other**. See [Lock](#lock) for choosing the granularity.
 - If the execution is forcibly terminated (such as by GAS's 6-minute execution limit), backup sheets may be left behind. A warning is logged the next time `$transaction` runs. Leftover `_gassma_tx_...` sheets can be deleted manually after checking their contents.
 - Only cell values and formulas are restored (formatting and the like are not).
 - Settings changed at runtime with [changeSettings](/docs/reference/settings/changeSettings) are not carried over into the transaction.
+- `$setAutoincrement` / `$syncAutoincrement`, which rewrite the [autoincrement](/docs/reference/config/autoincrement) counter, cannot be called inside a transaction (`GassmaAutoincrementInTransactionError`). The counter lives in `PropertiesService` and is therefore outside the scope of the rollback. The read-only `$getAutoincrement` can be called.
 - The form that takes an array of operations (Prisma's sequential operations) is not supported. Only the callback form is available.
 - `isolationLevel` is not supported (execution is always serialized by the lock).
 
 ## Related Errors
 
-For details on `GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError`, see the [Error List](/docs/reference/errors).
-
-# Local Development with Prisma Schema (https://gassma.io/en/docs/reference/type-generation)
-
-Generate a type-safe client from a Prisma-format schema with the gassma CLI (generate/init/validate/format) and gassma.config.ts
-
-GASsma provides the ability to auto-generate type-safe client code from Prisma-format schema files when developing GAS locally using TypeScript with tools such as clasp+esbuild.
-
-By using this feature, settings such as relation definitions, defaults, and map are auto-generated from the schema, eliminating the need to manually write GASsma-specific constructor options (`relations`, `defaults`, `updatedAt`, `ignore`, `map`, etc.). As long as you know Prisma's schema syntax, you can start developing with the same workflow as Prisma.
-
-**Without CLI (manual configuration):**
-
-```ts
-import { Gassma } from "gassma";
-
-const gassma = new Gassma.GassmaClient({
-  id: "SPREAD_SHEET_ID",
-  relations: {
-    User: {
-      posts: { type: "oneToMany", to: "Post", field: "id", reference: "authorId", onDelete: "Cascade" },
-    },
-    Post: {
-      author: { type: "manyToOne", to: "User", field: "authorId", reference: "id" },
-    },
-  },
-  defaults: { User: { role: "USER" } },
-  updatedAt: { Post: "updatedAt" },
-  map: { User: { firstName: "名前" } },
-});
-```
-
-**With CLI (auto-generated from schema):**
-
-```ts
-import { GassmaClient } from "./generated/gassma/schemaClient";
-
-// Relations, defaults, updatedAt, map, etc. are all auto-injected
-const gassma = new GassmaClient();
-```
-
-## Prerequisites
-
-Install the GASsma CLI tool with the following command:
-
-```
-$ npm i gassma
-```
-
-## Creating a Schema File
-
-Create a `.prisma` file in your project. By default, the `./gassma` directory is searched.
-
-```
-my-project/
-├── gassma/
-│   └── schema.prisma    ← Write your schema here
-├── package.json
-└── ...
-```
-
-### Basic Syntax
-
-Define models using Prisma's syntax. Specify the output directory in the `generator` block's `output` field.
-
-```prisma
-generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/gassma"
-}
-
-model User {
-  id    Int     @id
-  name  String
-  email String?
-  age   Int
-}
-```
-
-### previewFeatures
-
-You can enable opt-in features by specifying `previewFeatures` in the `generator` block (same syntax as Prisma's `previewFeatures`).
-
-```prisma
-generator client {
-  provider        = "prisma-client-js"
-  output          = "./generated/gassma"
-  previewFeatures = ["strictUndefinedChecks"]
-}
-```
-
-Currently supported features:
-
-| Feature | Description | Reference |
-| --- | --- | --- |
-| `strictUndefinedChecks` | Turns explicit `undefined` in query inputs into runtime errors | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
-
-When enabled, `strictUndefinedChecks: true` is embedded into the generated client JS, and the generated type definitions also accept `Gassma.skip`.
-
-### Type Mapping
-
-Prisma types are converted to the following TypeScript types:
-
-| Prisma Type | TypeScript Type |
-| --- | --- |
-| `Int` | `number` |
-| `Float` | `number` |
-| `Decimal` | `number` |
-| `BigInt` | `number` |
-| `String` | `string` |
-| `Boolean` | `boolean` |
-| `DateTime` | `Date` |
-| `Json` | `string` |
-| `Bytes` | `string` |
-
-Adding `?` makes the field optional (`null` is allowed).
-
-### Relation Definitions
-
-Using Prisma's `@relation` attribute, relation information is automatically extracted and injected into the generated client.
-
-```prisma
-generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/gassma"
-}
-
-model User {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-
-model Post {
-  id       Int    @id
-  title    String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId Int
-}
-```
-
-The following relation settings are auto-generated from the above definition:
-
-- `User.posts`: oneToMany (User -> Post)
-- `Post.author`: manyToOne (Post -> User, onDelete: Cascade)
-
-#### Implicit Many-to-Many
-
-When bidirectional array references exist, an implicit Many-to-Many relation is automatically detected.
-
-```prisma
-model Post {
-  id   Int   @id
-  tags Tag[]
-}
-
-model Tag {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-```
-
-In the generated client, the junction table name is automatically resolved as `_PostToTag` (model names in alphabetical order). If you name the relation like `@relation("PostTags")`, the relation name is used as the junction table name (`_PostTags`) — the same rule as Prisma.
-
-The junction table (sheet) itself can be created automatically with [migrate / db push](/docs/reference/migrate) (you can also prepare a sheet with the same name manually in the spreadsheet).
-If you want to change the junction table name, give the relation a name with `@relation`.
-
-### enum
-
-Literal union types are auto-generated from Prisma's `enum` definitions.
-
-```prisma
-enum Role {
-  ADMIN
-  USER
-  MODERATOR
-}
-
-model User {
-  id   Int  @id
-  role Role
-}
-```
-
-Generated type:
-
-```ts
-"role": "ADMIN" | "USER" | "MODERATOR"
-```
-
-#### enum @map
-
-Adding `@map` to enum members allows you to map between the name used in code and the value stored in the spreadsheet.
-
-```prisma
-enum Role {
-  admin     @map("ADMIN")
-  user      @map("USER")
-  moderator @map("MODERATOR")
-}
-```
-
-Generated constant:
-
-```ts
-const Role = {
-  admin: "ADMIN",
-  user: "USER",
-  moderator: "MODERATOR",
-} as const;
-```
-
-The `@map` values are used in the type definition:
-
-```ts
-"role": "ADMIN" | "USER" | "MODERATOR"
-```
-
-### @gassma.addType
-
-By writing `@gassma.addType` in a Prisma field comment (`///`), you can add union types to the field's type.
-
-```prisma
-model User {
-  /// @gassma.addType string
-  id    Int @id          // Generated type: number | string
-
-  /// @gassma.addType string, boolean
-  score Int              // Generated type: number | string | boolean
-
-  name  String           // Generated type: string (normal when no comment)
-}
-```
-
-### @gassma.replaceType
-
-While `@gassma.addType` creates a union with the base type, `@gassma.replaceType` replaces the base type and generates only the specified types.
-
-```prisma
-model User {
-  /// @gassma.replaceType "admin", "user", "moderator"
-  role String
-}
-```
-
-Generated type:
-
-```ts
-"role": "admin" | "user" | "moderator"  // Does not include string
-```
-
-Priority: enum > replaceType > addType. When an enum exists, replaceType / addType are ignored.
-
-### @default
-
-Fields with `@default()` become optional (`?`) in the generated Create input type.
-
-```prisma
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-}
-```
-
-Generated type:
-
-```ts
-"isActive"?: boolean   // @default(true) -> Optional
-"createdAt"?: Date     // @default(now()) -> Optional
-```
-
-The defaults settings are automatically embedded in the generated client JS.
-
-| `@default()` | Generated JS |
-| --- | --- |
-| `@default(true)` / `@default(false)` | `true` / `false` |
-| `@default(0)` (number) | `0` |
-| `@default("USER")` (string) | `"USER"` |
-| `@default(ADMIN)` (enum value) | `"ADMIN"` |
-| `@default(active)` (enum value with `active @map("ACTIVE")`) | `"ACTIVE"` (the `@map`-applied value) |
-| `@default(now())` | `() => new Date()` |
-| `@default(uuid())` | `() => Utilities.getUuid()` |
-| `@default(autoincrement())` | Generated separately as an autoincrement setting |
-
-### @updatedAt
-
-Fields with `@updatedAt` become optional in the Create input type, and the updatedAt setting is embedded in the generated client JS.
-
-```prisma
-model Post {
-  id        Int      @id
-  title     String
-  updatedAt DateTime @updatedAt
-}
-```
-
-### @ignore
-
-Fields with `@ignore` are completely excluded from the type definition, and the ignore setting is embedded in the generated client JS.
-
-```prisma
-model User {
-  id       Int    @id
-  name     String
-  secret   String @ignore   // Not included in the type definition
-}
-```
-
-### @map
-
-`@map("name")` defines a field name mapping. The map setting is embedded in the generated client JS.
-
-```prisma
-model User {
-  id        Int    @id
-  firstName String @map("名前")
-  lastName  String @map("名字")
-}
-```
-
-In code, you work with `firstName` / `lastName`, which correspond to the columns named "名前" and "名字" in the spreadsheet.
-
-### @@ignore
-
-The model-level `@@ignore` excludes an entire sheet. The ignoreSheets setting is embedded in the generated client JS.
-
-```prisma
-model Logs {
-  id      Int    @id
-  message String
-
-  @@ignore
-}
-```
-
-### @@map
-
-The model-level `@@map("name")` maps a sheet name.
-
-```prisma
-model Users {
-  id   Int    @id
-  name String
-
-  @@map("ユーザー一覧")
-}
-```
-
-In code, you access it as `Users`, which corresponds to the sheet named "ユーザー一覧" in the spreadsheet.
-
-## CLI Commands
-
-### gassma generate
-
-Generates type files and client code.
-
-```
-$ npx gassma generate
-```
-
-By default, `.prisma` files in the `./gassma` directory are searched. You can specify a particular schema file or directory using the `--schema` option (equivalent to Prisma's `prisma generate --schema`).
-
-```
-$ npx gassma generate --schema gassma/user.prisma
-$ npx gassma generate --schema ./schemas
-```
-
-The `--watch` option monitors schema file changes and automatically regenerates.
-
-```
-$ npx gassma generate --watch
-```
-
-It can also be combined with `--schema`.
-
-The `--config` option lets you explicitly specify the path to the config file (equivalent to Prisma's `--config`).
-
-```
-$ npx gassma generate --config configs/gassma.config.ts
-```
-
-If the specified file does not exist, a `ConfigFileNotFoundError` is thrown. When omitted, the default locations are searched as before (see "Config File Search Rules" below).
-
-### gassma init
-
-Initializes a project and auto-generates a schema file and configuration file.
-
-```
-$ npx gassma init
-```
-
-The following files are generated:
-
-- `gassma/schema.prisma` -- Initial schema
-- `gassma.config.ts` -- Configuration file
-
-| Option | Description |
-| --- | --- |
-| `--output <path>` | Customize the output path |
-| `--with-model` | Generate a schema with a sample User model |
-
-If `schema.prisma` already exists, it safely stops with an error.
-
-### gassma validate
-
-Performs syntax checking and consistency checking of the schema file (equivalent to Prisma's `prisma validate`).
-
-```
-$ npx gassma validate
-```
-
-```
-$ npx gassma validate --schema gassma/test.prisma
-```
-
-You can also specify the path to the config file with the `--config` option.
-
-Check items:
-
-- Syntax errors (parser error detection)
-- `generator` block existence check
-- `output` field required check
-- At least one model is defined
-
-On success, the following is output:
-
-```
-The schema at /path/to/gassma/test.prisma is valid 🚀
-```
-
-### gassma format
-
-Formats `.prisma` files with the same formatting as the official Prisma formatter (uses `@prisma/internals`' `formatSchema`).
-
-```
-$ npx gassma format
-```
-
-| Option | Description |
-| --- | --- |
-| `--schema <path>` | Format only a specific file |
-| `--config <path>` | Specify the path to the config file |
-| `--check` | Check if already formatted (for CI; exits with code 1 if unformatted) |
-
-### gassma studio
-
-Opens the spreadsheet configured in `datasource` in your OS's default browser.
-
-```
-$ npx gassma studio
-```
-
-| Option | Description |
-| --- | --- |
-| `--config <path>` | Specify the path to the config file |
-
-The URL is resolved in the following order:
-
-1. The `url` of the `datasource` block in the schema
-2. `datasource.url` in `gassma.config.ts`
-
-If `url` is a full URL (`https://...`), it is opened as-is; if it is a spreadsheet ID, `https://docs.google.com/spreadsheets/d/<id>/edit` is constructed and opened. If neither has a URL set, a `NoDatasourceUrlError` occurs.
-
-### gassma version
-
-Displays the GASsma CLI version.
-
-```
-$ npx gassma version
-```
-
-You can also check with the `--version` / `-V` flag.
-
-| Option | Description |
-| --- | --- |
-| `--json` | Output version information as JSON |
-
-With `--json`, the version is output as JSON (`{"gassma":"<version>"}`).
-
-```
-$ npx gassma version --json
-{"gassma":"1.2.3"}
-```
-
-### Generated Files
-
-The following files are generated based on the schema file name. For example, for `schema.prisma`:
-
-| File | Content |
-| --- | --- |
-| `schema.d.ts` | Type definitions (model types, query types, common types) |
-| `schemaClient.js` | Client implementation (with auto-injected relation definitions) |
-| `schemaClient.d.ts` | Client type definitions |
-
-The output directory is the directory specified by the `generator` block's `output`.
-
-## Using the Generated Client
-
-Import `GassmaClient` from the generated client file and use it directly. Relation definitions are auto-injected.
-
-```ts
-import { GassmaClient } from "./generated/gassma/schemaClient";
-
-const gassma = new GassmaClient();
-
-// Access sheets with type safety
-const users = gassma.User.findMany({
-  where: { age: { gte: 20 } },
-  select: { name: true, email: true },
-});
-```
-
-You can instantiate it using the same pattern as Prisma.
-
-```ts
-// Prisma
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-
-// GASsma (same pattern)
-import { GassmaClient } from "./generated/gassma/schemaClient";
-const gassma = new GassmaClient();
-```
-
-### Initialization with Options
-
-```ts
-// Specify spreadsheet ID
-const gassma = new GassmaClient("SPREAD_SHEET_ID");
-
-// Options object
-const gassma = new GassmaClient({
-  id: "SPREAD_SHEET_ID",
-  omit: {
-    User: { password: true },
-  },
-});
-```
-
-## Configuration File (gassma.config.ts)
-
-By placing `gassma.config.ts` at the project root, you can centrally manage CLI settings (equivalent to Prisma's `prisma.config.ts`). Extensions other than TypeScript (`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`) and placement in the `.config/` directory are also supported (see "Config File Search Rules" below).
-
-### Configuration Interface
-
-There are two ways to write the configuration file.
-
-**1. Using the `defineConfig` helper (recommended):**
-
-```ts
-import { defineConfig } from "gassma/config";
-
-export default defineConfig({
-  schema: "gassma/schema.prisma",
-  datasource: {
-    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-  },
-});
-```
-
-**2. Using the `satisfies` operator:**
-
-```ts
-import type { GassmaConfig } from "gassma";
-
-export default {
-  schema: "gassma/schema.prisma",
-  datasource: {
-    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-  },
-} satisfies GassmaConfig;
-```
-
-The `GassmaConfig` type can be imported from the root of the `gassma` package.
-
-### Configuration Options
-
-| Option | Type | Required | Description |
-| --- | --- | --- | --- |
-| `schema` | `string` | No | Path to the schema file or directory (default: `./gassma`) |
-| `datasource.url` | `string` | No | Spreadsheet URL or ID |
-
-### Config File Search Rules
-
-The config file is searched in the following order, and the **first file found** is used:
-
-1. `gassma.config.js`
-2. `gassma.config.ts`
-3. `gassma.config.mjs`
-4. `gassma.config.cjs`
-5. `gassma.config.mts`
-6. `gassma.config.cts`
-7. `.config/gassma.js`
-8. `.config/gassma.ts`
-9. `.config/gassma.mjs`
-10. `.config/gassma.cjs`
-11. `.config/gassma.mts`
-12. `.config/gassma.cts`
-
-All extensions of `gassma.config.*` directly under the project root are searched first, followed by `gassma.*` in the `.config/` directory. This is the same order as Prisma's config file search, including `.js` taking precedence over `.ts`.
-
-### --config Option
-
-The `generate` (including `--watch`), `validate`, `format`, and `studio` commands accept the `--config` option to explicitly specify the path to the config file (equivalent to Prisma's `--config`).
-
-```
-$ npx gassma generate --config configs/gassma.config.ts
-```
-
-- Relative paths are resolved from the current working directory.
-- If the specified file does not exist, a `ConfigFileNotFoundError` is thrown.
-- When omitted, the default locations are searched according to the search rules above.
-
-### Load Behavior
-
-When running `gassma generate`, the following is displayed when the config file is loaded successfully:
-
-```
-⚙️ Loaded config from gassma.config.ts
-```
-
-- If the config file has a syntax or runtime error, or if a known key (`schema` / `datasource.url`) has an invalid type, a `GassmaConfigLoadError` is thrown.
-- If the config contains unknown keys, a warning is displayed and those keys are ignored (no error is thrown).
-
-```
-Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
-```
-
-### env() Helper
-
-Using the `env()` function, you can retrieve the spreadsheet URL from an environment variable (equivalent to Prisma's `env()`).
-
-```ts
-import "dotenv/config";
-import { defineConfig, env } from "gassma/config";
-
-export default defineConfig({
-  schema: "gassma",
-  datasource: {
-    url: env("SPREADSHEET_URL"),
-  },
-});
-```
-
-It can also be used with the `satisfies` pattern.
-
-```ts
-import "dotenv/config";
-import type { GassmaConfig } from "gassma";
-import { env } from "gassma/config";
-
-export default {
-  schema: "gassma",
-  datasource: {
-    url: env("SPREADSHEET_URL"),
-  },
-} satisfies GassmaConfig;
-```
-
-#### Typed env()
-
-By passing an interface of your environment variables as a type argument, the names you can pass to `env()` are restricted to its keys, and you get autocompletion.
-
-```ts
-import "dotenv/config";
-import { defineConfig, env } from "gassma/config";
-
-interface Env {
-  SPREADSHEET_URL: string;
-}
-
-export default defineConfig({
-  schema: "gassma",
-  datasource: {
-    url: env<Env>("SPREADSHEET_URL"),
-  },
-});
-```
-
-Only keys whose values are of type `string` (or `string | undefined`) can be specified. Specifying a nonexistent key results in a compile error.
-
-`env()` throws a `GassmaConfigEnvError` if the environment variable is not set or is an empty string. For optional environment variables, use `process.env` directly.
-
-### datasource.url
-
-When you specify a spreadsheet URL or ID in `datasource.url`, the `id` is automatically embedded in the generated client JS. This allows you to connect to the target spreadsheet with just `new GassmaClient()`.
-
-Both full URLs and spreadsheet IDs are supported.
-
-```ts
-// Full URL
-datasource: {
-  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-}
-
-// Direct ID specification
-datasource: {
-  url: "XXXXX",
-}
-```
-
-### datasource Block in Schema
-
-You can also specify the URL by writing a `datasource` block in the schema file.
-
-```prisma
-datasource db {
-  provider = "google-spreadsheet"
-  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
-}
-```
-
-#### URL Resolution Priority
-
-1. `datasource` block in the schema (highest priority)
-2. `datasource.url` in `gassma.config.ts`
-
-### Schema Resolution Priority
-
-1. `--schema` option (highest priority)
-2. `schema` setting in `gassma.config.ts`
-3. Default `./gassma` directory
-
-Relative paths are resolved from different base directories: the `--schema` option is resolved from the current working directory, while `schema` in the config file is resolved **relative to the location of the config file** (same as Prisma).
-
-Running `gassma init` also auto-generates `gassma.config.ts`.
-
-## Multi-file Schema
-
-When you place multiple `.prisma` files in the same directory (and subdirectories), they are automatically **merged into a single schema**. This is equivalent to Prisma's [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) feature.
-
-```
-gassma/
-├── schema.prisma        ← Write the generator block here
-├── models/
-│   ├── user.prisma      ← User, Profile models
-│   └── post.prisma      ← Post, Comment models
-```
-
-The `generator` block only needs to be written in one file and is shared across all files. All models are consolidated into a single client output.
-
-## Multiple Schemas (Multiple Spreadsheets)
-
-When working with different spreadsheets, separate schemas into different directories and generate them individually. Type names are prefixed with the schema name, so there are no conflicts even with models of the same name.
-
-```
-schemas/
-├── user/
-│   └── schema.prisma    → userClient.js, user.d.ts
-└── order/
-    └── schema.prisma    → orderClient.js, order.d.ts
-```
-
-```ts
-import { GassmaClient as UserClient } from "./generated/user/schemaClient";
-import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
-
-const userGassma = new UserClient();
-const orderGassma = new OrderClient();
-```
-
-## Overview of Generated Types
-
-The generated `.d.ts` includes the following types:
-
-- **Model types**: Type definitions for each field (`GassmaUserUse`, etc.)
-- **Query types**: `FindData`, `CreateData`, `UpdateData`, `DeleteData`, `UpsertData`, etc.
-- **Select / Omit types**: Types for field selection and exclusion
-- **Filter types**: `WhereUse`, `FilterConditions` (including `FieldRef` support)
-- **OrderBy types**: Sort conditions (relation sort, `_count` sort, nulls control included)
-- **Include types**: Types for relation fetching (including `_count`)
-- **Nested Write types**: Create, connect, update, and delete operations for related records
-- **Numeric operation types**: `NumberOperation` (increment / decrement / multiply / divide)
-- **Common types**: `FieldRef`, `GassmaClientOptions`, error class group
-- **Configuration types**: `DefaultsConfig`, `UpdatedAtConfig`, `IgnoreConfig`, `AutoincrementConfig`, `MapConfig`, etc.
-- **Controller types**: Argument and return value types for all methods
+For details on `GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError` / `GassmaTransactionLockRequiredError` / `GassmaInvalidLockError`, see the [Error List](/docs/reference/errors).
 
 # Write Atomicity and Concurrency (https://gassma.io/en/docs/reference/write-atomicity)
 
@@ -6993,298 +8325,133 @@ gassma.$transaction((tx) => {
 });
 ```
 
-`$transaction` acquires a lock, so **writes that go through GASsma are serialized with each other**. The read-then-write window described above can no longer be interrupted by another GASsma write.
+`$transaction` acquires a lock, so **writes that use the same lock are serialized with each other**. The default lock is [your own script project's](/docs/reference/transaction#lock), so the read-then-write window described above can no longer be interrupted by a GASsma write from the same project.
 
-This lock only serializes **operations that use GASsma**. It has no effect on:
+This lock only serializes **operations that share the same lock**. It has no effect on:
 
 - **a person editing the spreadsheet by hand**
 - **another script writing to the sheet without GASsma**
+- **a different GAS project touching the same spreadsheet** (by default each project gets its own lock, so they do not stop each other)
 
-GASsma cannot do anything about these. If the sheets may be edited by hand while your operations run, the protection has to come from the design side — for example, **arranging things so the sheets are simply not touched concurrently**, or **running your operations during hours when edits are not accepted**.
+GASsma cannot do anything about the first two. If the sheets may be edited by hand while your operations run, the protection has to come from the design side — for example, **arranging things so the sheets are simply not touched concurrently**, or **running your operations during hours when edits are not accepted**. For the third, you can choose the lock granularity with `GassmaClient`'s [`lock`](/docs/reference/transaction#lock).
 
-# bootstrap (Local Development Environment Setup) (https://gassma.io/en/docs/reference/bootstrap)
+# raw (Writing Formulas) (https://gassma.io/en/docs/reference/raw)
 
-Set up a local development environment with clasp + esbuild + TypeScript + GASsma in one shot with npx gassma bootstrap
+Use Gassma.raw to opt out of formula-injection escaping per cell and write a formula as-is
 
-`npx gassma bootstrap` is a command that sets up a local GAS development environment (clasp + esbuild + TypeScript + GASsma library) for a new project in one shot.
+`Gassma.raw(value)` is a helper that skips the automatic formula-injection escaping for that cell only and writes the value to the sheet **as-is**. When you pass a string starting with `=`, the cell holds a **live spreadsheet formula**.
 
-```
-$ npx gassma bootstrap my-app   # create my-app/ and set up inside it
-$ npx gassma bootstrap          # ask for a directory first (default: gassma-project)
-$ npx gassma bootstrap .        # set up in the current directory
-```
+## Default Protection (Automatic Escaping)
 
-Since it runs via `npx`, no prior installation is required. When executed, it walks you through interactive questions and completes everything from creating the target directory and the Apps Script project to build configuration, schema file generation, and dependency installation.
+When writing, GASsma escapes any string starting with `=`, `+`, `-`, or `@` by prepending a `'` (single quote). This prevents strings like `=IMPORTRANGE(...)` slipped into form input from being executed as formulas (formula injection).
 
-The target directory is created by the command itself, so you do not need to prepare one in advance. Passing `.` sets up in the existing current directory. Existing files are skipped or merged instead of overwritten (see "Directory Handling" and "Idempotency" below).
+- Only **strings** are escaped. Numbers, booleans, and Dates are written unchanged. However, `NaN` / `Infinity` / `-Infinity` and invalid Dates (Invalid Date) are rejected with a `GassmaInvalidValueError` before escaping — the write itself fails.
+- The `'` does not appear in the spreadsheet's display or when reading, so reading an escaped cell back through GASsma returns the original string (e.g. `"=1+2"`).
 
-## Prerequisites
+Since this protection is always on, it gets in the way when you intentionally want to write an aggregation formula. `Gassma.raw` is the opt-out for that.
 
-[clasp](https://github.com/google/clasp) must be installed and you must be logged in.
+## Basic Usage
 
-```
-$ npm install -g @google/clasp
-$ clasp login
-```
-
-Also, enable the Apps Script API on the [Apps Script API settings page](https://script.google.com/home/usersettings) (clasp needs it to create projects).
-
-If clasp is not found, the command shows the following message and exits safely (no files are modified).
-
-```
-clasp is required but was not found in your PATH.
-Install it with: npm install -g @google/clasp
-Then log in with: clasp login
-```
-
-## Interactive Flow
-
-You will be asked the following questions in order (the prompts are the actual wording).
-
-### 1. Project directory?
-
-The directory to set up the project in. Defaults to `gassma-project`; entering `.` sets up in the current directory. A directory that does not exist is created, and if it exists and is not empty, a confirmation is asked before continuing (see "Directory Handling" below).
-
-If you pass a directory as a command argument (`npx gassma bootstrap my-app` or `npx gassma bootstrap .`), this question is skipped.
-
-### 2. Project title?
-
-The title of the Apps Script project to create. Defaults to the target directory name (the name of the directory given as the argument or in question 1).
-
-### 3. Create a new spreadsheet as well?
-
-With **Yes** (the default), a new spreadsheet is created together with a container-bound script attached to it (`clasp create-script --type sheets`). With **No**, a standalone script is created (`--type standalone`).
-
-After this, `clasp create-script` runs and generates `.clasp.json` (with `rootDir` set to `./dist`). Then the GASsma library dependency and other settings are automatically applied to `dist/appsscript.json` (see "What Gets Generated" below).
-
-If `.clasp.json` already exists, this question and `clasp create-script` are skipped (`Found an existing .clasp.json. Skipping clasp create-script.`).
-
-### 4. Function exposure style?
-
-Choose how functions are exposed to GAS. Sample code for each style is shown before the choices.
-
-**export (recommended)** — Uses `@gassma/gas-esbuild-plugin`; exported functions become GAS global functions as-is.
+Wrap a `data` value in `Gassma.raw()` and that cell alone skips escaping. The main use case is writing an aggregation formula into a number column.
 
 ```ts
-export const main = () => console.log("Hello GAS!");
-```
+const gassma = new GassmaClient();
 
-**global** (esbuild-gas-plugin style) — Uses `esbuild-gas-plugin`; functions are exposed by assigning to the `global` object.
-
-```ts
-const main = () => console.log("Hello GAS!");
-
-interface Global {
-  main: typeof main;
-}
-
-declare const global: Global;
-
-global.main = main;
-```
-
-The plugin in the generated `esbuild.mjs` and the devDependencies in `package.json` are switched according to the selected style.
-
-### 5. Linter and formatter setup?
-
-Choose the linter and formatter setup.
-
-| Choice | Description |
-| --- | --- |
-| `oxlint + oxfmt` | recommended (the default) |
-| `eslint + prettier` | ESLint (typescript-eslint) + Prettier |
-| `none` | No linter or formatter |
-
-With `--yes`, the default `oxlint + oxfmt` is selected. The devDependencies in `package.json`, the `lint` / `lint:fix` / `format` / `format:check` scripts, and the generated config files change according to the choice (see "Linter and Formatter Choice" below).
-
-### 6. Generate a sample src/index.ts?
-
-With **Yes** (the default), sample code for the selected style is generated as `src/index.ts`.
-
-### 7. Install dependencies now?
-
-With **Yes** (the default), dependencies are installed with the detected package manager (e.g. `Install dependencies now? (npm install)`). This question is not asked when `--skip-install` is specified.
-
-## What Gets Generated
-
-| File | Description |
-| --- | --- |
-| `.clasp.json` | Generated by `clasp create-script` (`rootDir: ./dist`) |
-| `dist/appsscript.json` | GASsma library dependency, `timeZone`, `exceptionLogging: STACKDRIVER`, and `runtimeVersion: V8` are set automatically |
-| `package.json` | `build` / `push` / `open` / `deploy` scripts and dependencies (plus lint / format scripts depending on question 5) |
-| `esbuild.mjs` | Build configuration for the selected style |
-| `tsconfig.json` | TypeScript configuration for GAS (`@types/google-apps-script`) |
-| `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*` (except `dist/appsscript.json`) |
-| `.oxlintrc.json` | oxlint configuration (only if you chose `oxlint + oxfmt` in question 5) |
-| `eslint.config.mjs` / `.prettierrc` | ESLint / Prettier configuration (only if you chose `eslint + prettier` in question 5) |
-| `src/index.ts` | Sample code (only if you answered Yes to question 6) |
-| `AGENTS.md` | Project guidance for coding agents (commands, development flow, constraints, and a pointer to the GASsma reference) |
-| `gassma/schema.prisma` / `gassma.config.ts` | Equivalent to `gassma init` (schema with a sample User model and the config file) |
-
-### dist/appsscript.json
-
-The `timeZone` is detected automatically from your environment (falls back to `America/New_York` if detection fails). The GASsma library is added as the following entry.
-
-```json
-{
-  "userSymbol": "Gassma",
-  "libraryId": "1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH",
-  "version": "<latest version resolved at run time>",
-  "developmentMode": false
-}
-```
-
-If the existing manifest already has `exceptionLogging` or `runtimeVersion` set, those values are preserved.
-
-### package.json Scripts
-
-| Script | Description |
-| --- | --- |
-| `build` | `node esbuild.mjs` (bundles `src/index.ts` into `dist/index.js`) |
-| `push` | `clasp push` |
-| `open` | `clasp open-script` |
-| `deploy` | `npm run build && npm run push` |
-
-If you chose `oxlint + oxfmt` or `eslint + prettier` in question 5, `lint` / `lint:fix` / `format` / `format:check` are added on top of these (see the next section for their contents).
-
-Note that in a newly generated `package.json`, `devDependencies` are written out sorted alphabetically (formatter checks expect them to be sorted).
-
-### Linter and Formatter Choice
-
-The devDependencies, npm scripts, and config files that get added depend on your answer to question 5.
-
-#### oxlint + oxfmt (recommended)
-
-`oxlint@^1.76.0` and `oxfmt@^0.61.0` are added to devDependencies.
-
-| Script | Description |
-| --- | --- |
-| `lint` | `oxlint` |
-| `lint:fix` | `oxlint --fix` |
-| `format` | `oxfmt` |
-| `format:check` | `oxfmt --check` |
-
-`.oxlintrc.json` is generated.
-
-```json
-{
-  "plugins": ["typescript"],
-  "categories": { "correctness": "error" },
-  "ignorePatterns": ["dist/**", "src/generated/**"]
-}
-```
-
-#### eslint + prettier
-
-`eslint@^10.8.0` / `eslint-config-prettier@^10.1.8` / `prettier@^3.9.6` / `typescript-eslint@^8.65.0` are added to devDependencies.
-
-| Script | Description |
-| --- | --- |
-| `lint` | `eslint .` |
-| `lint:fix` | `eslint . --fix` |
-| `format` | `prettier --write .` |
-| `format:check` | `prettier --check .` |
-
-`eslint.config.mjs` and `.prettierrc` are generated.
-
-```js
-import { defineConfig, globalIgnores } from "eslint/config";
-import prettier from "eslint-config-prettier/flat";
-import tseslint from "typescript-eslint";
-
-export default defineConfig([
-  globalIgnores(["dist/**", "src/generated/**"]),
-  {
-    files: ["**/*.ts"],
-    extends: [tseslint.configs.recommended, prettier],
+gassma.Report.create({
+  data: {
+    title: userInput, // escaped as usual
+    total: Gassma.raw("=SUM(B2:B10)"), // this cell alone is written as a formula
   },
-]);
+});
 ```
 
-```json
-{
-  "semi": true,
-  "singleQuote": false,
-  "trailingComma": "all"
+Within the same write, columns that do not use `Gassma.raw()` (like `title` above) remain protected as before.
+
+It can be used with all `create` and `update` methods (`create` / `createMany` / `createManyAndReturn` / `update` / `updateMany` / `updateManyAndReturn` / `upsert`), and with nested write `create` / `createMany` / `connectOrCreate`'s `create`.
+
+## The Return Value Is Not the Computed Result
+
+The return value of `create` / `update` etc. is an **echo of what was written**. GASsma does not re-read the sheet after writing, so the **computed result of the formula is not returned**. If you write a formula into a number column, the return value is the formula **string**.
+
+```ts
+const created = gassma.FormulaCell.create({
+  data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
+});
+created.total; // "=C5*2" (the formula string, not the computed result)
+```
+
+If you need the computed result, read the record back after writing.
+
+```ts
+const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+readBack.total; // 120 (the result computed on the cell)
+```
+
+## The Effect of raw Is Limited to That One Cell
+
+The effect of `Gassma.raw()` is limited to **the exact cell** it was passed for.
+
+- Other columns in the same row are escaped as usual.
+- Other writes referencing a raw cell — such as FK values handed down to child rows in nested writes — are never treated as raw either.
+
+```ts
+gassma.FormulaCell.create({
+  data: {
+    id: 4,
+    label: "=1+2", // escaped; stays the literal string "=1+2"
+    amount: 60,
+    total: Gassma.raw("=C5*2"), // written as a formula and computed on the cell
+  },
+});
+```
+
+## Combining with $transaction
+
+It can also be used inside [$transaction](/docs/reference/transaction). Raw values are written to the sheet together at commit time, and become formulas at that point.
+
+Reads inside the tx before commit (read-your-writes) still see the **formula string**, because nothing has been written to the sheet yet.
+
+```ts
+gassma.$transaction((tx) => {
+  tx.FormulaCell.create({
+    data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
+  });
+
+  const buffered = tx.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+  buffered.total; // "=C5*2" (not computed yet — before commit)
+});
+
+// After commit the cell holds a live formula and the computed result can be read
+const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+readBack.total; // 120
+```
+
+## Types
+
+`Gassma.raw(value: string)` returns a `Gassma.RawValue`.
+
+- In the generated types, **every column** in `data` accepts `Gassma.RawValue`. Since a formula can produce a value of any type on the cell, you can pass it to number, boolean, and Date columns as well.
+- It cannot be used in `where`. It is write-only. Passing it as a `where` value throws a `GassmaInvalidValueError` (Expected a scalar value, but received a Gassma.raw value.).
+
+## Never Use It with Untrusted Input
+
+**Never pass user input** to `Gassma.raw()`. Because it bypasses the default protection, it makes you vulnerable to formula injection.
+
+```ts
+// DANGEROUS: passing form input straight into raw
+function onFormSubmit(e) {
+  const gassma = new GassmaClient();
+  gassma.Answers.create({
+    data: {
+      // If a malicious user enters "=IMPORTRANGE(...)",
+      // it will be executed as a formula
+      name: Gassma.raw(e.namedValues["名前"][0]),
+    },
+  });
 }
 ```
 
-#### none
-
-No devDependencies, scripts, or config files are added.
-
-The above is all bootstrap sets up. The following are **not** included (add them yourself if you need them).
-
-- pre-commit hooks (husky / lint-staged and the like)
-- oxlint type-aware linting (`oxlint-tsgolint`)
-- an oxfmt config file (it is used with its defaults)
-
-### About .gitignore
-
-`.clasp.json` and `.clasprc.json` are gitignored following the official clasp CI guide (they contain credentials and the script ID). When sharing the project with your team, restore them from your team's secret store. The same guidance is shown when setup completes.
-
-```
-Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
-```
-
-## Arguments and Options
-
-| Argument | Description |
-| --- | --- |
-| `[directory]` | Directory to set up the project in (`.` for the current directory). Omitting it prompts for one |
-
-| Option | Description |
-| --- | --- |
-| `--yes` | Answer all prompts with their default values (non-interactive mode). Without an argument, `./gassma-project` is created and set up, and the non-empty directory confirmation is answered with continue |
-| `--skip-install` | Skip dependency installation |
-| `--dry-run` | Show planned actions without writing files, creating directories, or running commands (directory creation is also shown as a plan entry like `create directory my-app`) |
-
-In a non-interactive terminal (such as CI), `--yes` is required. Without it, the command exits with
-`An interactive terminal is required. Run with --yes for non-interactive mode.`
-
-## Behavior Details
-
-### Directory Handling
-
-- If the specified directory does not exist, it is created and the project is set up inside it.
-- If it exists and is not empty, `Directory "my-app" is not empty. Continue?` (default **No**) is asked. Choosing No exits safely with `Bootstrap cancelled.` without changing anything. With `--yes`, the command continues automatically.
-- Because of this, an interrupted setup can be resumed simply by running the same command again and answering Yes to the confirmation (already generated files are skipped/merged as described in "Idempotency" below).
-- If a **non-directory file** with the same name already exists, the command exits with the error `"my-app" already exists and is not a directory.`
-
-### Idempotency
-
-The command is designed to be safe to re-run.
-
-- If `.clasp.json` exists, `clasp create-script` is skipped.
-- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` are skipped if they already exist.
-- The linter / formatter config files (`.oxlintrc.json` / `eslint.config.mjs` / `.prettierrc`, generated only for the choice made in question 5) are likewise skipped if they already exist.
-- If `package.json` already exists, the bootstrap settings are **merged** into it (existing values win).
-- If `.gitignore` already exists, only the missing entries are appended.
-- If `dist/appsscript.json` already has the GASsma library entry, it is not added twice.
-
-### GASsma Library Version Resolution
-
-The latest GASsma library version written to `dist/appsscript.json` is resolved automatically at run time.
-
-1. Fetch the latest library version number via `clasp list-versions`
-2. If that fails, fetch it from GASsma's `package.json` on GitHub
-
-If both fail (e.g. offline), adding the library entry is skipped and manual instructions for adding it in the Apps Script editor (including the script ID) are shown. Re-running `gassma bootstrap` while online adds the entry automatically.
-
-### Package Manager Auto-Detection
-
-npm / pnpm / yarn / bun are detected automatically (falling back to npm), and the install command and the completion guidance reflect the detected package manager.
-
-## Next Steps After Setup
-
-When setup completes, the following steps are shown.
-
-1. Edit `gassma/schema.prisma` to define your models
-2. Run `npx gassma generate` to generate the typed client
-3. Run `npm run deploy` to build and push to Apps Script
-4. Run `npm run open` to open the project in the Apps Script editor
-
-For how to write schemas and the details of `gassma generate`, see [Local Development with Prisma Schema](/docs/reference/type-generation).
+Use `Gassma.raw()` only with **trusted values**, such as fixed formulas you wrote yourself. Pass user input as-is without wrapping it in `Gassma.raw()`, and the default protection applies.
 
 # fields (Column Comparison) (https://gassma.io/en/docs/reference/fields)
 
@@ -7297,7 +8464,7 @@ Use the `fields` property within `where` conditions when you want to compare aga
 Obtain a `FieldRef` from the `fields` property of each sheet controller and pass it as a value in filter conditions.
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 const userSheet = gassma.Users;
 
 // Search for users where firstName equals lastName
@@ -7393,283 +8560,6 @@ const result = userSheet.findMany({
 
 If the column name specified in `FieldRef` does not exist in the sheet, the condition will not match (no error is thrown).
 
-# migrate / db push (Syncing Sheets) (https://gassma.io/en/docs/reference/migrate)
-
-Generate a GAS function that syncs your spreadsheet's sheets and columns with the schema using npx gassma migrate / npx gassma db push
-
-`npx gassma migrate` and `npx gassma db push` are commands that generate a GAS function that syncs your spreadsheet's sheets and columns with the Prisma schema (the counterparts of Prisma's `prisma migrate dev` / `prisma db push`).
-
-```
-$ npx gassma migrate                  # generate and record a trail (migrations/)
-$ npx gassma migrate --name add_tags  # name the trail entry
-$ npx gassma db push                  # generate without recording a trail
-```
-
-The only difference between the two commands is **whether a trail (the `migrations/` directory) is recorded**. `migrate` leaves a `migration.js` under `migrations/` every time the schema changes, while `db push` never touches `migrations/`. The generated runnable stub is identical for both. Use `db push` when you do not need a migration history.
-
-The commands themselves do not access the spreadsheet. The sheets are synced the moment you run the generated `gassmaMigrate` function once on the Apps Script side. `clasp push` is not run automatically either (see "After Generating" below).
-
-## What Gets Generated
-
-A runnable stub `gassma-migration.js` (plain JS) is generated in the output directory. Its content is a single `gassmaMigrate` function that calls the GASsma library's `migrateSheets`, with the sheet and column names extracted from the schema embedded in it.
-
-```prisma
-model User {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-
-model Post {
-  id       Int    @id
-  title    String
-  author   User   @relation(fields: [authorId], references: [id])
-  authorId Int
-}
-```
-
-The schema above generates the following.
-
-```js
-function gassmaMigrate() {
-  Gassma.migrateSheets({
-    spreadsheetId: "XXXXX",
-    models: [
-      { name: "User", columns: ["id", "name"] },
-      { name: "Post", columns: ["id", "title", "authorId"] }
-    ]
-  });
-}
-```
-
-- The spreadsheet ID is resolved from the `datasource` block in the schema first, then from `datasource.url` in `gassma.config.ts`. If neither is set, it is not embedded and the spreadsheet bound to the script is targeted at runtime.
-- Running the function requires the GASsma library to be registered in the GAS project (an environment set up with [bootstrap](/docs/reference/bootstrap) works as-is). The call symbol (the `Gassma.` part in the example) is automatically resolved from the `userSymbol` of the library registered in `appsscript.json` in the output directory (falling back to `Gassma` when not found).
-
-### Output Directory Resolution
-
-1. `--output <dir>` (highest priority)
-2. `rootDir` in `.clasp.json` in the current directory
-
-If neither is available, a `MigrateOutputDirError` is raised.
-
-### Sheet and Column Extraction Rules
-
-- One sheet per model. When `@@map` / `@map` are used, the mapped physical names are used.
-- Only scalar fields become columns. Relation fields (`posts` / `author` in the example above) do not become columns, while foreign key columns (`authorId`) do.
-- Fields and models with `@ignore` / `@@ignore` are **also included as creation targets**. As in Prisma, they are only excluded from the client and still exist physically in the spreadsheet.
-- Junction sheets for [implicit Many-to-Many](/docs/reference/type-generation#implicit-many-to-many) relations are also created (e.g. `_PostToTag`, with columns `postId`, `tagId` in alphabetical order of the model names).
-
-## After Generating
-
-Run the two Next steps shown on success, and the sheets get synced.
-
-```
-✅ Migration generated
-
-Next steps:
-  1. Run "clasp push" (or "npm run push") to upload gassma-migration.js
-  2. In the Apps Script editor, run the "gassmaMigrate" function once
-```
-
-Push with `clasp push` directly (or `npm run push`, which only calls `clasp push`). A full clean build (such as `npm run deploy` generated by bootstrap) may wipe the output directory and delete `gassma-migration.js` before it is pushed.
-
-## Sync Rules
-
-The sync performed by `gassmaMigrate` (`Gassma.migrateSheets`) is idempotent and safe to run any number of times.
-
-- Sheets that are in the schema but not in the spreadsheet are created, with the headers written to row 1.
-- On existing sheets, only the missing columns are appended to the right end of the header row. **Existing columns are never reordered**, and data rows are never written to.
-- Columns and sheets that are not in the schema are not deleted by default; a warning is logged and they are left untouched.
-
-```
-Gassma.migrateSheets: column "legacy" on sheet "User" is not in the schema. It is left untouched.
-```
-
-## Deleting Data (--accept-data-loss)
-
-Pass `--accept-data-loss` to delete columns and sheets that are not in the schema. `acceptDataLoss: true` is embedded in the stub, and the deletion is performed when `gassmaMigrate` runs.
-
-Columns and sheets that still contain data are deleted after a warning that reports how much is left (the number of non-empty cells for a column, the number of data rows for a sheet). Empty ones are deleted without a warning.
-
-```
-Gassma.migrateSheets: You are about to drop the column "legacy" on the sheet "User", which still contains 12 non-empty values.
-```
-
-## Migration Trail (migrations/)
-
-`migrate` creates `<UTC timestamp>[_name]/migration.js` under the `migrations/` directory next to the schema. Its content is identical to the runnable stub.
-
-```
-gassma/
-├── schema.prisma
-└── migrations/
-    ├── 20260801120000_init/
-    │   └── migration.js
-    └── 20260802093000_add_tags/
-        └── migration.js
-```
-
-- If the content is the same as the latest trail entry, no new entry is created (`Already in sync, no schema change or pending migration was found.` is shown). The runnable stub itself is rewritten every time.
-- `--name` names the trail entry. The name is sanitized by splitting camelCase, lowercasing, and replacing runs of non-alphanumeric characters with `_` (e.g. `--name "Add UserRole!"` → `20260801120000_add_user_role`).
-
-## Options
-
-### migrate
-
-| Option | Description |
-| --- | --- |
-| `--name <name>` | Name for the new migration |
-| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
-| `--schema <path>` | Path to a specific `.prisma` file to migrate from |
-| `--config <path>` | Custom path to your GASsma config file |
-| `--accept-data-loss` | Delete sheets and columns that are not in the schema |
-
-### db push
-
-| Option | Description |
-| --- | --- |
-| `--output <dir>` | Directory to write `gassma-migration.js` (defaults to `rootDir` in `.clasp.json`) |
-| `--schema <path>` | Path to a specific `.prisma` file to push from |
-| `--config <path>` | Custom path to your GASsma config file |
-| `--accept-data-loss` | Delete sheets and columns that are not in the schema |
-
-## Limitations
-
-- The header row is assumed to be **row 1 starting at column A** on every sheet. Header positions moved via [changeSettings](/docs/reference/settings/changeSettings) are not supported.
-- Since a spreadsheet must contain at least one sheet, the last remaining sheet is never deleted even with `--accept-data-loss`; only a warning is logged.
-
-## Gassma.migrateSheets (Library API)
-
-`Gassma.migrateSheets`, which the stub calls, is a public GASsma API. You can also call it directly with the sheets and columns you want to sync, without using the CLI.
-
-```ts
-Gassma.migrateSheets({
-  spreadsheetId: "SPREAD_SHEET_ID", // defaults to the bound spreadsheet
-  models: [{ name: "User", columns: ["id", "name"] }],
-  acceptDataLoss: false,
-});
-```
-
-`models` is required; omitting it raises a `GassmaMissingArgumentError`. The sync rules and limitations are the same as when going through the CLI.
-
-# raw (Writing Formulas) (https://gassma.io/en/docs/reference/raw)
-
-Use Gassma.raw to opt out of formula-injection escaping per cell and write a formula as-is
-
-`Gassma.raw(value)` is a helper that skips the automatic formula-injection escaping for that cell only and writes the value to the sheet **as-is**. When you pass a string starting with `=`, the cell holds a **live spreadsheet formula**.
-
-## Default Protection (Automatic Escaping)
-
-When writing, GASsma escapes any string starting with `=`, `+`, `-`, or `@` by prepending a `'` (single quote). This prevents strings like `=IMPORTRANGE(...)` slipped into form input from being executed as formulas (formula injection).
-
-- Only **strings** are escaped. Numbers, booleans, and Dates are written unchanged. However, `NaN` / `Infinity` / `-Infinity` and invalid Dates (Invalid Date) are rejected with a `GassmaInvalidValueError` before escaping — the write itself fails.
-- The `'` does not appear in the spreadsheet's display or when reading, so reading an escaped cell back through GASsma returns the original string (e.g. `"=1+2"`).
-
-Since this protection is always on, it gets in the way when you intentionally want to write an aggregation formula. `Gassma.raw` is the opt-out for that.
-
-## Basic Usage
-
-Wrap a `data` value in `Gassma.raw()` and that cell alone skips escaping. The main use case is writing an aggregation formula into a number column.
-
-```ts
-const gassma = new Gassma.GassmaClient();
-
-gassma.Report.create({
-  data: {
-    title: userInput, // escaped as usual
-    total: Gassma.raw("=SUM(B2:B10)"), // this cell alone is written as a formula
-  },
-});
-```
-
-Within the same write, columns that do not use `Gassma.raw()` (like `title` above) remain protected as before.
-
-It can be used with all `create` and `update` methods (`create` / `createMany` / `createManyAndReturn` / `update` / `updateMany` / `updateManyAndReturn` / `upsert`), and with nested write `create` / `createMany` / `connectOrCreate`'s `create`.
-
-## The Return Value Is Not the Computed Result
-
-The return value of `create` / `update` etc. is an **echo of what was written**. GASsma does not re-read the sheet after writing, so the **computed result of the formula is not returned**. If you write a formula into a number column, the return value is the formula **string**.
-
-```ts
-const created = gassma.FormulaCell.create({
-  data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
-});
-created.total; // "=C5*2" (the formula string, not the computed result)
-```
-
-If you need the computed result, read the record back after writing.
-
-```ts
-const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-readBack.total; // 120 (the result computed on the cell)
-```
-
-## The Effect of raw Is Limited to That One Cell
-
-The effect of `Gassma.raw()` is limited to **the exact cell** it was passed for.
-
-- Other columns in the same row are escaped as usual.
-- Other writes referencing a raw cell — such as FK values handed down to child rows in nested writes — are never treated as raw either.
-
-```ts
-gassma.FormulaCell.create({
-  data: {
-    id: 4,
-    label: "=1+2", // escaped; stays the literal string "=1+2"
-    amount: 60,
-    total: Gassma.raw("=C5*2"), // written as a formula and computed on the cell
-  },
-});
-```
-
-## Combining with $transaction
-
-It can also be used inside [$transaction](/docs/reference/transaction). Raw values are written to the sheet together at commit time, and become formulas at that point.
-
-Reads inside the tx before commit (read-your-writes) still see the **formula string**, because nothing has been written to the sheet yet.
-
-```ts
-gassma.$transaction((tx) => {
-  tx.FormulaCell.create({
-    data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
-  });
-
-  const buffered = tx.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-  buffered.total; // "=C5*2" (not computed yet — before commit)
-});
-
-// After commit the cell holds a live formula and the computed result can be read
-const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-readBack.total; // 120
-```
-
-## Types
-
-`Gassma.raw(value: string)` returns a `Gassma.RawValue`.
-
-- In the generated types, **every column** in `data` accepts `Gassma.RawValue`. Since a formula can produce a value of any type on the cell, you can pass it to number, boolean, and Date columns as well.
-- It cannot be used in `where`. It is write-only. Passing it as a `where` value throws a `GassmaInvalidValueError` (Expected a scalar value, but received a Gassma.raw value.).
-
-## Never Use It with Untrusted Input
-
-**Never pass user input** to `Gassma.raw()`. Because it bypasses the default protection, it makes you vulnerable to formula injection.
-
-```ts
-// DANGEROUS: passing form input straight into raw
-function onFormSubmit(e) {
-  const gassma = new Gassma.GassmaClient();
-  gassma.Answers.create({
-    data: {
-      // If a malicious user enters "=IMPORTRANGE(...)",
-      // it will be executed as a formula
-      name: Gassma.raw(e.namedValues["名前"][0]),
-    },
-  });
-}
-```
-
-Use `Gassma.raw()` only with **trusted values**, such as fixed formulas you wrote yourself. Pass user input as-is without wrapping it in `Gassma.raw()`, and the default protection applies.
-
 # Error List (https://gassma.io/en/docs/reference/errors)
 
 List of error classes thrown by GASsma and when they occur
@@ -7680,7 +8570,19 @@ A list of error classes that can occur in GASsma.
 
 GASsma's error classes are exported from the `Gassma` namespace. You can catch them with `try` / `catch` and determine the error type with `instanceof`.
 
+How you reach `Gassma` depends on how you use GASsma.
+
+| | How to write it |
+| --- | --- |
+| CLI (generated client) | `import { Gassma } from "./generated/gassma/schemaClient";` |
+| [GAS editor](/docs/reference/gas-editor) | The bare `Gassma`, with no import |
+
 ```ts
+// With the CLI
+import { Gassma, GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
 try {
   gassma.sheet1.findFirst({ take: 5 });
 } catch (e) {
@@ -7690,7 +8592,20 @@ try {
 }
 ```
 
-There are 51 exported error classes; together with `GassmaClient` / `GassmaController` / `FieldRef` / `skip`, the `Gassma` namespace exposes 55 public entities.
+```ts
+// In the GAS editor only
+const gassma = new Gassma.GassmaClient();
+
+try {
+  gassma.sheet1.findFirst({ take: 5 });
+} catch (e) {
+  if (e instanceof Gassma.GassmaFindFirstTakeError) {
+    // Handle an invalid take for findFirst
+  }
+}
+```
+
+There are 56 exported error classes; together with `GassmaClient` / `GassmaController` / `FieldRef` / `skip` / `raw` / `migrateSheets`, the `Gassma` namespace exposes 62 public entities.
 
 This `instanceof` limitation applies to built-in types such as `Date`, which evaluate to `false` across the library boundary (see [Basic](/docs/reference/basic)). GASsma's error classes, on the other hand, are referenced via the `Gassma` namespace (the library's global), so they can be checked correctly with `instanceof`.
 
@@ -7740,12 +8655,25 @@ For details, see [strictUndefinedChecks / Gassma.skip](/docs/reference/config/st
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
 | `GassmaGroupByHavingDontWriteByError` | When using "having" other than "\_avg", "\_count", "\_max", "\_min", and "\_sum", column names can be used only if they are written in the "by" field. | A column not included in `by` is used in `having` |
+| `GassmaGroupByOrderByRequiredError` | groupBy requires \`orderBy\` when using \{arguments\}. Specify \`orderBy\` with at least one field, or remove \{arguments\}. | `groupBy` specifies `take`, or a `skip` other than 0, without an `orderBy`. An empty `orderBy` does not count as specified. \{arguments\} holds the argument names actually used (`take` / `skip`, or `take` and `skip` when both) |
 
 ## Configuration Errors
 
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
 | `GassmaInValidColumnValueError` | startColumnValue and endColumnValue can only use number, \[a-z\] and \[A-Z\]. | An invalid column value is specified in `changeSettings` |
+| `GassmaInvalidLockError` | \`lock\` must be a Lock returned by LockService. LockService.getDocumentLock() returns null in a standalone script or a web app; use LockService.getScriptLock() instead. | A value that cannot be used as a Lock is passed as `lock` to `GassmaClient` (`LockService.getDocumentLock()` returns `null` when called from a standalone script or a web app) |
+
+## autoincrement Errors
+
+For details, see [autoincrement](/docs/reference/config/autoincrement).
+
+| Error | Message | Trigger Condition |
+| --- | --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | Field \`\{field\}\` on \`\{sheetName\}\` is not configured with autoincrement. Autoincrement fields on \`\{sheetName\}\`: \{configuredFields\} | A field that is not configured with autoincrement is passed to `$getAutoincrement` / `$setAutoincrement` / `$syncAutoincrement` |
+| `GassmaAutoincrementInTransactionError` | \`\{methodName\}\` cannot be called inside $transaction. The autoincrement counter lives in ScriptProperties, so it is not rolled back when the transaction fails. Call it outside $transaction. | `$setAutoincrement` / `$syncAutoincrement` is called inside `$transaction` (`$getAutoincrement` only reads, so it can be called) |
+
+The second sentence of `GassmaAutoincrementNotConfiguredError` becomes <code>Sheet \`\{sheetName\}\` has no autoincrement fields.</code> when the sheet has no autoincrement fields at all.
 
 ## Argument Errors
 
@@ -7773,6 +8701,8 @@ The message always has the form <code>Invalid value for argument \`\{argumentNam
 | `select` selects no fields at all | `select` | at least one selected field |
 | `cursor` has no columns at all | `cursor` | at least one column |
 | The `where` of a single-row operation (`update` / `delete` / `upsert`) has no conditions at all | `where` | at least one condition |
+| The `next` of `$setAutoincrement` is not an integer of 1 or greater (`NaN` / `Infinity` / a decimal / 0 or less / a non-number) | `next` | an integer greater than or equal to 1 |
+| `$syncAutoincrement` is called when the column of the field configured with autoincrement does not exist on the sheet | `field` | a column that exists on \`\{modelName\}\` |
 
 #### Invalid pagination values (`take` / `skip` / `limit`)
 
@@ -7887,10 +8817,69 @@ For details, see [$transaction](/docs/reference/transaction).
 
 | Error | Message | Trigger Condition |
 | --- | --- | --- |
-| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | The script lock could not be acquired within `maxWait` when starting `$transaction` |
+| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | The client's `lock` could not be acquired within `maxWait` when starting `$transaction` |
+| `GassmaTransactionLockRequiredError` | $transaction requires a lock. Pass \`lock\` when constructing GassmaClient, for example \`new GassmaClient(\{ lock: LockService.getScriptLock() \})\`. The client generated by \`npx gassma generate\` does this for you. | `$transaction` is called on a client that has no `lock` |
 | `GassmaTransactionTimeoutError` | Transaction API error: A \{phase\} cannot be executed on an expired transaction. The timeout for this transaction was \{timeoutMs\} ms, however \{elapsedMs\} ms passed since the start of the transaction. Consider increasing the transaction timeout or doing less work in the transaction. | The elapsed time since the transaction started exceeds `timeout` (detected when a tx operation is called or right before commit) |
 | `GassmaNestedTransactionError` | Transaction API error: Nested transactions are not supported. Do not call $transaction inside an active transaction. | `$transaction` is called inside a transaction |
 | `GassmaTransactionRollbackError` | Transaction API error: The transaction failed during commit and automatic rollback also failed. The affected sheets may be in an inconsistent state. Backup sheets are preserved for manual recovery: \{backupSheetNames\} | The automatic restore from the backups also failed after a write failure during commit (the `backupSheetNames` property holds the list of remaining backup sheet names) |
+
+## CLI Schema Errors
+
+Errors that occur while the CLI reads the schema. Unlike the runtime errors above, these are not exported from the `Gassma` namespace; you identify them from the message printed to the terminal.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `NoModelsError` | The schema defines no models at all (`generate` / `migrate dev` / `db push`) |
+| `UnsupportedAttributeError` | An [unsupported attribute](/docs/reference/schema#unsupported-attributes) (`@@id` / `@@index` / `@@fulltext` / a native type) is used (`generate` / `validate`) |
+| `CompositeRelationError` | `fields` / `references` on `@relation` list more than one column (`generate` / `validate`; see [Composite Foreign Keys](/docs/reference/schema#composite-foreign-keys)) |
+| `IgnoredRelationColumnError` | A `@relation` refers to a field marked `@ignore` |
+| `ThroughSheetConflictError` | The through sheet of an implicit Many-to-Many collides between two model pairs |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**NoModelsError**
+
+```
+GASsmaNoModelsError: You don't have any models defined in {schemaLocation}, so nothing will be generated.
+You can define a model like this:
+
+model User {
+  id   Int    @id
+  name String
+}
+```
+
+**UnsupportedAttributeError** (violations are reported grouped by attribute)
+
+```
+GASsmaUnsupportedAttributeError: `@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+**CompositeRelationError**
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+**IgnoredRelationColumnError**
+
+```
+GASsmaIgnoredRelationColumnError: @relation uses a column marked @ignore.
+  - The relation "{relationName}" runs on the column "{column}" of model "{model}", which is marked @ignore. GASsma drops @ignore columns from query conditions, so relation actions (onDelete / onUpdate) and nested writes lose the filter that narrows target rows and can rewrite or delete every row of the related sheet. Remove @ignore from "{model}.{column}", or remove the relation from the schema.
+```
+
+**ThroughSheetConflictError**
+
+```
+GASsmaThroughSheetConflictError: the through sheet "{sheetName}" would be shared by two different model pairs: {firstPair} and {secondPair}.
+An implicit many-to-many relation needs a through sheet of its own, so the two pairs would overwrite each other.
+Please give one of them a different relation name, e.g. @relation("OtherName") on both sides.
+```
 
 ## CLI Configuration File Errors
 
@@ -7901,3 +8890,67 @@ Errors that occur when running CLI commands (such as `gassma generate`).
 | `ConfigFileNotFoundError` | GASsmaConfigFileNotFoundError: config file not found at \{configPath\} | The config file specified with `--config` does not exist |
 | `GassmaConfigLoadError` | GASsmaConfigLoadError: Failed to load config file at \{configPath\}. \{detail\} | A syntax or runtime error in the config file, an invalid type for a known key (`schema` / `datasource.url`), or the config file does not export a config object |
 | `GassmaConfigEnvError` | Cannot resolve environment variable: \{name\}. | The environment variable referenced by `env()` is not set or is an empty string |
+
+## CLI migrate Errors
+
+See [migrate / db push](/docs/reference/migrate) for details.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `MigrateOutputDirError` | Neither `--output` nor `rootDir` in `.clasp.json` is available, so the output directory cannot be determined |
+| `MigrateConfirmationRequiredError` | `migrate dev` ran in a non-interactive environment and a drop [confirmation](/docs/reference/migrate#drop-confirmation-migrate-dev) was needed |
+| `NoMigrationTrailError` | `migrate deploy` ran but no trail entry has been recorded |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**MigrateOutputDirError**
+
+```
+GASsmaMigrateOutputDirError: could not determine where to write gassma-migration.js.
+Pass --output <dir> (e.g. npx gassma migrate dev --output ./dist), or run in a project whose .clasp.json has "rootDir".
+```
+
+**MigrateConfirmationRequiredError**
+
+```
+GASsmaMigrateConfirmationRequiredError: this migration deletes sheets or columns, which has to be confirmed in an interactive terminal.
+Run "gassma migrate dev" in a terminal to answer the confirmation, or run "gassma migrate deploy" to generate the latest recorded migration as it is.
+```
+
+**NoMigrationTrailError**
+
+```
+GASsmaNoMigrationTrailError: no recorded migration was found in {migrationsDir}.
+Run "gassma migrate dev" first to record one.
+```
+
+## CLI studio Errors
+
+Errors that occur while `gassma studio` resolves the spreadsheet to open. See [gassma studio](/docs/reference/cli/commands#gassma-studio) for details.
+
+| Error | Trigger Condition |
+| --- | --- |
+| `NoDatasourceUrlError` | None of the `datasource` block in the schema, `datasource.url` in `gassma.config.ts`, and `parentId` in `.clasp.json` has a url |
+| `InvalidClaspJsonError` | `.clasp.json` exists but cannot be read as a JSON object |
+
+The messages are as follows (`{...}` is replaced with the actual value).
+
+**NoDatasourceUrlError**
+
+```
+GASsmaNoDatasourceUrlError: datasource url is not set.
+Looked at the datasource block in your schema, datasource.url in gassma.config.ts, and "parentId" in .clasp.json, but none of them had one.
+Please set datasource.url in gassma.config.ts or add a url to the datasource block in your schema.
+Example:
+  datasource db {
+    provider = "gassma"
+    url      = "https://docs.google.com/spreadsheets/d/XXXX/edit"
+  }
+```
+
+**InvalidClaspJsonError**
+
+```
+GASsmaInvalidClaspJsonError: .clasp.json at {claspJsonPath} is not a valid JSON object.
+Please fix its contents, or remove the file if you are not using clasp.
+```

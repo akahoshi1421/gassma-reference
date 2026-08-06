@@ -1,0 +1,181 @@
+
+# Config File (gassma.config.ts)
+
+By placing `gassma.config.ts` at the project root, you can centrally manage CLI settings (equivalent to Prisma's `prisma.config.ts`). Extensions other than TypeScript (`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`) and placement in the `.config/` directory are also supported (see "Config File Search Rules" below).
+
+Running `gassma init` or `gassma bootstrap` also auto-generates `gassma.config.ts`.
+
+## Configuration Interface
+
+There are two ways to write the configuration file.
+
+**1. Using the `defineConfig` helper (recommended):**
+
+```ts
+import { defineConfig } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+});
+```
+
+**2. Using the `satisfies` operator:**
+
+```ts
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+The `GassmaConfig` type can be imported from the root of the `gassma` package.
+
+## Configuration Options
+
+| Option | Type | Required | Description |
+| --- | --- | --- | --- |
+| `schema` | `string` | No | Path to the schema file or directory (default: `./gassma`) |
+| `datasource.url` | `string` | No | Spreadsheet URL or ID |
+
+## datasource.url
+
+When you specify a spreadsheet URL or ID in `datasource.url`, the `id` is automatically embedded in the generated client JS. This allows you to connect to the target spreadsheet with just `new GassmaClient()`.
+
+Both full URLs and spreadsheet IDs are supported.
+
+```ts
+// Full URL
+datasource: {
+  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+}
+
+// Direct ID specification
+datasource: {
+  url: "XXXXX",
+}
+```
+
+### URL Resolution Priority
+
+1. `datasource` block in the schema (highest priority)
+2. `datasource.url` in `gassma.config.ts`
+
+For the `datasource` block in the schema, see [Schema](/docs/reference/schema).
+
+Only [`gassma studio`](/docs/reference/cli/commands#gassma-studio) goes as far as `parentId` in `.clasp.json`. The `id` embedded in the generated client, and the `spreadsheetId` that [migrate / db push](/docs/reference/migrate) embeds in the stub, are resolved from the two above only.
+
+## Schema Resolution Priority
+
+1. `--schema` option (highest priority)
+2. `schema` setting in `gassma.config.ts`
+3. Default `./gassma` directory
+
+Relative paths are resolved from different base directories: the `--schema` option is resolved from the current working directory, while `schema` in the config file is resolved **relative to the location of the config file** (same as Prisma).
+
+## env() Helper
+
+Using the `env()` function, you can retrieve the spreadsheet URL from an environment variable (equivalent to Prisma's `env()`).
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+It can also be used with the `satisfies` pattern.
+
+```ts
+import "dotenv/config";
+import type { GassmaConfig } from "gassma";
+import { env } from "gassma/config";
+
+export default {
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+} satisfies GassmaConfig;
+```
+
+### Typed env()
+
+By passing an interface of your environment variables as a type argument, the names you can pass to `env()` are restricted to its keys, and you get autocompletion.
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+interface Env {
+  SPREADSHEET_URL: string;
+}
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env<Env>("SPREADSHEET_URL"),
+  },
+});
+```
+
+Only keys whose values are of type `string` (or `string | undefined`) can be specified. Specifying a nonexistent key results in a compile error.
+
+`env()` throws a `GassmaConfigEnvError` if the environment variable is not set or is an empty string. For optional environment variables, use `process.env` directly.
+
+## Config File Search Rules
+
+The config file is searched in the following order, and the **first file found** is used:
+
+1. `gassma.config.js`
+2. `gassma.config.ts`
+3. `gassma.config.mjs`
+4. `gassma.config.cjs`
+5. `gassma.config.mts`
+6. `gassma.config.cts`
+7. `.config/gassma.js`
+8. `.config/gassma.ts`
+9. `.config/gassma.mjs`
+10. `.config/gassma.cjs`
+11. `.config/gassma.mts`
+12. `.config/gassma.cts`
+
+All extensions of `gassma.config.*` directly under the project root are searched first, followed by `gassma.*` in the `.config/` directory. This is the same order as Prisma's config file search, including `.js` taking precedence over `.ts`.
+
+## --config Option
+
+The `generate` (including `--watch`), `validate`, `format`, and `studio` commands accept the `--config` option to explicitly specify the path to the config file (equivalent to Prisma's `--config`).
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+- Relative paths are resolved from the current working directory.
+- If the specified file does not exist, a `ConfigFileNotFoundError` is thrown.
+- When omitted, the default locations are searched according to the search rules above.
+
+## Load Behavior
+
+When running `gassma generate`, the following is displayed when the config file is loaded successfully:
+
+```
+⚙️ Loaded config from gassma.config.ts
+```
+
+- If the config file has a syntax or runtime error, or if a known key (`schema` / `datasource.url`) has an invalid type, a `GassmaConfigLoadError` is thrown.
+- If the config contains unknown keys, a warning is displayed and those keys are ignored (no error is thrown).
+
+```
+Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
+```

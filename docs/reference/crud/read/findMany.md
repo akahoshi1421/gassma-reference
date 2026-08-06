@@ -30,7 +30,7 @@
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -52,7 +52,7 @@ const result = gassma.sheet1.findMany({
 複数の条件を指定したい場合は以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -73,7 +73,7 @@ const result = gassma.sheet1.findMany({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -110,7 +110,7 @@ const result = gassma.sheet1.findMany({
 `equals`、`not`、`contains`、`startsWith`、`endsWith` に `mode: "insensitive"` を指定すると、大文字小文字を区別せずに比較できます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // "alice"、"Alice"、"ALICE" すべてにマッチ
 const result = gassma.sheet1.findMany({
@@ -167,7 +167,7 @@ gassma.sheet1.findMany({ where: { name: new Point(1, 2) } });
 AND を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -193,7 +193,7 @@ const result = gassma.sheet1.findMany({
 OR を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -220,7 +220,7 @@ const result = gassma.sheet1.findMany({
 NOT を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -242,7 +242,7 @@ const result = gassma.sheet1.findMany({
 例えば AND の下に OR や NOT を入れることができます。この入れ子構造は GAS のコールスタックが許す限り無限に可能です。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -333,7 +333,7 @@ gassma.sheet1.findMany({ where: { name: { contains: null } } });
 例えば`age`と`pref`のみ取得したい場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -370,6 +370,8 @@ const result = gassma.sheet1.findMany({
 ### select 内でのリレーションオプション指定
 
 リレーション定義がある場合、`select` 内のリレーションフィールドに `include` と同様のオプションを指定できます。`include` を別途指定する代わりに、`select` 内でリレーション先のデータ取得を制御できます。
+
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -438,7 +440,7 @@ const result = gassma.Users.findMany({
 例えば`age`で昇順でソートする場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -465,7 +467,7 @@ const result = gassma.sheet1.findMany({
 オブジェクト形式で `nulls` オプションを指定すると、null 値の並び位置を制御できます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // null 値を最後に配置
 const result = gassma.sheet1.findMany({
@@ -493,7 +495,7 @@ const result = gassma.sheet1.findMany({
 といったことを行いたい場合コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -513,6 +515,8 @@ const result = gassma.sheet1.findMany({
 ### リレーションフィールドでのソート
 
 リレーション定義がある場合、manyToOne / oneToOne のリレーション先フィールドでソートできます。
+
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -579,7 +583,7 @@ manyToOne / oneToOne のリレーションでは `_count` ソートはできま�
 例えば条件に合致した行の中から上から 2 行を取得したい場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -623,7 +627,7 @@ const result = gassma.sheet1.findMany({
 例えば条件に合致した行の中から上 1 つ目を省きたい場合、コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -657,7 +661,7 @@ gassma.sheet1.findMany({ skip: null });
 | 有限の負数 | `take` は末尾から取得、`skip` は `GassmaSkipNegativeError` |
 | `undefined` | 指定しなかった扱いになり無視されます |
 
-`skip: -Infinity` は以前 `GassmaSkipNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
+`skip: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
 
 同じ検証は `count` / `aggregate` / `groupBy` の `take` / `skip` にも適用されます。`findFirst` の `take` は[別の制限](./findFirst#take)があります。
 
@@ -666,7 +670,7 @@ gassma.sheet1.findMany({ skip: null });
 カーソルベースのページネーションを行えます。`cursor` にレコードを一意に特定するオブジェクトを指定すると、そのレコードを起点として取得します。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // id: 3 のレコードを起点に、そこから 5 件取得
 const result = gassma.sheet1.findMany({
@@ -722,7 +726,7 @@ cursor に指定したレコードが見つからない場合は空配列が返�
 例えば`postNumber`を除外したい場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -755,7 +759,7 @@ const result = gassma.sheet1.findMany({
 例えば`age`の被りを省略する場合、コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({

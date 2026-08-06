@@ -21,12 +21,21 @@ GoogleAppsScript(GAS)を書けるようにすることを目的としていま�
 
 ## 使ってみる
 
+GASsma には 2 つの使い方があります。どちらも同じ機能を使えます。
+
+| 使い方 | 始め方 |
+| --- | --- |
+| **CLI（ローカル開発）** | `schema.prisma` からシートの型を生成し、補完と型チェックの効く状態で書きます → [クイックスタート](/docs/quickstart) |
+| **GAS エディタだけ** | ライブラリを追加してすぐ書き始めます → 以下の手順 |
+
+以下では、GAS エディタだけで動かす最短の例を示します。
+
 適当なスプレッドシートを新規作成し、以下のデータを記入してください。(シート名は sheet1 としてください)
 ![説明用シート](./リファレンス/img/exampleSheet.png)
 
 その後、`拡張機能` > `Apps Script`を開き、GAS を開いてください。
 
-開いたら[こちらのページ](./installation)を見ながら GASsma をインストールしてください。
+開いたら[導入方法](./installation)を見ながら GASsma のライブラリを追加してください。
 
 それでは先程作成したデータから以下のようにデータを抽出し、整形する方法を考えます。
 
@@ -58,6 +67,8 @@ function myFunction() {
 以上です。
 
 **インスタンスを生成し、findMany メソッドを呼び出すだけで、データの抽出が可能です。** 列名もライブラリが自動で読んでくれます。
+
+ローカルで TypeScript を使って開発する場合は、`schema.prisma` からシートの型を生成できます。シート名・カラム名の補完が効き、誤りがビルド時に分かります。[クイックスタート](/docs/quickstart)を参照してください。
 
 ## なぜ GASsma は必要なのか
 
@@ -146,9 +157,185 @@ function myFunction(e) {
 
 なお、数式インジェクションは書き込み時の自動エスケープで防ぎます。意図的に数式を書き込みたい場合は [raw](/docs/reference/raw) を参照してください。
 
+# クイックスタート (https://gassma.io/docs/quickstart)
+
+npx gassma bootstrap から始めて、スキーマ定義・クライアント生成・シート同期・デプロイまでを一通り行う
+
+`npx gassma bootstrap` でローカル開発環境を作り、スキーマを書いて型付きクライアントを生成し、スプレッドシートを操作するまでを一通り行います。
+
+GAS のスクリプトエディタだけで使いたい場合は、[導入方法](/docs/installation)でライブラリを追加し、[GAS エディタでの利用](/docs/reference/gas-editor)を参照してください。
+
+## 前提
+
+[clasp](https://github.com/google/clasp) がインストール済みで、ログインが済んでいる必要があります。
+
+```
+$ npm install -g @google/clasp
+$ clasp login
+```
+
+また、[Apps Script API の設定ページ](https://script.google.com/home/usersettings) で Apps Script API を有効にしておいてください。
+
+## 1. プロジェクトを作る
+
+```
+$ npx gassma bootstrap my-app
+```
+
+対話形式で質問が進み、Apps Script プロジェクトの作成からビルド設定・スキーマファイルの生成・依存パッケージのインストールまでが完了します。「Create a new spreadsheet as well?」に **Yes** で答えると、新しいスプレッドシートと、それに紐づくスクリプトが作られます。
+
+完成するディレクトリは次のようになります。
+
+```
+my-app/
+├── gassma/
+│   └── schema.prisma
+├── src/
+│   └── index.ts
+├── gassma.config.ts
+├── esbuild.mjs
+├── tsconfig.json
+└── package.json
+```
+
+質問の内容や生成物の詳細は [bootstrap](/docs/reference/bootstrap) を参照してください。
+
+## 2. スキーマを書く
+
+`gassma/schema.prisma` にモデルを定義します。1 つのモデルが 1 枚のシートに対応します。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  age       Int
+  createdAt DateTime @default(now())
+
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id @default(autoincrement())
+  title    String
+  authorId Int
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+書けるモデル・属性の一覧は[スキーマ](/docs/reference/schema)にまとめています。
+
+## 3. クライアントを生成する
+
+```
+$ npx gassma generate
+```
+
+`output` で指定したディレクトリに型定義とクライアントが生成されます。リレーションや `@default` などの設定は、生成されたクライアントに注入済みです。
+
+開発中は `--watch` を付けておくと、スキーマの変更に追従して自動で再生成されます。
+
+## 4. スプレッドシートにシートを作る
+
+スキーマに書いたシートと列をスプレッドシート側に用意します。
+
+```
+$ npx gassma migrate dev --name init
+```
+
+このコマンドはスプレッドシートに直接アクセスしません。出力された `gassma-migration.js` を push して、Apps Script エディタで 1 回実行します。
+
+```
+$ npm run push
+```
+
+Apps Script エディタを開き（`npm run open`）、`gassmaMigrate` 関数を 1 回実行してください。これでシートと 1 行目のヘッダーが作られます。
+
+migrate の直後は `npm run push` を使ってください。`npm run deploy` はビルドからやり直すため、push 前に `gassma-migration.js` を消してしまうことがあります。
+
+同期の規則や `--accept-data-loss` については [migrate / db push](/docs/reference/migrate) を参照してください。
+
+## 5. コードを書く
+
+生成されたクライアントを import して使います。
+
+```ts title="src/index.ts"
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
+export const main = () => {
+  gassma.User.create({
+    data: { name: "Alice", email: "alice@example.com", age: 28 },
+  });
+
+  const users = gassma.User.findMany({
+    where: { age: { gte: 20 } },
+    orderBy: { name: "asc" },
+    include: { posts: true },
+  });
+
+  console.log(users);
+};
+```
+
+`export` した関数がそのまま GAS のグローバル関数になります（bootstrap で export スタイルを選んだ場合）。
+
+## 6. デプロイして実行する
+
+```
+$ npm run deploy
+```
+
+ビルドして Apps Script に push されます。`npm run open` でエディタを開き、`main` を実行してください。
+
+## 次に読むもの
+
+| ページ | 内容 |
+| --- | --- |
+| [基本](/docs/reference/basic) | クライアントの初期化とコンストラクタオプション |
+| [スキーマ](/docs/reference/schema) | モデル・属性・リレーションの書き方 |
+| [findMany](/docs/reference/crud/read/findMany) | `where` / `orderBy` / ページネーションなど読み取りの中心 |
+| [リレーション定義](/docs/reference/relation/definition) | `include` や `where` でのリレーション利用 |
+| [CLI コマンド](/docs/reference/cli/commands) | `generate` 以外のコマンド |
+
 # 導入方法 (https://gassma.io/docs/installation)
 
-GAS スクリプトエディタへの導入方法と、ローカル開発向けの npm でのインストール方法
+CLI（npm）でのインストールと、GAS スクリプトエディタへのライブラリ追加。2 つの導入方法
+
+GASsma の導入方法は 2 つあります。どちらも同じライブラリの同じ機能を使えます。
+
+| 方法 | 向いている場面 |
+| --- | --- |
+| [CLI（ローカル開発）](#cliローカル開発) | 型安全に開発したい。エディタの補完やビルドを使いたい |
+| [GAS スクリプトエディタ](#gas-スクリプトエディタ) | 小さなスクリプト。ローカル環境を用意せずに試したい |
+
+## CLI（ローカル開発）
+
+`npx gassma bootstrap` を使うと、clasp + esbuild + TypeScript + GASsma の環境をコマンド一発で作れます。事前のインストールは不要です。
+
+```bash
+npx gassma bootstrap my-app
+```
+
+手順は[クイックスタート](/docs/quickstart)にまとめています。
+
+既存のプロジェクトに追加する場合は、パッケージをインストールしてから `gassma init` でスキーマと設定ファイルを作ります。
+
+```bash
+npm i gassma
+npx gassma init
+```
+
+CLI のコマンド一覧は [CLI コマンド](/docs/reference/cli/commands)を参照してください。
+
+## GAS スクリプトエディタ
 
 まず、AppsScript を開いた後、ライブラリの「+」ボタンをクリックします。
 
@@ -170,29 +357,1558 @@ GAS スクリプトエディタへの導入方法と、ローカル開発向け�
 
 ![成功の様子](./img/installSuccess.png)
 
-## CLI ツールのインストール
+書き方は [GAS エディタでの利用](/docs/reference/gas-editor)を参照してください。
 
-clasp 等を用い、GoogleAppsScript をローカルで開発する場合、以下のコマンドで GASsma の TypeScript 向け型ファイル自動生成ツールをインストールすることができます。
-
-詳しい使い方は[こちら](./reference/type-generation)
-
-```bash
-npm i gassma
-```
+`npx gassma bootstrap` を使った場合、このライブラリ追加は自動で行われます（`dist/appsscript.json` に設定されます）。
 
 # 基本 (https://gassma.io/docs/reference/basic)
 
-GassmaClient の初期化、シートへのアクセス、コンストラクタオプション、共通クエリオプション（where, select, omit, orderBy, take, skip）
+生成された GassmaClient の初期化、シートへのアクセス、コンストラクタオプション、共通クエリオプション（where, select, omit, orderBy, take, skip）
 
 ## インスタンス生成
 
-もしあなたが、特定のスプレッドシート上に GAS を作成し、そのスプレッドシートを扱うのであれば以下の方法でインスタンス生成が可能です。
+`npx gassma generate` で生成されたクライアントから `GassmaClient` を import して、そのままインスタンス化します。リレーションやデフォルト値などスキーマに書いた設定は注入済みです。
+
+```ts
+import { GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+```
+
+Prisma と同じパターンでインスタンス化できます。
+
+```ts
+// Prisma
+import { PrismaClient } from "@prisma/client";
+const prisma = new PrismaClient();
+
+// GASsma（同じパターン）
+import { GassmaClient } from "./generated/gassma/schemaClient";
+const gassma = new GassmaClient();
+```
+
+`gassma.config.ts` の `datasource.url`（またはスキーマの `datasource` ブロック）を設定していれば、対象のスプレッドシート ID は生成されたクライアントに埋め込まれるため、引数は不要です。
+
+CLI を使わず GAS のスクリプトエディタだけで使う場合は `new Gassma.GassmaClient()` の形になります。[GAS エディタでの利用](/docs/reference/gas-editor)を参照してください。
+
+## シートへのアクセス
+
+モデル名がそのままプロパティになります。
+
+```ts
+const users = gassma.User.findMany({
+  where: { age: { gte: 20 } },
+  select: { name: true, email: true },
+});
+```
+
+## オプション付きの初期化
+
+コンストラクタにはオプションオブジェクトを渡せます。
+
+```ts
+const gassma = new GassmaClient({
+  id: "SPREAD_SHEET_ID",
+  omit: {
+    User: { password: true },
+  },
+});
+```
+
+生成された `GassmaClient` のコンストラクタが受け取るのはオプションオブジェクトのみです。スプレッドシート ID を直接渡すことはできないため、`id` プロパティに指定してください。
+
+```ts
+const gassma = new GassmaClient({ id: "SPREAD_SHEET_ID" }); // OK
+```
+
+### コンストラクタオプション
+
+| オプション | 説明 | 生成クライアントでの扱い | 参照 |
+| --- | --- | --- | --- |
+| `id` | スプレッドシート ID（省略時はアクティブスプレッドシート） | 渡した値が有効 | - |
+| `omit` | グローバル omit 設定 | 渡した値が有効 | [グローバル omit](/docs/reference/config/global-omit) |
+| `relations` | リレーション定義 | スキーマ由来（渡しても無視） | [リレーション定義](/docs/reference/relation/definition) |
+| `defaults` | フィールドのデフォルト値 | スキーマ由来（渡しても無視） | [defaults](/docs/reference/config/defaults) |
+| `updatedAt` | 自動更新タイムスタンプ | スキーマ由来（渡しても無視） | [updatedAt](/docs/reference/config/updated-at) |
+| `ignore` | フィールドレベルの除外 | スキーマ由来（渡しても無視） | [ignore](/docs/reference/config/ignore) |
+| `ignoreSheets` | シートレベルの除外 | スキーマ由来（渡しても無視） | [ignore](/docs/reference/config/ignore) |
+| `map` | フィールド名のマッピング | スキーマ由来（渡しても無視） | [map](/docs/reference/config/map) |
+| `mapSheets` | シート名のマッピング | スキーマ由来（渡しても無視） | [map](/docs/reference/config/map) |
+| `autoincrement` | 自動採番 | スキーマ由来（渡しても無視） | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | `$transaction` と autoincrement で使うロック（既定は `LockService.getScriptLock()`） | 渡した値が有効 | [ロック](/docs/reference/transaction#ロック) |
+
+### スキーマ由来のオプションはコンストラクタ引数を上書きします
+
+生成された `GassmaClient` のコンストラクタは、`schema.prisma` から読み取った設定でオプションを上書きします。そのため上の表で「スキーマ由来」となっているオプションは、コンストラクタに渡しても**エラーにならず黙って無視されます**。これらの設定は `schema.prisma` に書いてください（[スキーマ](/docs/reference/schema)を参照）。
+
+上書きはオプション単位で行われ、渡した値との**マージはされません**。例えば `defaults` はスキーマの `@default` から作られた設定で丸ごと置き換わるため、コンストラクタに渡した全モデル分の `defaults` がまとめて消えます。
+
+```ts
+const gassma = new GassmaClient({
+  defaults: {
+    User: { role: "guest" }, // 無視される（schema.prisma の @default が使われる）
+  },
+});
+```
+
+`id` / `omit` / `lock` は上書きされないため、渡した値がそのまま使われます。`id` を渡した場合は、スキーマに埋め込まれたスプレッドシート ID より優先されます。
+
+上書きが起きるのは CLI が生成した `GassmaClient` だけです。CLI を使わず `new Gassma.GassmaClient()` を直接使う場合は、すべてのオプションが有効です（[GAS エディタでの利用](/docs/reference/gas-editor)）。
+
+`strictUndefinedChecks` は生成されたクライアントのコンストラクタオプションにはありません。CLI を使う場合は `generator` ブロックの `previewFeatures` で有効化してください。有効化すると生成されたクライアントが自動で渡します（[strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks)）。
+
+## Date 値の判定
+
+GASsma は GAS ライブラリとして、呼び出し元スクリプトとは別のスクリプトコンテキストで動作します。そのため、GASsma が返した `Date` 値を `instanceof Date` で判定すると `false` になります。判定には `Object.prototype.toString` を使用してください。
+
+```ts
+const user = gassma.User.findFirst({ where: { id: 1 } });
+
+user.createdAt instanceof Date;
+// => false（ライブラリ境界を越えた Date は instanceof で判定できない）
+
+Object.prototype.toString.call(user.createdAt) === "[object Date]";
+// => true
+```
+
+この制約は `Date` などの**ビルトイン型**に対する `instanceof` の話です。GASsma が公開するエラークラス（`Gassma.GassmaMissingArgumentError` など）は `Gassma` 名前空間（ライブラリの global）経由で参照するため、`instanceof` で判定できます。詳しくは[エラー一覧](/docs/reference/errors)を参照してください。
+
+# スキーマ（schema.prisma） (https://gassma.io/docs/reference/schema)
+
+schema.prisma でモデル・フィールド・リレーション・enum を定義する。型マッピング、@default / @updatedAt / @ignore / @map、previewFeatures、マルチファイルスキーマ
+
+GASsma は Prisma 形式のスキーマファイルからクライアントコードを生成します。シートの構造・リレーション・デフォルト値などはすべて `schema.prisma` に書き、`npx gassma generate` で型付きクライアントに反映します。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int     @id
+  name  String
+  email String?
+  age   Int
+}
+```
+
+Prisma のスキーマ構文をそのまま使えるため、Prisma を知っていれば新しく覚えることはほとんどありません。
+
+## スキーマファイルの置き場所
+
+デフォルトでは `./gassma` ディレクトリ配下の `.prisma` ファイルが探索されます。
+
+```
+my-project/
+├── gassma/
+│   └── schema.prisma    ← ここにスキーマを記述
+├── gassma.config.ts
+├── package.json
+└── ...
+```
+
+探索先は `--schema` オプションや `gassma.config.ts` の `schema` で変更できます（[設定ファイル](/docs/reference/cli/config)を参照）。
+
+## generator ブロック
+
+`generator` ブロックの `output` で生成先ディレクトリを指定します。`output` は必須です。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+```
+
+### previewFeatures
+
+`generator` ブロックに `previewFeatures` を指定すると、オプトインの機能を有効化できます（Prisma の `previewFeatures` と同じ書き方です）。
+
+```prisma
+generator client {
+  provider        = "prisma-client-js"
+  output          = "./src/generated/gassma"
+  previewFeatures = ["strictUndefinedChecks"]
+}
+```
+
+現在サポートされている機能:
+
+| 機能 | 説明 | 参照 |
+| --- | --- | --- |
+| `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
+
+有効化すると、生成されるクライアント JS に `strictUndefinedChecks: true` が埋め込まれ、生成される型定義にも `Gassma.skip` を受け付ける型が反映されます。
+
+## 型マッピング
+
+Prisma の型は以下の TypeScript 型に変換されます。
+
+| Prisma 型 | TypeScript 型 |
+| --- | --- |
+| `Int` | `number` |
+| `Float` | `number` |
+| `Decimal` | `number` |
+| `BigInt` | `number` |
+| `String` | `string` |
+| `Boolean` | `boolean` |
+| `DateTime` | `Date` |
+| `Json` | `string` |
+| `Bytes` | `string` |
+
+`?` を付けるとオプショナルフィールドになります（`null` が許容されます）。
+
+## リレーション
+
+Prisma の `@relation` 属性を使うと、リレーション情報が自動的に抽出され、生成されたクライアントに注入されます。
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "./src/generated/gassma"
+}
+
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId Int
+}
+```
+
+上記の定義から以下のリレーション設定が自動生成されます。
+
+- `User.posts`: oneToMany（User → Post、onDelete: Cascade）
+- `Post.author`: manyToOne（Post → User）
+
+Prisma と同じく `onDelete` / `onUpdate` は FK を持つ側（`@relation` を書いた側）に指定しますが、生成されるリレーション設定では**参照される側**（`oneToMany` / 非 FK 側の `oneToOne`）に付きます。GASsma が参照アクションを発火させるのはこちら側です（[onDelete](/docs/reference/relation/on-delete)）。
+
+リレーションの種類ごとの意味や、`include` / `where` での使い方は[リレーション定義](/docs/reference/relation/definition)を参照してください。参照アクションは [onDelete](/docs/reference/relation/on-delete) / [onUpdate](/docs/reference/relation/on-update) にまとめています。
+
+### 暗黙的 Many-to-Many
+
+双方向の配列参照がある場合、暗黙的な Many-to-Many リレーションが自動検出されます。
+
+```prisma
+model Post {
+  id   Int   @id
+  tags Tag[]
+}
+
+model Tag {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+```
+
+生成されるクライアントでは、中間テーブル名が `_PostToTag`（モデル名のアルファベット順）として自動的に解決されます。`@relation("PostTags")` のようにリレーションに名前を付けた場合は、リレーション名がそのまま中間テーブル名（`_PostTags`）になります（Prisma と同じ規則です）。
+
+中間テーブル（シート）自体は [migrate / db push](/docs/reference/migrate) で自動作成できます（スプレッドシート側に同名のシートを手動で用意しても構いません）。
+中間テーブル名を変更したい場合は、`@relation` でリレーションに名前を付けてください。
+
+## enum
+
+Prisma の `enum` 定義からリテラルユニオン型が自動生成されます。
+
+```prisma
+enum Role {
+  ADMIN
+  USER
+  MODERATOR
+}
+
+model User {
+  id   Int  @id
+  role Role
+}
+```
+
+生成される型:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+### enum の @map
+
+enum メンバーに `@map` を付けると、コード上の名前とスプレッドシート上の値をマッピングできます。
+
+```prisma
+enum Role {
+  admin     @map("ADMIN")
+  user      @map("USER")
+  moderator @map("MODERATOR")
+}
+```
+
+生成される定数:
+
+```ts
+const Role = {
+  admin: "ADMIN",
+  user: "USER",
+  moderator: "MODERATOR",
+} as const;
+```
+
+型定義には `@map` の値が使用されます:
+
+```ts
+"role": "ADMIN" | "USER" | "MODERATOR"
+```
+
+## 属性
+
+各属性が対応する機能の詳細は、リンク先のページを参照してください。
+
+| 属性 | 効果 | 参照 |
+| --- | --- | --- |
+| `@id` | 主キー | - |
+| `@relation(...)` | リレーション定義 | [リレーション定義](/docs/reference/relation/definition) |
+| `@default(...)` | 作成時のデフォルト値 | [defaults](/docs/reference/config/defaults) |
+| `@default(autoincrement())` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
+| `@updatedAt` | 作成・更新時のタイムスタンプ自動設定 | [updatedAt](/docs/reference/config/updated-at) |
+| `@ignore` | フィールドを全操作から除外 | [ignore](/docs/reference/config/ignore) |
+| `@@ignore` | シート全体を除外 | [ignore](/docs/reference/config/ignore) |
+| `@map("name")` | フィールド名 → ヘッダー名のマッピング | [map](/docs/reference/config/map) |
+| `@@map("name")` | モデル名 → シート名のマッピング | [map](/docs/reference/config/map) |
+| `@unique` / `@@unique` | GASsma 上の効果は無し（Prisma がリレーションの検証に使う） | [@unique / @@unique](#unique--unique) |
+
+ここに無い属性は[使えない属性](#使えない属性)を参照してください。
+
+### @default
+
+`@default()` が付いたフィールドは、生成される Create 入力型でオプショナル（`?`）になります。
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+```
+
+生成される型:
+
+```ts
+"isActive"?: boolean   // @default(true) → オプショナル
+"createdAt"?: Date     // @default(now()) → オプショナル
+```
+
+生成されるクライアント JS には defaults 設定が自動的に埋め込まれます。
+
+| `@default()` | 生成される JS |
+| --- | --- |
+| `@default(true)` / `@default(false)` | `true` / `false` |
+| `@default(0)` (数値) | `0` |
+| `@default("USER")` (文字列) | `"USER"` |
+| `@default(ADMIN)` (enum 値) | `"ADMIN"` |
+| `@default(active)` (enum 値・`active @map("ACTIVE")`) | `"ACTIVE"`（`@map` 後の値） |
+| `@default(now())` | `() => new Date()` |
+| `@default(uuid())` | `() => Utilities.getUuid()` |
+| `@default(autoincrement())` | autoincrement 設定として別途生成 |
+
+### @updatedAt
+
+`@updatedAt` が付いたフィールドは Create 入力型でオプショナルになり、生成されるクライアント JS に updatedAt 設定が埋め込まれます。
+
+```prisma
+model Post {
+  id        Int      @id
+  title     String
+  updatedAt DateTime @updatedAt
+}
+```
+
+### @ignore
+
+`@ignore` が付いたフィールドは型定義から完全に除外され、生成されるクライアント JS に ignore 設定が埋め込まれます。
+
+```prisma
+model User {
+  id       Int    @id
+  name     String
+  secret   String @ignore   // 型定義に含まれない
+}
+```
+
+### @map
+
+`@map("name")` でフィールド名のマッピングを定義できます。生成されるクライアント JS に map 設定が埋め込まれます。
+
+```prisma
+model User {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+}
+```
+
+コード上は `firstName` / `lastName` で操作し、スプレッドシート上は「名前」「名字」カラムに対応します。
+
+### @@ignore
+
+モデルレベルの `@@ignore` でシート全体を除外できます。生成されるクライアント JS に ignoreSheets 設定が埋め込まれます。
+
+```prisma
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+### @@map
+
+モデルレベルの `@@map("name")` でシート名をマッピングできます。
+
+```prisma
+model Users {
+  id   Int    @id
+  name String
+
+  @@map("ユーザー一覧")
+}
+```
+
+コード上は `Users` でアクセスし、スプレッドシート上は「ユーザー一覧」シートに対応します。
+
+### @unique / @@unique
+
+`@unique` / `@@unique` は書けますが、**GASsma は一意性を強制しません**。重複した値を書き込んでもエラーにはならないため、重複を弾きたい場合はコード側でチェックしてください。
+
+それでも受け付けるのは、Prisma がこの 2 つを**リレーションの構造の検証**に使うためです。以下の 4 つのケースでは、`@unique` / `@@unique` が無いと Prisma 側がスキーマを受け付けません。
+
+| ケース | 必要な指定 |
+| --- | --- |
+| 単一の外部キーによる 1:1 | 外部キーのフィールドに `@unique` |
+| `@id` 以外のフィールドを `references` に指定した 1:N | 参照先のフィールドに `@unique` |
+| 複合外部キーによる 1:N | 参照先モデルに `@@unique([k1, k2])` |
+| 複合外部キーによる 1:1 | 外部キー側モデルに `@@unique([r1, r2])` |
+
+```prisma
+model User {
+  id      Int      @id
+  profile Profile?
+}
+
+model Profile {
+  id     Int  @id
+  user   User @relation(fields: [userId], references: [id])
+  userId Int  @unique   // 1:1 には @unique が必要
+}
+```
+
+上の表の下 2 つで必要になる複合外部キー自体は、GASsma ではまだ使えません（[複合外部キー](#複合外部キー)を参照）。
+
+## 使えない属性
+
+以下の属性は `npx gassma generate` / `npx gassma validate` でエラー（`GASsmaUnsupportedAttributeError`）になります。
+
+| 属性 | 弾く理由 |
+| --- | --- |
+| `@@id` | 複合主キーをスプレッドシートに宣言できないため。Prisma が `@@id` を要求することは無く、単一の `@id` で必ず代替できます。また GASsma の[暗黙的 Many-to-Many](#暗黙的-many-to-many) は中間シートの列名が `id` であることを前提にしているため、複合主キーにすると存在しない列を参照してしまいます |
+| `@@index` / `@@fulltext` | スプレッドシートにインデックスを作れないため。どのクエリもシート全体を読むので、書いても効果がありません |
+| `@db.VarChar(255)` などのネイティブ型 | スプレッドシートが値をどう保存するかを GASsma が制御できないため、書いても効果がありません |
+
+```prisma
+model User {
+  id   Int    @id
+  name String @db.VarChar(255)   // エラー
+
+  @@index([name])                // エラー
+}
+```
+
+エラーは属性ごとにまとめて報告されます。
+
+```
+GASsmaUnsupportedAttributeError: `@db.VarChar` on User.name is not supported.
+GASsma cannot control how a spreadsheet stores a value, so the native type has no effect.
+Remove it.
+
+`@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+### 複合外部キー
+
+`@relation` の `fields` / `references` に 2 列以上を指定する複合外部キーは**まだ使えません**（将来のサポート予定です）。`npx gassma generate` / `npx gassma validate` でエラー（`GASsmaCompositeRelationError`）になります。
+
+```prisma
+model A {
+  k1 Int
+  k2 Int
+  b  B[]
+
+  @@unique([k1, k2])
+}
+
+model B {
+  id Int @id
+  r1 Int
+  r2 Int
+  a  A   @relation(fields: [r1, r2], references: [k1, k2])   // エラー
+}
+```
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+## 型の拡張
+
+### @gassma.addType
+
+Prisma のフィールドコメント（`///`）に `@gassma.addType` を記述すると、フィールドの型にユニオン型を追加できます。
+
+```prisma
+model User {
+  /// @gassma.addType string
+  id    Int @id          // 生成型: number | string
+
+  /// @gassma.addType string, boolean
+  score Int              // 生成型: number | string | boolean
+
+  name  String           // 生成型: string（コメントなしなら通常通り）
+}
+```
+
+### @gassma.replaceType
+
+`@gassma.addType` は基底型とのユニオンですが、`@gassma.replaceType` は基底型を置換して指定した型のみ生成します。
+
+```prisma
+model User {
+  /// @gassma.replaceType "admin", "user", "moderator"
+  role String
+}
+```
+
+生成される型:
+
+```ts
+"role": "admin" | "user" | "moderator"  // string を含まない
+```
+
+優先順位: enum > replaceType > addType。enum がある場合は replaceType / addType は無視されます。
+
+## datasource ブロック
+
+スキーマファイル内に `datasource` ブロックを記述すると、対象のスプレッドシートを指定できます。
+
+```prisma
+datasource db {
+  provider = "google-spreadsheet"
+  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
+}
+```
+
+`url` は `gassma.config.ts` の `datasource.url` でも指定できます。スキーマ内の `datasource` ブロックが優先されます（[設定ファイル](/docs/reference/cli/config)を参照）。
+
+## マルチファイルスキーマ
+
+同じディレクトリ（およびサブディレクトリ）内に複数の `.prisma` ファイルを配置すると、自動的に **1 つのスキーマとして統合** されます。Prisma の [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) と同等の機能です。
+
+```
+gassma/
+├── schema.prisma        ← generator ブロックをここに記述
+├── models/
+│   ├── user.prisma      ← User, Profile モデル
+│   └── post.prisma      ← Post, Comment モデル
+```
+
+`generator` ブロックはいずれか 1 ファイルに記述すれば、全ファイルで共有されます。すべてのモデルが 1 つのクライアント出力にまとめられます。
+
+## 複数スキーマ（複数スプレッドシート）
+
+異なるスプレッドシートを扱う場合は、スキーマを別々のディレクトリに分けて個別に生成します。型名にはスキーマ名のプレフィックスが付与されるため、同名モデルがあっても衝突しません。
+
+```
+schemas/
+├── user/
+│   └── schema.prisma    → userClient.js, user.d.ts
+└── order/
+    └── schema.prisma    → orderClient.js, order.d.ts
+```
+
+```ts
+import { GassmaClient as UserClient } from "./generated/user/schemaClient";
+import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
+
+const userGassma = new UserClient();
+const orderGassma = new OrderClient();
+```
+
+# bootstrap（ローカル開発環境のセットアップ） (https://gassma.io/docs/reference/bootstrap)
+
+npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma のローカル開発環境を一発でセットアップする
+
+`npx gassma bootstrap` は、GAS のローカル開発環境（clasp + esbuild + TypeScript + GASsma ライブラリ）をコマンド一発で新規セットアップするコマンドです。
+
+```
+$ npx gassma bootstrap my-app   # my-app/ を作成してその中に構築
+$ npx gassma bootstrap          # 最初に構築先ディレクトリを質問（デフォルト: gassma-project）
+$ npx gassma bootstrap .        # カレントディレクトリに構築
+```
+
+`npx` で実行できるため、事前のインストールは不要です。実行すると対話形式で質問が進み、構築先ディレクトリの作成・Apps Script プロジェクトの作成からビルド設定・スキーマファイルの生成・依存パッケージのインストールまでが完了します。
+
+構築先ディレクトリはコマンドが自動で作成するため、事前にディレクトリを用意する必要はありません。`.` を指定すれば既存のカレントディレクトリにも構築できます。既存ファイルがある場合は上書きせずスキップまたはマージされます（後述の「ディレクトリの扱い」「冪等性」を参照）。
+
+## 前提
+
+[clasp](https://github.com/google/clasp) がインストール済みで、ログインが済んでいる必要があります。
+
+```
+$ npm install -g @google/clasp
+$ clasp login
+```
+
+また、[Apps Script API の設定ページ](https://script.google.com/home/usersettings) で Apps Script API を有効にしておいてください（clasp がプロジェクトを作成するために必要です）。
+
+clasp が見つからない場合は、以下のメッセージを表示して安全に終了します（ファイルは一切変更されません）。
+
+```
+clasp is required but was not found in your PATH.
+Install it with: npm install -g @google/clasp
+Then log in with: clasp login
+```
+
+## 対話フロー
+
+以下の順で質問されます（プロンプトは実際の文言です）。
+
+### 1. Project directory?
+
+プロジェクトを構築するディレクトリです。デフォルトは `gassma-project` で、`.` を入力するとカレントディレクトリに構築します。存在しないディレクトリは作成され、存在して空でない場合は続行確認が出ます（後述の「ディレクトリの扱い」を参照）。
+
+コマンド引数でディレクトリを指定した場合（`npx gassma bootstrap my-app` や `npx gassma bootstrap .`）、この質問はスキップされます。
+
+### 2. Project title?
+
+作成する Apps Script プロジェクトのタイトルです。デフォルトは構築先ディレクトリ名（引数または質問 1 で指定したディレクトリの名前）です。
+
+### 3. Create a new spreadsheet as well?
+
+**Yes**（デフォルト）にすると、新しいスプレッドシートを作成し、それに紐づくコンテナバインド型のスクリプトが作られます（`clasp create-script --type sheets`）。**No** の場合はスタンドアロン型（`--type standalone`）になります。
+
+このあと `clasp create-script` が実行され、`.clasp.json` が生成されます（`rootDir` は `./dist`）。続けて `dist/appsscript.json` に GASsma ライブラリ依存などが自動設定されます（後述の「生成されるもの」を参照）。
+
+既に `.clasp.json` が存在する場合、この質問と `clasp create-script` はスキップされます（`Found an existing .clasp.json. Skipping clasp create-script.`）。
+
+### 4. Function exposure style?
+
+GAS に関数を露出させるスタイルを選びます。選択肢の前に、それぞれのサンプルコードが表示されます。
+
+**export（推奨）** — `@gassma/gas-esbuild-plugin` を使い、`export` した関数がそのまま GAS のグローバル関数になります。
+
+```ts
+export const main = () => console.log("Hello GAS!");
+```
+
+**global**（esbuild-gas-plugin style） — `esbuild-gas-plugin` を使い、`global` オブジェクトへの代入で関数を露出します。
+
+```ts
+const main = () => console.log("Hello GAS!");
+
+interface Global {
+  main: typeof main;
+}
+
+declare const global: Global;
+
+global.main = main;
+```
+
+選んだスタイルに応じて、生成される `esbuild.mjs` のプラグインと `package.json` の devDependencies が切り替わります。
+
+### 5. Linter and formatter setup?
+
+リンタとフォーマッタの構成を選びます。
+
+| 選択肢 | 説明 |
+| --- | --- |
+| `oxlint + oxfmt` | recommended（デフォルト） |
+| `eslint + prettier` | ESLint（typescript-eslint）+ Prettier |
+| `none` | リンタもフォーマッタも導入しない |
+
+`--yes` 指定時はデフォルトの `oxlint + oxfmt` が選ばれます。選択に応じて `package.json` の devDependencies と `lint` / `lint:fix` / `format` / `format:check` スクリプト、生成される設定ファイルが変わります（後述の「リンタ / フォーマッタの選択」を参照）。
+
+### 6. Generate a sample src/index.ts?
+
+**Yes**（デフォルト）にすると、選んだスタイルのサンプルコードが `src/index.ts` として生成されます。
+
+### 7. Install dependencies now?
+
+**Yes**（デフォルト）にすると、検出されたパッケージマネージャで依存パッケージをインストールします（例: `Install dependencies now? (npm install)`）。`--skip-install` 指定時はこの質問自体が出ません。
+
+## 生成されるもの
+
+| ファイル | 内容 |
+| --- | --- |
+| `.clasp.json` | `clasp create-script` が生成（`rootDir: ./dist`） |
+| `dist/appsscript.json` | GASsma ライブラリ依存・`timeZone`・`exceptionLogging: STACKDRIVER`・`runtimeVersion: V8` を自動設定 |
+| `package.json` | `build` / `push` / `open` / `deploy` スクリプトと依存パッケージ（質問 5 の選択に応じて lint / format 系スクリプトも） |
+| `esbuild.mjs` | 選んだスタイルに応じたビルド設定 |
+| `tsconfig.json` | GAS 向けの TypeScript 設定（`@types/google-apps-script`） |
+| `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*`（`dist/appsscript.json` を除く） |
+| `.oxlintrc.json` | oxlint の設定（質問 5 で `oxlint + oxfmt` を選んだ場合のみ） |
+| `eslint.config.mjs` / `.prettierrc` | ESLint / Prettier の設定（質問 5 で `eslint + prettier` を選んだ場合のみ） |
+| `src/index.ts` | サンプルコード（質問 6 で Yes の場合のみ） |
+| `AGENTS.md` | コーディングエージェント向けのプロジェクト案内（コマンド・開発フロー・制約と GASsma リファレンスへの導線） |
+| `gassma/schema.prisma` / `gassma.config.ts` | `gassma init` 相当（サンプル User モデル入りのスキーマと設定ファイル） |
+
+### dist/appsscript.json
+
+`timeZone` は実行環境から自動判定されます（判定できない場合は `America/New_York`）。GASsma ライブラリは以下のエントリとして追加されます。
+
+```json
+{
+  "userSymbol": "Gassma",
+  "libraryId": "1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH",
+  "version": "<実行時に解決された最新バージョン>",
+  "developmentMode": false
+}
+```
+
+既存のマニフェストに `exceptionLogging` や `runtimeVersion` が設定されている場合はその値が保持されます。
+
+### package.json のスクリプト
+
+| スクリプト | 内容 |
+| --- | --- |
+| `build` | `node esbuild.mjs`（`src/index.ts` を `dist/index.js` にバンドル） |
+| `push` | `clasp push` |
+| `open` | `clasp open-script` |
+| `deploy` | `npm run build && npm run push` |
+
+質問 5 で `oxlint + oxfmt` または `eslint + prettier` を選んだ場合は、これに加えて `lint` / `lint:fix` / `format` / `format:check` が追加されます（内容は次節を参照）。
+
+なお、新規生成される `package.json` の `devDependencies` はアルファベット順にソートされて書き出されます（フォーマッタのチェックがソート済みを前提とするため）。
+
+### リンタ / フォーマッタの選択
+
+質問 5 の選択によって、追加される devDependencies・npm スクリプト・設定ファイルが変わります。
+
+#### oxlint + oxfmt（推奨）
+
+devDependencies に `oxlint@^1.76.0` と `oxfmt@^0.61.0` が追加されます。
+
+| スクリプト | 内容 |
+| --- | --- |
+| `lint` | `oxlint` |
+| `lint:fix` | `oxlint --fix` |
+| `format` | `oxfmt` |
+| `format:check` | `oxfmt --check` |
+
+`.oxlintrc.json` が生成されます。
+
+```json
+{
+  "plugins": ["typescript"],
+  "categories": { "correctness": "error" },
+  "ignorePatterns": ["dist/**", "src/generated/**"]
+}
+```
+
+#### eslint + prettier
+
+devDependencies に `eslint@^10.8.0` / `eslint-config-prettier@^10.1.8` / `prettier@^3.9.6` / `typescript-eslint@^8.65.0` が追加されます。
+
+| スクリプト | 内容 |
+| --- | --- |
+| `lint` | `eslint .` |
+| `lint:fix` | `eslint . --fix` |
+| `format` | `prettier --write .` |
+| `format:check` | `prettier --check .` |
+
+`eslint.config.mjs` と `.prettierrc` が生成されます。
+
+```js
+import { defineConfig, globalIgnores } from "eslint/config";
+import prettier from "eslint-config-prettier/flat";
+import tseslint from "typescript-eslint";
+
+export default defineConfig([
+  globalIgnores(["dist/**", "src/generated/**"]),
+  {
+    files: ["**/*.ts"],
+    extends: [tseslint.configs.recommended, prettier],
+  },
+]);
+```
+
+```json
+{
+  "semi": true,
+  "singleQuote": false,
+  "trailingComma": "all"
+}
+```
+
+#### none
+
+devDependencies・スクリプト・設定ファイルのいずれも追加されません。
+
+bootstrap が用意するのは上記までです。次のものは導入しません（必要な場合はプロジェクト側で追加してください）。
+
+- pre-commit フック（husky / lint-staged など）
+- oxlint の type-aware lint（`oxlint-tsgolint`）
+- oxfmt の設定ファイル（デフォルト設定のまま使います）
+
+### .gitignore について
+
+`.clasp.json` と `.clasprc.json` は clasp 公式の CI ガイドに従って gitignore されます（認証情報・スクリプト ID を含むため）。チームでプロジェクトを共有する場合は、チームのシークレットストアから復元してください。セットアップ完了時にも以下の案内が表示されます。
+
+```
+Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
+```
+
+## 引数とオプション
+
+| 引数 | 説明 |
+| --- | --- |
+| `[directory]` | プロジェクトを構築するディレクトリ（`.` でカレントディレクトリ）。省略時は対話で質問されます |
+
+| オプション | 説明 |
+| --- | --- |
+| `--yes` | すべての質問にデフォルト値で回答（非対話モード）。引数なしの場合は `./gassma-project` を作成して構築し、非空ディレクトリの続行確認も自動で続行します |
+| `--skip-install` | 依存パッケージのインストールをスキップ |
+| `--dry-run` | ファイルの書き込み・ディレクトリの作成・コマンド実行を行わず、実行予定の内容のみ表示（ディレクトリ作成も `create directory my-app` のように plan として表示されます） |
+
+対話できないターミナル（CI など）では `--yes` が必須です。指定がない場合は
+`An interactive terminal is required. Run with --yes for non-interactive mode.`
+と表示して終了します。
+
+## 挙動の詳細
+
+### ディレクトリの扱い
+
+- 指定したディレクトリが存在しない場合は作成し、その中に構築します。
+- 存在して空でない場合は `Directory "my-app" is not empty. Continue?`（デフォルト **No**）と確認されます。No を選ぶと何も変更せず `Bootstrap cancelled.` と表示して安全に終了します。`--yes` 指定時は自動的に続行します。
+- このため、途中で中断したセットアップは同じコマンドをもう一度実行し、続行確認に Yes と答えるだけで再開できます（生成済みのファイルは後述の「冪等性」によりスキップ/マージされます）。
+- 同名の**ディレクトリでないファイル**が既に存在する場合は `"my-app" already exists and is not a directory.` というエラーで終了します。
+
+### 冪等性
+
+再実行しても安全なように設計されています。
+
+- `.clasp.json` が存在する場合、`clasp create-script` はスキップされます。
+- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` は、既に存在する場合スキップされます。
+- リンタ / フォーマッタの設定ファイル（`.oxlintrc.json` / `eslint.config.mjs` / `.prettierrc`、質問 5 で選んだ場合に生成）も、既に存在する場合スキップされます。
+- `package.json` が既に存在する場合は、bootstrap の設定が**マージ**されます（既存の値が優先されます）。
+- `.gitignore` が既に存在する場合は、不足しているエントリのみ追記されます。
+- `dist/appsscript.json` に GASsma ライブラリのエントリが既にある場合は、重複追加されません。
+
+### GASsma ライブラリバージョンの解決
+
+`dist/appsscript.json` に設定する GASsma ライブラリの最新バージョンは、実行時に自動解決されます。
+
+1. `clasp list-versions` でライブラリの最新バージョン番号を取得
+2. 失敗した場合は GitHub 上の GASsma の `package.json` から取得
+
+両方失敗した場合（オフライン時など）は、ライブラリのエントリ追加をスキップし、Apps Script エディタでの手動追加手順（スクリプト ID を含む）が案内されます。オンライン状態で `gassma bootstrap` を再実行すれば、エントリは自動追加されます。
+
+### パッケージマネージャの自動検出
+
+npm / pnpm / yarn / bun を自動検出し（検出できない場合は npm）、インストールコマンドや完了時の案内メッセージに反映されます。
+
+## セットアップ後の次の一歩
+
+セットアップが完了すると、次の手順が表示されます。
+
+1. `gassma/schema.prisma` を編集してモデルを定義する
+2. `npx gassma generate` で型付きクライアントを生成する
+3. `npm run deploy` でビルドして Apps Script に push する
+4. `npm run open` で Apps Script エディタを開く
+
+スキーマの書き方は[スキーマ](/docs/reference/schema)、`gassma generate` の詳細は [CLI コマンド](/docs/reference/cli/commands) を参照してください。
+
+# CLI コマンド (https://gassma.io/docs/reference/cli/commands)
+
+gassma CLI のコマンド一覧（generate / init / validate / format / studio / version）と、生成されるファイル・型の概要
+
+`gassma` パッケージをインストールすると、`npx gassma <command>` で CLI を実行できます。
+
+```
+$ npm i gassma
+```
+
+| コマンド | 説明 |
+| --- | --- |
+| [`bootstrap`](/docs/reference/bootstrap) | ローカル開発環境（clasp + esbuild + TypeScript + GASsma）を一発でセットアップ |
+| [`init`](#gassma-init) | スキーマファイルと設定ファイルを生成 |
+| [`generate`](#gassma-generate) | スキーマから型ファイルとクライアントコードを生成 |
+| [`migrate dev` / `migrate deploy` / `db push`](/docs/reference/migrate) | スキーマに合わせてシートと列を同期する GAS 関数を生成 |
+| [`validate`](#gassma-validate) | スキーマファイルの構文・整合性チェック |
+| [`format`](#gassma-format) | `.prisma` ファイルを整形 |
+| [`studio`](#gassma-studio) | 対象のスプレッドシートをブラウザで開く |
+| [`version`](#gassma-version) | CLI のバージョンを表示 |
+
+## gassma generate
+
+型ファイルとクライアントコードを生成します。
+
+```
+$ npx gassma generate
+```
+
+デフォルトでは `./gassma` ディレクトリ内の `.prisma` ファイルが探索されます。`--schema` オプションで特定のスキーマファイルまたはディレクトリを指定できます（Prisma の `prisma generate --schema` に相当）。
+
+```
+$ npx gassma generate --schema gassma/user.prisma
+$ npx gassma generate --schema ./schemas
+```
+
+`--watch` オプションでスキーマファイルの変更を監視し、自動で再生成できます。
+
+```
+$ npx gassma generate --watch
+```
+
+`--schema` との併用も可能です。
+
+`--config` オプションで設定ファイルのパスを明示的に指定できます（Prisma の `--config` に相当）。
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+指定したファイルが存在しない場合は `ConfigFileNotFoundError` になります。未指定時はデフォルトの場所が探索されます（[設定ファイル](/docs/reference/cli/config)の「設定ファイルの探索規則」を参照）。
+
+### 生成されるファイル
+
+スキーマファイル名をもとに以下のファイルが生成されます。例えば `schema.prisma` の場合:
+
+| ファイル | 内容 |
+| --- | --- |
+| `schema.d.ts` | 型定義（モデル型、クエリ型、共通型） |
+| `schemaClient.js` | クライアント実装（リレーション定義の自動注入込み） |
+| `schemaClient.d.ts` | クライアントの型定義 |
+
+出力先は `generator` ブロックの `output` で指定したディレクトリです。
+
+### 生成される型の概要
+
+生成される `.d.ts` には以下の型が含まれます。
+
+- **モデル型**: 各フィールドの型定義（`GassmaUserUse` 等）
+- **クエリ型**: `FindData`、`CreateData`、`UpdateData`、`DeleteData`、`UpsertData` 等
+- **Select / Omit 型**: フィールド選択・除外の型
+- **フィルタ型**: `WhereUse`、`FilterConditions`（`FieldRef` 対応含む）
+- **OrderBy 型**: ソート条件（リレーションソート、`_count` ソート、nulls 制御含む）
+- **Include 型**: リレーション取得の型（`_count` 含む）
+- **Nested Write 型**: リレーション先の作成・接続・更新・削除操作
+- **数値操作型**: `NumberOperation`（increment / decrement / multiply / divide）
+- **共通型**: `FieldRef`、`GassmaClientOptions`、エラークラス群
+- **設定型**: `DefaultsConfig`、`UpdatedAtConfig`、`IgnoreConfig`、`AutoincrementConfig`、`MapConfig` 等
+- **コントローラー型**: 全メソッドの引数・戻り値型
+
+生成されたクライアントの使い方は[基本](/docs/reference/basic)を参照してください。
+
+## gassma init
+
+プロジェクトを初期化し、スキーマファイルと設定ファイルを自動生成します。
+
+```
+$ npx gassma init
+```
+
+以下のファイルが生成されます:
+
+- `gassma/schema.prisma` — 初期スキーマ
+- `gassma.config.ts` — 設定ファイル
+
+| オプション | 説明 |
+| --- | --- |
+| `--output <path>` | 生成先パスをカスタマイズ |
+| `--with-model` | サンプル User モデルを含むスキーマを生成 |
+
+既に `schema.prisma` が存在する場合はエラーで安全に停止します。
+
+新規プロジェクトを始める場合は、`init` の内容に加えて clasp・esbuild・TypeScript の設定までまとめて用意する [`gassma bootstrap`](/docs/reference/bootstrap) が便利です。
+
+## gassma validate
+
+スキーマファイルの構文チェック・整合性チェックを行います（Prisma の `prisma validate` に相当）。
+
+```
+$ npx gassma validate
+```
+
+```
+$ npx gassma validate --schema gassma/test.prisma
+```
+
+`--config` オプションで設定ファイルのパスを指定することもできます。
+
+チェック項目:
+
+- 構文エラー（パーサーエラー検出）
+- `generator` ブロックの存在チェック
+- `output` フィールドの必須チェック
+- モデルが 1 つ以上定義されていること
+
+成功時は以下のように出力されます:
+
+```
+The schema at /path/to/gassma/test.prisma is valid 🚀
+```
+
+## gassma format
+
+`.prisma` ファイルを Prisma 公式と同じフォーマットで整形します（`@prisma/internals` の `formatSchema` を使用）。
+
+```
+$ npx gassma format
+```
+
+| オプション | 説明 |
+| --- | --- |
+| `--schema <path>` | 特定ファイルのみ整形 |
+| `--config <path>` | 設定ファイルのパスを指定 |
+| `--check` | フォーマット済みかチェック（CI 用、未整形時は exit 1） |
+
+## gassma studio
+
+`datasource` に設定したスプレッドシートを、OS のデフォルトブラウザで開きます。
+
+```
+$ npx gassma studio
+```
+
+| オプション | 説明 |
+| --- | --- |
+| `--config <path>` | 設定ファイルのパスを指定 |
+
+URL は以下の順で解決されます。
+
+1. スキーマ内の `datasource` ブロックの `url`
+2. `gassma.config.ts` の `datasource.url`
+3. カレントディレクトリの `.clasp.json` の `parentId`
+
+フル URL（`https://...`）ならそのまま開き、スプレッドシート ID なら `https://docs.google.com/spreadsheets/d/<id>/edit` を組み立てて開きます。どこにも URL が無い場合は `NoDatasourceUrlError` になります。
+
+`.clasp.json` の `parentId` は、GAS プロジェクトがバインドされているスプレッドシートの ID です。文字列でも配列でもよく、配列の場合は先頭の要素を使います。
+
+```json
+{
+  "scriptId": "XXXXX",
+  "rootDir": "dist",
+  "parentId": ["SPREAD_SHEET_ID"]
+}
+```
+
+`.clasp.json` を読むのは、スキーマにも `gassma.config.ts` にも URL が無かった場合だけです。そのとき `.clasp.json` が存在するのに JSON オブジェクトとして読めない場合は `InvalidClaspJsonError` になります。
+
+## gassma version
+
+GASsma CLI のバージョンを表示します。
+
+```
+$ npx gassma version
+```
+
+`--version` / `-V` フラグでも確認できます。
+
+| オプション | 説明 |
+| --- | --- |
+| `--json` | バージョン情報を JSON で出力 |
+
+`--json` を付けると、バージョン情報を JSON 形式（`{"gassma":"<version>"}`）で出力します。
+
+```
+$ npx gassma version --json
+{"gassma":"1.2.3"}
+```
+
+# migrate / db push（シートの同期） (https://gassma.io/docs/reference/migrate)
+
+npx gassma migrate dev / migrate deploy / db push で、スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成する
+
+`npx gassma migrate` と `npx gassma db push` は、Prisma スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成するコマンドです（Prisma の `prisma migrate dev` / `prisma migrate deploy` / `prisma db push` に相当）。
+
+```
+$ npx gassma migrate dev                  # スキーマから証跡（migrations/）を記録して生成
+$ npx gassma migrate dev --name add_tags  # 証跡に名前を付ける
+$ npx gassma migrate deploy               # 記録済みの最新の証跡をそのまま生成
+$ npx gassma db push                      # 証跡を記録せずに生成
+```
+
+| コマンド | 動作 |
+| --- | --- |
+| `migrate dev` | スキーマから実行用スタブを生成し、証跡（`migrations/`）を記録します。削除がある場合は[確認](#削除の確認migrate-dev)を求めます |
+| `migrate deploy` | 記録済みの最新の証跡を、そのまま実行用スタブとして出力します。スキーマを読まず、証跡も作らず、確認もしません |
+| `db push` | スキーマから実行用スタブを生成します。証跡は記録しません |
+
+引数なしの `npx gassma migrate` はヘルプを表示します。
+
+コマンド自体はスプレッドシートに直接アクセスしません。生成された `gassmaMigrate` 関数を Apps Script 側で 1 回実行した時点でシートが同期されます。`clasp push` も自動実行されません（後述の「生成後の手順」を参照）。
+
+## 生成されるもの
+
+出力ディレクトリに実行用スタブ `gassma-migration.js`（生の JS）が生成されます。中身は GASsma ライブラリの `migrateSheets` を呼ぶ `gassmaMigrate` 関数 1 つで、スキーマから抽出したシート名と列名が埋め込まれています。
+
+```prisma
+model User {
+  id    Int    @id
+  name  String
+  posts Post[]
+}
+
+model Post {
+  id       Int    @id
+  title    String
+  author   User   @relation(fields: [authorId], references: [id])
+  authorId Int
+}
+```
+
+上記のスキーマからは以下が生成されます。
+
+```js
+function gassmaMigrate() {
+  Gassma.migrateSheets({
+    spreadsheetId: "XXXXX",
+    models: [
+      { name: "User", columns: ["id", "name"] },
+      { name: "Post", columns: ["id", "title", "authorId"] }
+    ]
+  });
+}
+```
+
+- スプレッドシート ID は、スキーマ内の `datasource` ブロック → `gassma.config.ts` の `datasource.url` の順で解決されます。どちらにも設定が無い場合は埋め込まれず、実行時にスクリプトにバインドされたスプレッドシートが対象になります。
+- 実行には GAS プロジェクトに GASsma ライブラリが登録されている必要があります（[bootstrap](/docs/reference/bootstrap) でセットアップした環境ならそのまま動きます）。呼び出しシンボル（例の `Gassma.` の部分）は、出力ディレクトリの `appsscript.json` に登録されたライブラリの `userSymbol` から自動解決されます（見つからない場合は `Gassma`）。
+
+### 出力先の解決
+
+1. `--output <dir>`（最優先）
+2. カレントディレクトリの `.clasp.json` の `rootDir`
+
+どちらも無い場合は `MigrateOutputDirError` になります。3 つのコマンドで共通です。
+
+### シートと列の抽出規則
+
+`migrate dev` / `db push` がスキーマを読むときの規則です（`migrate deploy` はスキーマを読みません）。
+
+- モデルごとに 1 シートが対象になります。`@@map` / `@map` を付けている場合はマッピング後の物理名が使われます。
+- 列になるのはスカラーフィールドのみです。リレーションフィールド（上の例の `posts` / `author`）は列にならず、外部キー列（`authorId`）は列になります。
+- `@ignore` / `@@ignore` の付いたフィールド・モデルも**作成対象に含まれます**。Prisma と同じく、クライアントから除外されるだけでスプレッドシート上には実体が存在するためです。
+- [暗黙的 Many-to-Many](/docs/reference/schema#暗黙的-many-to-many) の中間シートも作成対象です（例: `_PostToTag`。列はモデル名のアルファベット順に `postId`, `tagId`）。
+
+## 生成後の手順
+
+コマンド成功時に表示される Next steps の 2 ステップを実行すると、シートが同期されます。
+
+```
+✅ Migration generated
+
+Next steps:
+  1. Run "clasp push" (or "npm run push") to upload gassma-migration.js
+  2. In the Apps Script editor, run the "gassmaMigrate" function once
+```
+
+push には `clasp push`（または `clasp push` を呼ぶだけの `npm run push`）を直接使ってください。クリーンを伴うフルビルド（bootstrap が生成する `npm run deploy` など）は、push 前に出力ディレクトリごと `gassma-migration.js` を消してしまうことがあります。
+
+## 同期の規則
+
+`gassmaMigrate`（`Gassma.migrateSheets`）による同期は冪等で、何度実行しても安全です。
+
+- スキーマにあってスプレッドシートに無いシートを作成し、1 行目にヘッダーを書き込みます。
+- 既存シートには足りない列だけをヘッダー行の右端に追記します。**既存列の並べ替えは行わず**、データ行への書き込みもありません。
+- スキーマに無い列・シートは、デフォルトでは削除されず警告ログを出してそのまま残されます。
+
+```
+Gassma.migrateSheets: column "legacy" on sheet "User" is not in the schema. It is left untouched.
+```
+
+## データ削除（--accept-data-loss）
+
+スタブに `acceptDataLoss: true` が埋め込まれていると、`gassmaMigrate` の実行時にスキーマに無い列・シートの削除まで行われます。
+
+データが残っている列・シートは、残っている量（列は空でないセルの数、シートはデータ行数）を警告ログに出したうえで削除されます。空の場合は警告なしで削除されます。
+
+```
+Gassma.migrateSheets: You are about to drop the column "legacy" on the sheet "User", which still contains 12 non-empty values.
+```
+
+このフラグを立てる方法はコマンドごとに異なります。
+
+| コマンド | 立て方 |
+| --- | --- |
+| `db push` | `--accept-data-loss` を付ける |
+| `migrate dev` | 削除の[確認](#削除の確認migrate-dev)に `y` と答える |
+| `migrate deploy` | 証跡に記録されている値がそのまま使われる |
+
+### 消したくないシートを守る
+
+削除したくないシートは、対応するモデルを**スキーマから消さずに `@@ignore` を付けて残して**ください。`@@ignore` の付いたモデルも[シートと列の抽出規則](#シートと列の抽出規則)のとおり作成対象一覧に残るため、`--accept-data-loss` を付けても削除されません。クライアントからは見えないまま、シートだけが守られます。
+
+```prisma
+model Memo {
+  id      Int    @id
+  content String
+
+  @@map("メモ")
+  @@ignore
+}
+```
+
+列も同じで、`@ignore` を付けたフィールドは作成対象に残ります。モデル名に日本語は使えないため、シート名が日本語の場合は上の例のように `@@map` でマッピングしてください（[map](/docs/reference/config/map)）。
+
+上の例のようにフィールドを書いた場合、そのシートの列も同期対象になります。スキーマに書いていない列は `--accept-data-loss` で削除されるため、守られるのはシートと、スキーマに書いた列です。
+
+列も丸ごと守りたい場合は、フィールドを 1 つも書かないモデルにしてください。Prisma のスキーマとしては有効で、GASsma はそのシートの列を 1 つも管理しなくなります。`--accept-data-loss` を付けても列の追加・削除は行われず、「スキーマに無い列」の警告も出ません。
+
+```prisma
+model Memo {
+  @@map("メモ")
+  @@ignore
+}
+```
+
+```
+Gassma.migrateSheets: model "メモ" declares no columns. The columns of sheet "メモ" are left untouched.
+```
+
+シートがまだ無い場合は、フィールドを書いた場合と同じように作成されます（列が 0 個なのでヘッダー行は書き込まれません）。
+
+逆にモデルごとスキーマから消すと、そのシートは「スキーマに無いシート」になります。`--accept-data-loss` を付けていなければ警告が出るだけで残りますが、付けていれば削除されます。
+
+## 削除の確認（migrate dev）
+
+`migrate dev` は、**前回の証跡と今回のスキーマを比べて**消えたシート・消えた列があれば、生成前に確認を求めます。
+
+```
+
+⚠️ The following are recorded in gassma/migrations but are no longer in your schema:
+    • sheet "Legacy"
+    • column "nickname" in sheet "User"
+  Generating this migration deletes them together with every value they hold.
+  This is based on the recorded migrations, not on the spreadsheet itself:
+  sheets and columns changed by "gassma db push" or by hand are not reflected here.
+
+Continue? (y/N)
+```
+
+- `y` / `yes`（大文字小文字は問いません）と答えると、削除するスタブ（`acceptDataLoss: true`）を生成し、証跡を記録します。
+- それ以外（そのまま Enter を含む）と答えると**中止**します。スタブも証跡も書かれません。
+
+```
+Aborted. gassma-migration.js and the migration were not written.
+```
+
+- 消えたシート・列が 1 つも無ければ確認は行われず、削除しないスタブになります。証跡がまだ 1 つも無い場合（初回）も確認は行われません。
+- 非対話環境（CI など）で削除がある場合は、確認できないため `MigrateConfirmationRequiredError` で中止します。記録済みの証跡をそのまま流したい場合は `migrate deploy` を使ってください。
+
+この確認は **`migrations/` に記録された証跡との比較**であって、実際のスプレッドシートを見たものではありません。間に `db push` を挟んだり、シートを手で編集したりすると、証跡と実際のシートはずれます。表示された一覧は「前回の `migrate dev` 以降にスキーマから消えたもの」だと考えてください。
+
+最新の証跡が読み取れなかった場合は、削除の検査ができない旨を警告したうえで、削除しないスタブが生成されます。
+
+## 証跡（migrations/）
+
+`migrate dev` は、スキーマと同じディレクトリの `migrations/` 配下に `<UTC タイムスタンプ>[_名前]/migration.js` を作成します。中身は実行用スタブと同一です。
+
+```
+gassma/
+├── schema.prisma
+└── migrations/
+    ├── 20260801120000_init/
+    │   └── migration.js
+    └── 20260802093000_add_tags/
+        └── migration.js
+```
+
+- 直近の証跡と内容が同じ場合、新しい証跡は作られません（`Already in sync, no schema change or pending migration was found.` と表示されます）。実行用スタブ自体は毎回書き直されます。
+- スキーマが変わっていない状態で `migrate dev` を実行し直した場合、証跡に記録されている `acceptDataLoss` がそのまま使われます。一度 `y` と答えた削除の判断が、再実行で取り消されることはありません。
+- `--name` で証跡に名前を付けられます。名前は camelCase の分解 → 小文字化 → 英数字以外の連続を `_` に置換、の規則でサニタイズされます（例: `--name "Add UserRole!"` → `20260801120000_add_user_role`）。
+
+### migrate deploy
+
+`migrate deploy` は、`migrations/` の最新の証跡をそのまま実行用スタブとして書き出します。スキーマを読まないため、スキーマを編集していても出力は変わりません。
+
+```
+$ npx gassma migrate deploy
+📄 Using gassma/migrations/20260802093000_add_tags/migration.js
+📄 Wrote dist/gassma-migration.js
+
+✅ Latest recorded migration prepared
+```
+
+証跡に埋め込まれた `acceptDataLoss` もそのまま再生されるため、`dev` のときに下した削除の判断がそのまま実行されます。CI が削除を勝手に判断することはありません。
+
+証跡が 1 つも無い場合は `NoMigrationTrailError` になります。先に `migrate dev` を実行してください。
+
+## オプション
+
+### migrate dev
+
+| オプション | 説明 |
+| --- | --- |
+| `--name <name>` | マイグレーションの名前 |
+| `--output <dir>` | `gassma-migration.js` の出力先ディレクトリ（デフォルトは `.clasp.json` の `rootDir`） |
+| `--schema <path>` | マイグレーション対象の `.prisma` ファイルのパス |
+| `--config <path>` | GASsma config ファイルのカスタムパス |
+
+### migrate deploy
+
+| オプション | 説明 |
+| --- | --- |
+| `--output <dir>` | `gassma-migration.js` の出力先ディレクトリ（デフォルトは `.clasp.json` の `rootDir`） |
+| `--config <path>` | GASsma config ファイルのカスタムパス |
+
+### db push
+
+| オプション | 説明 |
+| --- | --- |
+| `--output <dir>` | `gassma-migration.js` の出力先ディレクトリ（デフォルトは `.clasp.json` の `rootDir`） |
+| `--schema <path>` | 同期対象の `.prisma` ファイルのパス |
+| `--config <path>` | GASsma config ファイルのカスタムパス |
+| `--accept-data-loss` | スキーマに無いシート・列を削除 |
+
+## 制限事項
+
+- ヘッダー行は各シートの **1 行目・A 列開始**が前提です。[changeSettings](/docs/reference/settings/changeSettings) でヘッダー位置を変更している場合には対応していません。
+- スプレッドシートには最低 1 枚のシートが必要なため、`acceptDataLoss: true` でも最後の 1 枚は削除されず、警告のみになります。
+
+## Gassma.migrateSheets（ライブラリ API）
+
+スタブが呼んでいる `Gassma.migrateSheets` は GASsma の公開 API です。CLI を使わずに、同期したいシートと列を直接指定して呼ぶこともできます。
+
+```ts
+Gassma.migrateSheets({
+  spreadsheetId: "SPREAD_SHEET_ID", // 省略時はバインドされたスプレッドシート
+  models: [{ name: "User", columns: ["id", "name"] }],
+  acceptDataLoss: false,
+});
+```
+
+`models` は必須で、省略すると `GassmaMissingArgumentError` になります。同期の規則・制限事項は CLI 経由の場合と同じです。
+
+# 設定ファイル（gassma.config.ts） (https://gassma.io/docs/reference/cli/config)
+
+gassma.config.ts で CLI の設定（schema / datasource.url）を一元管理する。defineConfig・env()・探索規則・--config オプション
+
+プロジェクトルートに `gassma.config.ts` を配置することで、CLI の設定を一元管理できます（Prisma の `prisma.config.ts` に相当）。TypeScript 以外の拡張子（`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`）や `.config/` ディレクトリへの配置にも対応しています（後述の「設定ファイルの探索規則」を参照）。
+
+`gassma init` や `gassma bootstrap` を実行すると、`gassma.config.ts` も自動生成されます。
+
+## 設定インターフェース
+
+設定ファイルの記述方法は 2 つあります。
+
+**1. `defineConfig` ヘルパーを使用（推奨）:**
+
+```ts
+import { defineConfig } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+});
+```
+
+**2. `satisfies` 演算子を使用:**
+
+```ts
+import type { GassmaConfig } from "gassma";
+
+export default {
+  schema: "gassma/schema.prisma",
+  datasource: {
+    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+  },
+} satisfies GassmaConfig;
+```
+
+`GassmaConfig` 型は `gassma` パッケージのルートから import できます。
+
+## 設定オプション
+
+| オプション | 型 | 必須 | 説明 |
+| --- | --- | --- | --- |
+| `schema` | `string` | いいえ | スキーマファイルまたはディレクトリのパス（デフォルト: `./gassma`） |
+| `datasource.url` | `string` | いいえ | スプレッドシートの URL または ID |
+
+## datasource.url
+
+`datasource.url` にスプレッドシートの URL または ID を指定すると、生成されるクライアント JS に `id` が自動埋め込みされます。これにより `new GassmaClient()` だけで対象スプレッドシートに接続できます。
+
+フル URL とスプレッドシート ID の両方に対応しています。
+
+```ts
+// フル URL
+datasource: {
+  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
+}
+
+// ID 直接指定
+datasource: {
+  url: "XXXXX",
+}
+```
+
+### URL 解決の優先順位
+
+1. スキーマ内の `datasource` ブロック（最優先）
+2. `gassma.config.ts` の `datasource.url`
+
+スキーマ内の `datasource` ブロックについては[スキーマ](/docs/reference/schema)を参照してください。
+
+`.clasp.json` の `parentId` まで見るのは [`gassma studio`](/docs/reference/cli/commands#gassma-studio) だけです。生成されるクライアントに埋め込まれる `id` と、[migrate / db push](/docs/reference/migrate) がスタブに埋め込む `spreadsheetId` は、上の 2 つからのみ解決されます。
+
+## スキーマ解決の優先順位
+
+1. `--schema` オプション（最優先）
+2. `gassma.config.ts` の `schema` 設定
+3. デフォルト `./gassma` ディレクトリ
+
+相対パスの解決基準はそれぞれ異なります。`--schema` オプションは実行時のカレントディレクトリ基準、設定ファイルの `schema` は **設定ファイルのある場所基準** で解決されます（Prisma と同じ）。
+
+## env() ヘルパー
+
+`env()` 関数を使うと、環境変数からスプレッドシート URL を取得できます（Prisma の `env()` に相当）。
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+});
+```
+
+`satisfies` パターンでも使用できます。
+
+```ts
+import "dotenv/config";
+import type { GassmaConfig } from "gassma";
+import { env } from "gassma/config";
+
+export default {
+  schema: "gassma",
+  datasource: {
+    url: env("SPREADSHEET_URL"),
+  },
+} satisfies GassmaConfig;
+```
+
+### 型付きの env()
+
+型引数に環境変数のインターフェースを渡すと、`env()` に指定できる名前がそのキーに限定され、補完も効くようになります。
+
+```ts
+import "dotenv/config";
+import { defineConfig, env } from "gassma/config";
+
+interface Env {
+  SPREADSHEET_URL: string;
+}
+
+export default defineConfig({
+  schema: "gassma",
+  datasource: {
+    url: env<Env>("SPREADSHEET_URL"),
+  },
+});
+```
+
+指定できるのは値が `string`（または `string | undefined`）型のキーのみです。存在しないキーを指定するとコンパイルエラーになります。
+
+`env()` は環境変数が未設定または空文字の場合に `GassmaConfigEnvError` をスローします。オプショナルな環境変数には `process.env` を直接使用してください。
+
+## 設定ファイルの探索規則
+
+設定ファイルは以下の順序で探索され、**最初に見つかったファイル** が採用されます。
+
+1. `gassma.config.js`
+2. `gassma.config.ts`
+3. `gassma.config.mjs`
+4. `gassma.config.cjs`
+5. `gassma.config.mts`
+6. `gassma.config.cts`
+7. `.config/gassma.js`
+8. `.config/gassma.ts`
+9. `.config/gassma.mjs`
+10. `.config/gassma.cjs`
+11. `.config/gassma.mts`
+12. `.config/gassma.cts`
+
+プロジェクトルート直下の `gassma.config.*` が全拡張子ぶん先に探索され、その後 `.config/` ディレクトリ内の `gassma.*` が探索されます。`.js` が `.ts` より先に採用される点も含め、Prisma の設定ファイル探索と同じ順序です。
+
+## --config オプション
+
+`generate`（`--watch` 含む）/ `validate` / `format` / `studio` の各コマンドでは、`--config` オプションで設定ファイルのパスを明示的に指定できます（Prisma の `--config` に相当）。
+
+```
+$ npx gassma generate --config configs/gassma.config.ts
+```
+
+- 相対パスは実行時のカレントディレクトリ基準で解決されます。
+- 指定したファイルが存在しない場合は `ConfigFileNotFoundError` になります。
+- 未指定時は上記の探索規則に従ってデフォルトの場所が探索されます。
+
+## ロード時の挙動
+
+`gassma generate` 実行時、設定ファイルのロードに成功すると以下のように表示されます。
+
+```
+⚙️ Loaded config from gassma.config.ts
+```
+
+- 設定ファイルに構文エラー・実行時エラーがある場合や、既知のキー（`schema` / `datasource.url`）の型が不正な場合は `GassmaConfigLoadError` になります。
+- 未知のキーが含まれている場合は警告が表示され、そのキーは無視されます（エラーにはなりません）。
+
+```
+Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
+```
+
+# GAS エディタでの利用 (https://gassma.io/docs/reference/gas-editor)
+
+CLI を使わず GAS スクリプトエディタだけで GASsma を使う方法。Gassma.GassmaClient の初期化とコンストラクタオプション一覧
+
+GASsma は CLI を使わず、GAS のスクリプトエディタだけでも使えます。ライブラリを追加すればすぐに書き始められるため、小さなスクリプトや、ローカル環境を用意せずに試したい場合に向いています。
+
+このページでは、GAS エディタだけで使う場合の書き方をまとめます。CLI を使う場合の書き方は[基本](/docs/reference/basic)を参照してください。
+
+どちらの使い方も同じライブラリの同じ機能を使います。違いは**設定をどこに書くか**だけです。CLI を使う場合は `schema.prisma` に書き、GAS エディタだけで使う場合はコンストラクタの引数に書きます。
+
+## ライブラリの追加
+
+スクリプト ID `1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH` をライブラリとして追加します。手順は[導入方法](/docs/installation)を参照してください。
+
+追加すると、グローバルの `Gassma` 名前空間からクライアントを生成できるようになります。
+
+## インスタンス生成
+
+スプレッドシートに紐づいた GAS（コンテナバインド型）であれば、引数なしでインスタンスを生成できます。
 
 ```ts
 const gassma = new Gassma.GassmaClient();
 ```
 
-あるいは、スプレッドシートではない場所に GAS を作成した、あるいは別の場所にあるスプレッドシートを扱うのであれば、引数に対象のスプレッドシートの ID を挿入することでインスタンス生成が可能です。
+スプレッドシートではない場所に GAS を作成した場合や、別のスプレッドシートを扱う場合は、対象のスプレッドシート ID を渡します。
 
 ```ts
 const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
@@ -200,20 +1916,35 @@ const gassma = new Gassma.GassmaClient("XXXXXXXXXXXXXXXXXXX");
 
 ### オプションオブジェクトでの初期化
 
-リレーション定義やグローバル omit など、高度な設定を行う場合はオプションオブジェクトを渡します。
+リレーション定義やグローバル omit など、設定を伴う場合はオプションオブジェクトを渡します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
   id: "XXXXXXXXXXXXXXXXXXX", // 省略可
   relations: {
-    // リレーション定義（詳細はリレーション定義のリファレンスを参照）
+    Users: {
+      posts: { type: "oneToMany", to: "Posts", field: "id", reference: "authorId" },
+    },
   },
   omit: {
-    // グローバル omit 設定（詳細はグローバル omit のリファレンスを参照）
     Users: { password: true },
   },
 });
 ```
+
+### lock（`$transaction` を使う場合は必須）
+
+`lock` は、[$transaction](/docs/reference/transaction) と [autoincrement](/docs/reference/config/autoincrement) の採番で使うロックです。CLI を使う場合は生成されたクライアントが既定値（`LockService.getScriptLock()`）を埋めますが、**GAS エディタで書く場合は自分で渡す必要があります**。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
+`lock` を渡さないまま `$transaction` を呼ぶと `GassmaTransactionLockRequiredError` が throw されます（autoincrement の採番は、`lock` がなければロックを取らずに続行します）。粒度の選択肢は[ロック](/docs/reference/transaction#ロック)を参照してください。
+
+## コンストラクタオプション一覧
 
 | オプション | 説明 | 参照 |
 | --- | --- | --- |
@@ -227,23 +1958,53 @@ const gassma = new Gassma.GassmaClient({
 | `map` | フィールド名のマッピング | [map](/docs/reference/config/map) |
 | `mapSheets` | シート名のマッピング | [map](/docs/reference/config/map) |
 | `autoincrement` | 自動採番 | [autoincrement](/docs/reference/config/autoincrement) |
+| `lock` | `$transaction` と autoincrement で使うロック | [ロック](/docs/reference/transaction#ロック) |
 | `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
 
-## Date 値の判定
+## スキーマ版との対応
 
-GASsma は GAS ライブラリとして、呼び出し元スクリプトとは別のスクリプトコンテキストで動作します。そのため、GASsma が返した `Date` 値を `instanceof Date` で判定すると `false` になります。判定には `Object.prototype.toString` を使用してください。
+CLI を使う場合、上記のオプションの多くは `schema.prisma` の属性として書きます。
+
+| コンストラクタオプション | スキーマでの書き方 |
+| --- | --- |
+| `relations` | `@relation(fields: [...], references: [...])` |
+| `defaults` | `@default(...)` |
+| `autoincrement` | `@default(autoincrement())` |
+| `updatedAt` | `@updatedAt` |
+| `ignore` | `@ignore` |
+| `ignoreSheets` | `@@ignore` |
+| `map` | `@map("...")` |
+| `mapSheets` | `@@map("...")` |
+| `strictUndefinedChecks` | `previewFeatures = ["strictUndefinedChecks"]` |
+| `omit` | スキーマ側の書き方はありません（CLI を使う場合もコンストラクタで指定します） |
+| `lock` | スキーマ側の書き方はありません（CLI を使う場合、生成されたクライアントが既定値を埋めます） |
+| `id` | `datasource` ブロックの `url`、または `gassma.config.ts` の `datasource.url` |
+
+各設定の詳細は[スキーマ](/docs/reference/schema)を参照してください。
+
+## 型について
+
+GAS エディタでは型定義が生成されないため、シート名・カラム名の補完や型チェックは効きません。シート名やカラム名の誤りは実行時に判明します。
+
+型安全に開発したい場合は CLI の利用を検討してください（[クイックスタート](/docs/quickstart)）。
+
+## エラークラスの参照
+
+GASsma が投げるエラークラスは `Gassma` 名前空間から参照できます。
 
 ```ts
-const user = gassma.Users.findFirst({ where: { id: 1 } });
-
-user.createdAt instanceof Date;
-// => false（ライブラリ境界を越えた Date は instanceof で判定できない）
-
-Object.prototype.toString.call(user.createdAt) === "[object Date]";
-// => true
+try {
+  gassma.Users.findFirstOrThrow({ where: { id: 999 } });
+} catch (e) {
+  if (e instanceof Gassma.NotFoundError) {
+    console.log("見つかりませんでした");
+  }
+}
 ```
 
-この制約は `Date` などの**ビルトイン型**に対する `instanceof` の話です。GASsma が公開するエラークラス（`Gassma.GassmaMissingArgumentError` など）は `Gassma` 名前空間（ライブラリの global）経由で参照するため、`instanceof` で判定できます。詳しくは[エラー一覧](/docs/reference/errors)を参照してください。
+エラークラスの一覧は[エラー一覧](/docs/reference/errors)を参照してください。
+
+`Date` などのビルトイン型は、ライブラリ境界をまたぐと `instanceof` で判定できません。詳しくは[基本](/docs/reference/basic#date-値の判定)を参照してください。
 
 # create() (https://gassma.io/docs/reference/crud/create/create)
 
@@ -290,7 +2051,7 @@ gassma.sheet1.create({ data: { name: new Point(1, 2) } });
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 const result = gassma.sheet1.create({
@@ -319,7 +2080,7 @@ const result = gassma.sheet1.create({
 また、以下のように年齢を省くとその行の`age`列部分が空になります。値に `undefined` を渡した場合も省略と同じ扱いになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.create
 gassma.sheet1.create({
@@ -386,7 +2147,7 @@ gassma.sheet1.create({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.createMany
 const result = gassma.sheet1.createMany({
@@ -462,7 +2223,7 @@ const result = gassma.sheet1.createMany({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.createManyAndReturn
 const result = gassma.sheet1.createManyAndReturn({
@@ -557,7 +2318,7 @@ where、orderBy、take/skip、カーソルページネーション、distinct �
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -579,7 +2340,7 @@ const result = gassma.sheet1.findMany({
 複数の条件を指定したい場合は以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -600,7 +2361,7 @@ const result = gassma.sheet1.findMany({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -637,7 +2398,7 @@ const result = gassma.sheet1.findMany({
 `equals`、`not`、`contains`、`startsWith`、`endsWith` に `mode: "insensitive"` を指定すると、大文字小文字を区別せずに比較できます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // "alice"、"Alice"、"ALICE" すべてにマッチ
 const result = gassma.sheet1.findMany({
@@ -694,7 +2455,7 @@ gassma.sheet1.findMany({ where: { name: new Point(1, 2) } });
 AND を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -720,7 +2481,7 @@ const result = gassma.sheet1.findMany({
 OR を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -747,7 +2508,7 @@ const result = gassma.sheet1.findMany({
 NOT を利用して検索する場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -769,7 +2530,7 @@ const result = gassma.sheet1.findMany({
 例えば AND の下に OR や NOT を入れることができます。この入れ子構造は GAS のコールスタックが許す限り無限に可能です。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -860,7 +2621,7 @@ gassma.sheet1.findMany({ where: { name: { contains: null } } });
 例えば`age`と`pref`のみ取得したい場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -897,6 +2658,8 @@ const result = gassma.sheet1.findMany({
 ### select 内でのリレーションオプション指定
 
 リレーション定義がある場合、`select` 内のリレーションフィールドに `include` と同様のオプションを指定できます。`include` を別途指定する代わりに、`select` 内でリレーション先のデータ取得を制御できます。
+
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -965,7 +2728,7 @@ const result = gassma.Users.findMany({
 例えば`age`で昇順でソートする場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -992,7 +2755,7 @@ const result = gassma.sheet1.findMany({
 オブジェクト形式で `nulls` オプションを指定すると、null 値の並び位置を制御できます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // null 値を最後に配置
 const result = gassma.sheet1.findMany({
@@ -1020,7 +2783,7 @@ const result = gassma.sheet1.findMany({
 といったことを行いたい場合コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1040,6 +2803,8 @@ const result = gassma.sheet1.findMany({
 ### リレーションフィールドでのソート
 
 リレーション定義がある場合、manyToOne / oneToOne のリレーション先フィールドでソートできます。
+
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -1106,7 +2871,7 @@ manyToOne / oneToOne のリレーションでは `_count` ソートはできま�
 例えば条件に合致した行の中から上から 2 行を取得したい場合以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1150,7 +2915,7 @@ const result = gassma.sheet1.findMany({
 例えば条件に合致した行の中から上 1 つ目を省きたい場合、コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1184,7 +2949,7 @@ gassma.sheet1.findMany({ skip: null });
 | 有限の負数 | `take` は末尾から取得、`skip` は `GassmaSkipNegativeError` |
 | `undefined` | 指定しなかった扱いになり無視されます |
 
-`skip: -Infinity` は以前 `GassmaSkipNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
+`skip: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
 
 同じ検証は `count` / `aggregate` / `groupBy` の `take` / `skip` にも適用されます。`findFirst` の `take` は[別の制限](./findFirst#take)があります。
 
@@ -1193,7 +2958,7 @@ gassma.sheet1.findMany({ skip: null });
 カーソルベースのページネーションを行えます。`cursor` にレコードを一意に特定するオブジェクトを指定すると、そのレコードを起点として取得します。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // id: 3 のレコードを起点に、そこから 5 件取得
 const result = gassma.sheet1.findMany({
@@ -1249,7 +3014,7 @@ cursor に指定したレコードが見つからない場合は空配列が返�
 例えば`postNumber`を除外したい場合は以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1282,7 +3047,7 @@ const result = gassma.sheet1.findMany({
 例えば`age`の被りを省略する場合、コードは以下のようになります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findMany
 const result = gassma.sheet1.findMany({
@@ -1344,7 +3109,7 @@ where 条件に合致する最初のレコードを取得する。合致する�
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirst
 const result = gassma.sheet1.findFirst({
@@ -1451,7 +3216,7 @@ findFirst と同様だが、レコードが見つからない場合に NotFoundE
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.findFirstOrThrow
 const result = gassma.sheet1.findFirstOrThrow({
@@ -1525,7 +3290,7 @@ const result = gassma.sheet1.findFirstOrThrow({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.update
 const result = gassma.sheet1.update({
@@ -1690,7 +3455,7 @@ const result = gassma.sheet1.update({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateMany
 const result = gassma.sheet1.updateMany({
@@ -1746,7 +3511,7 @@ gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` は以前 `GassmaLimitNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`undefined` は従来どおり無視されます（上限なし）。
+`limit: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaLimitNegativeError` ではなく `GassmaInvalidValueError` になります。`undefined` は無視されます（上限なし）。
 
 ## 数値の原子的操作
 
@@ -1801,7 +3566,7 @@ const result = gassma.sheet1.updateMany({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.updateManyAndReturn
 const result = gassma.sheet1.updateManyAndReturn({
@@ -1894,7 +3659,7 @@ const result = gassma.sheet1.updateManyAndReturn({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.upsert
 const result = gassma.sheet1.upsert({
@@ -1979,7 +3744,7 @@ const result = gassma.sheet1.upsert({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.delete
 const result = gassma.sheet1.delete({
@@ -2061,7 +3826,7 @@ const result = gassma.sheet1.delete({
 この場合以下のコードとなります。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 
 // gassma.{{TARGET_SHEET_NAME}}.deleteMany
 const result = gassma.sheet1.deleteMany({
@@ -2109,7 +3874,7 @@ gassma.sheet1.deleteMany({ limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` は以前 `GassmaLimitNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`undefined` は従来どおり無視されます（上限なし）。
+`limit: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaLimitNegativeError` ではなく `GassmaInvalidValueError` になります。`undefined` は無視されます（上限なし）。
 
 また`where`の仕様は[findMany()の記事](../read/findMany)に準拠します。
 
@@ -2128,11 +3893,11 @@ _avg、_sum、_min、_max、_count などの集計を行う
 | take    | 取得数の設定             | 可   |
 | skip    | スキップ数の設定         | 可   |
 | cursor  | カーソルベースページネーション | 可   | 詳細は [findMany の cursor](/docs/reference/crud/read/findMany#cursor) を参照 |
-| \_avg   | 平均表示の設定     | 可   |
-| \_count | ヒット数表示の設定 | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
-| \_max   | 最大値表示の設定   | 可   |
-| \_min   | 最小値表示の設定   | 可   |
-| \_sum   | 合計表示の設定     | 可   |
+| \_avg   | 平均表示の設定     | 可   | 数値の列のみ指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_count | ヒット数表示の設定 | 可   | すべての列を指定できます。`_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
+| \_max   | 最大値表示の設定   | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_min   | 最小値表示の設定   | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_sum   | 合計表示の設定     | 可   | 数値の列のみ指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
 
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
 
@@ -2176,6 +3941,53 @@ const result = gassma.sheet1.aggregate({
 ```
 
 `_avg` / `_sum` / `_max` / `_min` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。
+
+## 集計キーが指定できる列
+
+集計キーごとに、指定できる列の型が異なります。
+
+| 集計キー | 指定できる列の型 |
+| --- | --- |
+| \_avg | 数値 |
+| \_sum | 数値 |
+| \_max | 数値 / 文字列 / 真偽値 / 日付 |
+| \_min | 数値 / 文字列 / 真偽値 / 日付 |
+| \_count | すべての列（行数を数えるだけのため型を問いません） |
+
+CLI を使う場合、`_avg` / `_sum` に指定できるのは TypeScript 型が `number` になる列（`Int` / `Float` / `Decimal` / `BigInt`）だけで、それ以外の列を書くと型エラーになります。`_max` / `_min` / `_count` はすべての列を指定できます（[型マッピング](/docs/reference/schema#型マッピング)を参照）。
+
+`_max` / `_min` の結果は列の型ごとに次のようになります。
+
+- 数値: 最大 / 最小の数値
+- 文字列: 辞書順で最大 / 最小の文字列
+- 日付: 最も新しい / 最も古い日付
+- 真偽値: 最大は 1 つでも `true` があれば `true`、最小はすべて `true` のときだけ `true`
+
+型のチェックは実行時にシートの値に対して行われます。GAS エディタだけで使う場合や、シートに宣言と違う型の値が入っている場合は、以下のエラーがスローされます。
+
+- `_avg` / `_sum` に数値以外の列を指定した場合: `GassmaAggregateAvgTypeError` / `GassmaAggregateSumTypeError`
+- `_max` / `_min` に上記 4 つ以外の型の列を指定した場合: `GassmaAggregateTypeError`
+- 1 つの列に複数の型の値が混ざっている場合: `GassmaAggregateAvgError` / `GassmaAggregateSumError` / `GassmaAggregateMaxError` / `GassmaAggregateMinError`
+
+詳細は[エラー一覧](/docs/reference/errors)を参照してください。
+
+### リレーションは跨げません
+
+集計キーに指定できるのは**自分のモデルの列だけ**です。リレーション先の列は指定できません（Prisma と同じ挙動です）。`groupBy` の `by` も同様です。
+
+リレーション先の値を集計したい場合は、[include](/docs/reference/relation/include) で取得してコード側で集計してください。
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)が使えるため、「リレーション先の条件で行を絞ってから自分の列を集計する」ことはできます。
 
 ## _count
 
@@ -2308,15 +4120,17 @@ const result = gassma.sheet1.count({
 | orderBy | ソート設定                     | 可   | 指定する列が 1 つの場合、配列の省略が可能です |
 | take    | 取得数の設定                   | 可   |
 | skip    | スキップ数の設定               | 可   |
-| \_avg   | 平均表示の設定                 | 可   |
-| \_count | ヒット数表示の設定             | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
-| \_max   | 最大値表示の設定               | 可   |
-| \_min   | 最小値表示の設定               | 可   |
-| \_sum   | 合計表示の設定                 | 可   |
+| \_avg   | 平均表示の設定                 | 可   | 数値の列のみ指定できます |
+| \_count | ヒット数表示の設定             | 可   | すべての列を指定できます。`_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
+| \_max   | 最大値表示の設定               | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます |
+| \_min   | 最小値表示の設定               | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます |
+| \_sum   | 合計表示の設定                 | 可   | 数値の列のみ指定できます |
 | by      | グループ化条件の指定           | 不可 |
 | having  | グループ化した後の取得条件指定 | 可   | 書かない場合は全てのデータを取得します        |
 
 `by` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `by` is missing.）がスローされます。
+
+`take` を指定した場合、または `skip` に 0 以外を指定した場合は `orderBy` が必須です。`orderBy` がないと `GassmaGroupByOrderByRequiredError`（メッセージ: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.）がスローされます。空の `orderBy` は指定したことになりません。
 
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
 
@@ -2501,6 +4315,8 @@ const result = gassma.sheet1.groupBy({
 
 `_avg` / `_sum` / `_max` / `_min` および列名指定の `_count` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。`_count: { _all: true }` はこれらの行も数えます。
 
+集計キーごとに指定できる列の型は aggregate と同じです。詳細は [aggregate の集計キーが指定できる列](/docs/reference/statistics/aggregate#集計キーが指定できる列)を参照してください。
+
 ### _count
 
 `_count` では各グループの行数を数えられます。列名を指定するとその列の値が null（空のセル）や `NaN` / 不正な Date（Invalid Date）などの欠損値ではない行のみを、`_all: true` を指定すると欠損値を含む全ての行数を数えます。
@@ -2612,7 +4428,25 @@ const result = gassma.sheet1.groupBy({
 
 ## 基本的な定義方法
 
-`GassmaClient` のコンストラクタに `relations` オプションを渡すことで、シート間のリレーションを定義できます。
+CLI を使う場合、リレーションは `schema.prisma` に `@relation` で書きます。`npx gassma generate` を実行すると、生成されたクライアントに注入されます。
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id])
+}
+```
+
+GAS エディタだけで使う場合は、`GassmaClient` のコンストラクタに `relations` オプションを渡します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -2641,6 +4475,10 @@ const gassma = new Gassma.GassmaClient({
   },
 });
 ```
+
+以降の説明では、リレーションの種類ごとの意味を示すためにコンストラクタ版の表記を使います。スキーマでの書き方は[スキーマ](/docs/reference/schema)を参照してください。
+
+`relations` をコンストラクタに渡せるのは、`new Gassma.GassmaClient()` を直接使う場合だけです。CLI が生成した `GassmaClient` はスキーマから読み取ったリレーションで上書きするため、コンストラクタに渡しても黙って無視されます（[コンストラクタオプション](/docs/reference/basic#コンストラクタオプション)を参照）。
 
 ## リレーション定義のキー
 
@@ -3087,6 +4925,8 @@ const result = gassma.Users.findMany({
 `include` の中にさらに `include` を指定することで、深い階層のリレーションを取得できます。
 
 例えば、Users → Posts → Tags のようなリレーションを一度に取得できます。
+
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -3607,7 +5447,25 @@ const count = gassma.Users.count({
 
 ## 基本的な使い方
 
-[リレーション定義](/docs/reference/relation/definition)で `onDelete` を指定します。
+CLI を使う場合、`@relation` の引数に `onDelete` を指定します。
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+```
+
+GAS エディタだけで使う場合は、[リレーション定義](/docs/reference/relation/definition)で `onDelete` を指定します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -4144,6 +6002,8 @@ Nested write は再帰的に処理されるため、深い階層のリレーシ�
 
 例えば、ユーザー → 投稿 → タグ を一度に作成する場合：
 
+この例ではリレーション定義をコンストラクタで示しています。CLI を使う場合、リレーションは `schema.prisma` に書きます（[リレーション定義](/docs/reference/relation/definition)）。
+
 ```ts
 const gassma = new Gassma.GassmaClient({
   relations: {
@@ -4224,7 +6084,25 @@ const result = gassma.Users.create({
 
 ## 基本的な使い方
 
-[リレーション定義](/docs/reference/relation/definition)で `onUpdate` を指定します。
+CLI を使う場合、`@relation` の引数に `onUpdate` を指定します。
+
+```prisma
+model Users {
+  id    Int     @id
+  name  String
+  posts Posts[]
+}
+
+model Posts {
+  id       Int    @id
+  title    String
+  authorId Int
+
+  author Users @relation(fields: [authorId], references: [id], onUpdate: Cascade)
+}
+```
+
+GAS エディタだけで使う場合は、[リレーション定義](/docs/reference/relation/definition)で `onUpdate` を指定します。
 
 ```ts
 const gassma = new Gassma.GassmaClient({
@@ -4888,7 +6766,7 @@ gassma.sheet1.changeSettings(1, 2, 5);
 以上のテーブルの場合は以下のようなコードを書くことで正常にテーブルを読み込めます。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // シートの操作をする前に必ず記述
 gassma.sheet1.changeSettings(4, "B", "E");
 
@@ -4900,7 +6778,7 @@ const result = gassma.sheet1.findMany({});
 ![別のデータがあるテーブル](./img/settingExample2.png)
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 // シートの操作をする前に必ず記述
 gassma.sheet1.changeSettings(1, "A", "D");
 
@@ -4912,6 +6790,17 @@ const result = gassma.sheet1.findMany({});
 シートごとに、結果からデフォルトで除外するフィールドを設定する
 
 `GassmaClient` のコンストラクタで `omit` を指定すると、指定したシートの全クエリでデフォルトのフィールド除外が適用されます。
+
+## スキーマ版とコンストラクタ版
+
+他の設定と違い、`omit` はスキーマではなくコンストラクタで指定します。CLI を使う場合も同じ書き方です。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | スキーマ側の書き方はありません |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `omit: { Users: { password: true } }` |
+
+`omit` に対応するスキーマ属性はありません。CLI を使う場合もコンストラクタで指定してください。
 
 ## 基本的な使い方
 
@@ -5032,6 +6921,26 @@ const result = gassma.Users.findMany({
 
 Prisma の `@default()` に相当する機能です。`create` 時にフィールドのデフォルト値を自動設定します。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `role String @default("USER")` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `defaults: { Users: { role: "USER" } }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  role      String   @default("USER")
+  createdAt DateTime @default(now())
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts
@@ -5102,6 +7011,25 @@ gassma.Users.createMany({ data: [{ name: "Alice" }] });
 
 Prisma の `@updatedAt` に相当する機能です。レコードの作成・更新時に指定カラムへ自動的に現在時刻をセットします。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `updatedAt DateTime @updatedAt` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `updatedAt: { Users: "updatedAt" }` |
+
+```prisma
+model Users {
+  id        Int      @id
+  name      String
+  updatedAt DateTime @updatedAt
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts
@@ -5157,6 +7085,32 @@ const gassma = new Gassma.GassmaClient({
 フィールドやシート全体をすべての操作の対象から除外する（@ignore / @@ignore）
 
 Prisma の `@ignore`（フィールドレベル）と `@@ignore`（モデルレベル）に相当する機能です。
+
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `@ignore` / `@@ignore` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `ignore: { ... }` / `ignoreSheets: [ ... ]` |
+
+```prisma
+model Users {
+  id           Int    @id
+  name         String
+  secretColumn String @ignore
+}
+
+model Logs {
+  id      Int    @id
+  message String
+
+  @@ignore
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
 
 ## ignore（フィールドレベル）
 
@@ -5221,11 +7175,34 @@ const gassma = new Gassma.GassmaClient({
 ignoreSheets: "Logs",
 ```
 
+`@@ignore` / `@ignore` はクライアントから見えなくするだけで、シートや列そのものには手を付けません。[migrate / db push](/docs/reference/migrate) でも作成対象一覧に残るため、`--accept-data-loss` を付けても削除されません。クライアントには出さずにシートだけ残したい場合に使えます（[消したくないシートを守る](/docs/reference/migrate#消したくないシートを守る)）。
+
 # map / mapSheets（@map / @@map） (https://gassma.io/docs/reference/config/map)
 
 コード側の名前をスプレッドシートのヘッダー名・シート名に対応付ける（@map / @@map）
 
 Prisma の `@map("name")`（フィールドレベル）と `@@map("name")`（モデルレベル）に相当する機能です。コード上の名前とスプレッドシート上の名前をマッピングします。
+
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `@map("名前")` / `@@map("ユーザー一覧")` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `map: { ... }` / `mapSheets: { ... }` |
+
+```prisma
+model Users {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+
+  @@map("ユーザー一覧")
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
 
 ## map（フィールドレベル）
 
@@ -5297,6 +7274,24 @@ LockService + PropertiesService を使ったフィールドの自動インクリ
 
 Prisma の `autoincrement()` に相当する機能です。`create` 時に一意で単調増加する値を自動的に割り当てます。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `id Int @id @default(autoincrement())` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `autoincrement: { Users: "id" }` |
+
+```prisma
+model Users {
+  id   Int    @id @default(autoincrement())
+  name String
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## 基本的な使い方
 
 ```ts
@@ -5341,10 +7336,12 @@ gassma.Users.createMany({
 
 ## 仕組み
 
-1. `LockService.getScriptLock().waitLock(10000)` で排他制御
+1. `GassmaClient` の [`lock`](/docs/reference/transaction#ロック) を `waitLock(10000)` で取得して排他制御
 2. `PropertiesService.getScriptProperties()` からカウンターを読み取り
 3. +1（createMany の場合は +N）して書き込み
 4. ロック解放
+
+`npx gassma generate` が生成するクライアントは、`lock` に `LockService.getScriptLock()` を既定で埋めます。`lock` を持たないクライアント（[GAS エディタ](/docs/reference/gas-editor)で `lock` を渡さずに生成した場合など）では、**ロックを取らずに採番します**（エラーにはなりません）。
 
 GAS の `LockService` と `PropertiesService` を使用するため、GAS 環境でのみ動作します。
 
@@ -5358,6 +7355,71 @@ gassma.Users.create({
 });
 // => id は 100（自動採番されない）
 ```
+
+## 既存データがあるシートに導入する場合
+
+カウンターは 0 から始まり、**シートに入っている値は見ません**。そのため `id` が 1〜500 まで入っているシートに GASsma を導入すると、最初の `create` が `id: 1` を採番して既存の行と衝突します。
+
+`$syncAutoincrement()` を呼ぶと、その列に入っている最大値の次からカウンターを再開できます。導入時に一度呼んでおいてください。
+
+```ts
+// 既存データの id が 1〜500 のとき
+gassma.Users.$syncAutoincrement("id");
+// => 501
+
+gassma.Users.create({
+  data: { name: "Alice" },
+});
+// => { id: 501, name: "Alice" }
+```
+
+スプレッドシートを手で編集して行を追加し、カウンターとずれてしまった場合も、`$syncAutoincrement()` を呼び直せば同じように合わせ直せます。
+
+## カウンターを操作する
+
+Prisma では `autoincrement()` に引数を渡せず、カウンターの調整は `ALTER SEQUENCE ... RESTART WITH` のような SQL で行います。GASsma のカウンターは `PropertiesService` にあってスキーマからも SQL からも触れないため、代わりにモデルのメソッドとして提供しています。
+
+やり取りする値は 3 つとも**「次に発行される値」**で統一されています。`ALTER SEQUENCE ... RESTART WITH 1000` と同じ意味です。
+
+| メソッド | 戻り値 | 説明 |
+| --- | --- | --- |
+| `$getAutoincrement(field)` | `number` | 次に発行される値を返す（一度も採番していなければ `1`） |
+| `$setAutoincrement(field, next)` | `void` | 次に発行される値を `next` にする |
+| `$syncAutoincrement(field)` | `number` | 列の最大値 + 1 をカウンターに設定し、その値を返す |
+
+```ts
+gassma.Users.$getAutoincrement("id");
+// => 1
+
+gassma.Users.$setAutoincrement("id", 501);
+
+gassma.Users.$getAutoincrement("id");
+// => 501
+```
+
+`$setAutoincrement` は値を自分で決めたいときに使います。既存データに合わせたいだけなら `$syncAutoincrement` を使ってください。
+
+CLI を使う場合、3 つのメソッドの `field` の型は**そのモデルで autoincrement を設定したフィールドだけ**に絞られます。設定していないフィールド名を書くと型エラーになり、autoincrement を 1 つも持たないモデルでは `field` の型が `never` になるため、そもそも呼び出せません。
+
+### $syncAutoincrement が見る値
+
+- 対象フィールドの列だけを読みます（シート全体は読みません）
+- **数値だけ**を見て最大値を取ります。空のセルや数値以外の値は無視されます
+- 小数は切り捨てます（`3.7` があれば次は `4`）
+- 数値が 1 つもない場合や負数しかない場合は、次の値が `1` になります
+
+### 関連エラー
+
+| エラー | 発生条件 |
+| --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | autoincrement を設定していないフィールドを `field` に指定 |
+| `GassmaAutoincrementInTransactionError` | `$transaction` の中から `$setAutoincrement` / `$syncAutoincrement` を呼び出し |
+| `GassmaInvalidValueError` | `$setAutoincrement` の `next` が 1 以上の整数でない（`NaN` / `Infinity` / 小数 / 0 以下 / 数値以外） |
+| `GassmaInvalidValueError` | `$syncAutoincrement` で、autoincrement を設定したフィールドの列がシートに存在しない（列名を変えた場合など） |
+
+詳細は[エラー一覧](/docs/reference/errors)を参照してください。
+
+`$setAutoincrement` / `$syncAutoincrement` は [$transaction](/docs/reference/transaction) の中からは呼べません。カウンターは `PropertiesService` にあってシートのバッファに乗らないため、トランザクションが失敗してもロールバックされないからです。`$getAutoincrement` は読み取りだけなのでトランザクション内でも呼べます。
 
 # strictUndefinedChecks / Gassma.skip (https://gassma.io/docs/reference/config/strict-undefined-checks)
 
@@ -5386,14 +7448,19 @@ const users = gassma.Users.findMany({
 
 `strictUndefinedChecks` はオプトインの機能です。有効化する方法は 2 つあります。
 
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `previewFeatures = ["strictUndefinedChecks"]` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `strictUndefinedChecks: true` |
+
 ### previewFeatures で有効化（CLI あり）
 
-[Prisma スキーマを利用したローカル開発](/docs/reference/type-generation)をしている場合は、`schema.prisma` の `generator` ブロックに `previewFeatures` を追加します（Prisma と同じ書き方です）。
+CLI を使う場合は、`schema.prisma` の `generator` ブロックに `previewFeatures` を追加します（Prisma と同じ書き方です）。
 
 ```prisma
 generator client {
   provider        = "prisma-client-js"
-  output          = "./generated/gassma"
+  output          = "./src/generated/gassma"
   previewFeatures = ["strictUndefinedChecks"]
 }
 ```
@@ -5510,7 +7577,7 @@ gassma.Users.findMany({
 
 # $extends（query） (https://gassma.io/docs/reference/client-extensions/query)
 
-$extends の query コンポーネントは、各操作の実行に割り込むクエリフックを登録するための機能です。Prisma のクライアント拡張（$extends の query）に相当します。フックの中で args を書き換える、結果を加工する、実際の操作を実行せずに短絡する、といった制御ができます。
+$extends の query で各操作にクエリフックを登録し、args の書き換え・結果の加工・実行の短絡を行う
 
 `$extends` の `query` コンポーネントは、各操作の実行に割り込むクエリフックを登録するための機能です。Prisma のクライアント拡張（`$extends` の `query`）に相当します。フックの中で `args` を書き換える、結果を加工する、実際の操作を実行せずに短絡する、といった制御ができます。
 
@@ -5750,7 +7817,7 @@ const extended = gassma.$extends({
 
 # $extends（result） (https://gassma.io/docs/reference/client-extensions/result)
 
-$extends の result コンポーネントは、クエリ結果のレコードに算出フィールド（computed fields）を追加するための機能です。Prisma のクライアント拡張（$extends の result）に相当します。既存のスカラーフィールドから新しいフィールドを計算し、結果に含めることができます。
+$extends の result で既存のスカラーフィールドから算出フィールドを追加する
 
 `$extends` の `result` コンポーネントは、クエリ結果のレコードに**算出フィールド**（computed fields）を追加するための機能です。Prisma のクライアント拡張（`$extends` の `result`）に相当します。既存のスカラーフィールドから新しいフィールドを計算し、結果に含めることができます。
 
@@ -6095,6 +8162,48 @@ gassma.$transaction((tx) => {
 });
 ```
 
+## ロック
+
+`$transaction` は、`GassmaClient` に渡された `lock` を取得してから開始します。
+
+`npx gassma generate` が生成するクライアントは、この `lock` に `LockService.getScriptLock()` を既定値として埋めます。この `LockService.getScriptLock()` は**あなたのプロジェクトで評価される**ため、取得されるのは**あなたのスクリプトプロジェクトのロック**です。CLI を使う場合、書き方は今までと変わりません。
+
+```ts
+const gassma = new GassmaClient(); // lock は自動で埋まる
+```
+
+この `lock` は [autoincrement](/docs/reference/config/autoincrement) の採番にも使われます。
+
+### ロックの粒度
+
+コンストラクタで `lock` を明示すると、既定値を上書きできます。
+
+```ts
+const gassma = new GassmaClient({
+  lock: LockService.getDocumentLock(),
+});
+```
+
+| 渡す値 | 直列化される範囲 |
+| --- | --- |
+| `LockService.getScriptLock()`（既定） | 同じスクリプトプロジェクトの実行どうし |
+| `LockService.getDocumentLock()` | 同じドキュメント（バインド先のスプレッドシート）の実行どうし |
+| `LockService.getUserLock()` | 同じユーザーの実行どうし |
+
+`$transaction` の第 2 引数に `lock` はありません。粒度はクライアントを生成する時点で決まります。
+
+`LockService.getDocumentLock()` は、**スタンドアロンスクリプトまたはウェブアプリから呼ぶと `null` を返します**（例外にはなりません）。スプレッドシートにバインドされたスクリプトでも、ウェブアプリ経由の実行では `null` になります。`null` を `lock` に渡すと `GassmaInvalidLockError` が throw されます。
+
+### lock を渡していない場合
+
+`lock` を持たないクライアントで `$transaction` を呼ぶと、`GassmaTransactionLockRequiredError` が throw されます。GAS エディタだけで使う場合は自分で渡してください（[GAS エディタでの利用](/docs/reference/gas-editor)）。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
 ## オプション
 
 第 2 引数でオプションを指定できます。
@@ -6116,7 +8225,7 @@ gassma.$transaction(
 
 ### maxWait
 
-トランザクションはスクリプトロックを取得してから開始されます。別の実行が同じロックを保持している場合（別の `$transaction` の実行中など）、最大 `maxWait` ミリ秒までロックの解放を待ち、それでも取得できなければ `GassmaTransactionLockTimeoutError` を throw します。
+トランザクションは、クライアントの [`lock`](#ロック) を取得してから開始されます。別の実行が同じロックを保持している場合（別の `$transaction` の実行中など）、最大 `maxWait` ミリ秒までロックの解放を待ち、それでも取得できなければ `GassmaTransactionLockTimeoutError` を throw します。
 
 ### timeout
 
@@ -6141,793 +8250,17 @@ gassma.$transaction(
 ## 制限事項
 
 - ロックが直列化するのは、GASsma を経由する処理同士だけです。スプレッドシートの手動編集や、GASsma を使わない別スクリプトからの変更は止められません。同時実行で何が起こりうるかは[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照してください。
-- **ロックは GASsma ライブラリのものです。** GASsma はライブラリとして動くため、`$transaction` が取るロックは**あなたのスクリプトプロジェクトのものではなく、GASsma 自身のもの**です。同じライブラリを使う**他のスクリプトプロジェクトとも共有**されるため、別のプロジェクトのトランザクションが実行中であれば、そちらの完了を待つことがあります。
+- **直列化される範囲は `lock` に渡したロックで決まります。** 既定の `LockService.getScriptLock()` で直列化されるのは、**同じスクリプトプロジェクトの実行どうしだけ**です。同じスプレッドシートを**別の GAS プロジェクトから触る場合、互いのトランザクションは直列化されません**。粒度の選び方は[ロック](#ロック)を参照してください。
 - 実行が強制終了された場合（GAS の 6 分実行制限など）は、バックアップシートが残ることがあります。次回の `$transaction` 実行時に警告ログが出力されます。残った `_gassma_tx_...` シートは、中身を確認のうえ手動で削除して構いません。
 - 復元されるのはセルの値と数式のみです（書式などは対象外）。
 - [changeSettings](/docs/reference/settings/changeSettings) で実行時に変更した設定は、トランザクション内に引き継がれません。
+- [autoincrement](/docs/reference/config/autoincrement) のカウンターを書き換える `$setAutoincrement` / `$syncAutoincrement` はトランザクション内から呼べません（`GassmaAutoincrementInTransactionError`）。カウンターは `PropertiesService` にあってロールバックの対象外のためです。読み取りの `$getAutoincrement` は呼べます。
 - 操作の配列を渡す形（Prisma の sequential operations）は非対応です。コールバック形のみ使えます。
 - `isolationLevel` は非対応です（常にロックによる直列実行）。
 
 ## 関連エラー
 
-`GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError` の詳細は[エラー一覧](/docs/reference/errors)を参照してください。
-
-# Prisma スキーマを利用したローカル開発 (https://gassma.io/docs/reference/type-generation)
-
-gassma CLI（generate/init/validate/format）と gassma.config.ts を使い、Prisma 形式のスキーマから型安全なクライアントを生成する
-
-GASsma は clasp+esbuild 等を利用し TypeScript を使ってローカルで GAS を開発する際に、Prisma 形式のスキーマファイルから型安全なクライアントコードを自動生成する機能を提供しています。
-
-この機能を利用すると、リレーション定義や defaults・map 等の設定がスキーマから自動生成されるため、GASsma 独自のコンストラクタオプション（`relations`、`defaults`、`updatedAt`、`ignore`、`map` など）を手動で記述する必要がなくなります。Prisma のスキーマ構文さえ知っていれば、Prisma と同じ感覚で開発を始められます。
-
-**CLI なし（手動設定）:**
-
-```ts
-import { Gassma } from "gassma";
-
-const gassma = new Gassma.GassmaClient({
-  id: "SPREAD_SHEET_ID",
-  relations: {
-    User: {
-      posts: { type: "oneToMany", to: "Post", field: "id", reference: "authorId", onDelete: "Cascade" },
-    },
-    Post: {
-      author: { type: "manyToOne", to: "User", field: "authorId", reference: "id" },
-    },
-  },
-  defaults: { User: { role: "USER" } },
-  updatedAt: { Post: "updatedAt" },
-  map: { User: { firstName: "名前" } },
-});
-```
-
-**CLI あり（スキーマから自動生成）:**
-
-```ts
-import { GassmaClient } from "./generated/gassma/schemaClient";
-
-// リレーション・defaults・updatedAt・map 等すべて自動注入済み
-const gassma = new GassmaClient();
-```
-
-## 前提
-
-以下のコマンドで GASsma の CLI ツールをインストールしてください。
-
-```
-$ npm i gassma
-```
-
-## スキーマファイルの作成
-
-プロジェクト内に `.prisma` ファイルを作成します。デフォルトでは `./gassma` ディレクトリ配下が探索されます。
-
-```
-my-project/
-├── gassma/
-│   └── schema.prisma    ← ここにスキーマを記述
-├── package.json
-└── ...
-```
-
-### 基本的な書き方
-
-Prisma の文法でモデルを定義します。`generator` ブロックの `output` で出力先を指定してください。
-
-```prisma
-generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/gassma"
-}
-
-model User {
-  id    Int     @id
-  name  String
-  email String?
-  age   Int
-}
-```
-
-### previewFeatures
-
-`generator` ブロックに `previewFeatures` を指定すると、オプトインの機能を有効化できます（Prisma の `previewFeatures` と同じ書き方です）。
-
-```prisma
-generator client {
-  provider        = "prisma-client-js"
-  output          = "./generated/gassma"
-  previewFeatures = ["strictUndefinedChecks"]
-}
-```
-
-現在サポートされている機能:
-
-| 機能 | 説明 | 参照 |
-| --- | --- | --- |
-| `strictUndefinedChecks` | クエリ入力の明示的な `undefined` を実行時エラーにする | [strictUndefinedChecks / Gassma.skip](/docs/reference/config/strict-undefined-checks) |
-
-有効化すると、生成されるクライアント JS に `strictUndefinedChecks: true` が埋め込まれ、生成される型定義にも `Gassma.skip` を受け付ける型が反映されます。
-
-### 型マッピング
-
-Prisma の型は以下の TypeScript 型に変換されます。
-
-| Prisma 型 | TypeScript 型 |
-| --- | --- |
-| `Int` | `number` |
-| `Float` | `number` |
-| `Decimal` | `number` |
-| `BigInt` | `number` |
-| `String` | `string` |
-| `Boolean` | `boolean` |
-| `DateTime` | `Date` |
-| `Json` | `string` |
-| `Bytes` | `string` |
-
-`?` を付けるとオプショナルフィールドになります（`null` が許容されます）。
-
-### リレーション定義
-
-Prisma の `@relation` 属性を使うと、リレーション情報が自動的に抽出され、生成されたクライアントに注入されます。
-
-```prisma
-generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/gassma"
-}
-
-model User {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-
-model Post {
-  id       Int    @id
-  title    String
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId Int
-}
-```
-
-上記の定義から以下のリレーション設定が自動生成されます。
-
-- `User.posts`: oneToMany（User → Post）
-- `Post.author`: manyToOne（Post → User、onDelete: Cascade）
-
-#### 暗黙的 Many-to-Many
-
-双方向の配列参照がある場合、暗黙的な Many-to-Many リレーションが自動検出されます。
-
-```prisma
-model Post {
-  id   Int   @id
-  tags Tag[]
-}
-
-model Tag {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-```
-
-生成されるクライアントでは、中間テーブル名が `_PostToTag`（モデル名のアルファベット順）として自動的に解決されます。`@relation("PostTags")` のようにリレーションに名前を付けた場合は、リレーション名がそのまま中間テーブル名（`_PostTags`）になります（Prisma と同じ規則です）。
-
-中間テーブル（シート）自体は [migrate / db push](/docs/reference/migrate) で自動作成できます（スプレッドシート側に同名のシートを手動で用意しても構いません）。
-中間テーブル名を変更したい場合は、`@relation` でリレーションに名前を付けてください。
-
-### enum
-
-Prisma の `enum` 定義からリテラルユニオン型が自動生成されます。
-
-```prisma
-enum Role {
-  ADMIN
-  USER
-  MODERATOR
-}
-
-model User {
-  id   Int  @id
-  role Role
-}
-```
-
-生成される型:
-
-```ts
-"role": "ADMIN" | "USER" | "MODERATOR"
-```
-
-#### enum の @map
-
-enum メンバーに `@map` を付けると、コード上の名前とスプレッドシート上の値をマッピングできます。
-
-```prisma
-enum Role {
-  admin     @map("ADMIN")
-  user      @map("USER")
-  moderator @map("MODERATOR")
-}
-```
-
-生成される定数:
-
-```ts
-const Role = {
-  admin: "ADMIN",
-  user: "USER",
-  moderator: "MODERATOR",
-} as const;
-```
-
-型定義には `@map` の値が使用されます:
-
-```ts
-"role": "ADMIN" | "USER" | "MODERATOR"
-```
-
-### @gassma.addType
-
-Prisma のフィールドコメント（`///`）に `@gassma.addType` を記述すると、フィールドの型にユニオン型を追加できます。
-
-```prisma
-model User {
-  /// @gassma.addType string
-  id    Int @id          // 生成型: number | string
-
-  /// @gassma.addType string, boolean
-  score Int              // 生成型: number | string | boolean
-
-  name  String           // 生成型: string（コメントなしなら通常通り）
-}
-```
-
-### @gassma.replaceType
-
-`@gassma.addType` は基底型とのユニオンですが、`@gassma.replaceType` は基底型を置換して指定した型のみ生成します。
-
-```prisma
-model User {
-  /// @gassma.replaceType "admin", "user", "moderator"
-  role String
-}
-```
-
-生成される型:
-
-```ts
-"role": "admin" | "user" | "moderator"  // string を含まない
-```
-
-優先順位: enum > replaceType > addType。enum がある場合は replaceType / addType は無視されます。
-
-### @default
-
-`@default()` が付いたフィールドは、生成される Create 入力型でオプショナル（`?`）になります。
-
-```prisma
-model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-}
-```
-
-生成される型:
-
-```ts
-"isActive"?: boolean   // @default(true) → オプショナル
-"createdAt"?: Date     // @default(now()) → オプショナル
-```
-
-生成されるクライアント JS には defaults 設定が自動的に埋め込まれます。
-
-| `@default()` | 生成される JS |
-| --- | --- |
-| `@default(true)` / `@default(false)` | `true` / `false` |
-| `@default(0)` (数値) | `0` |
-| `@default("USER")` (文字列) | `"USER"` |
-| `@default(ADMIN)` (enum 値) | `"ADMIN"` |
-| `@default(active)` (enum 値・`active @map("ACTIVE")`) | `"ACTIVE"`（`@map` 後の値） |
-| `@default(now())` | `() => new Date()` |
-| `@default(uuid())` | `() => Utilities.getUuid()` |
-| `@default(autoincrement())` | autoincrement 設定として別途生成 |
-
-### @updatedAt
-
-`@updatedAt` が付いたフィールドは Create 入力型でオプショナルになり、生成されるクライアント JS に updatedAt 設定が埋め込まれます。
-
-```prisma
-model Post {
-  id        Int      @id
-  title     String
-  updatedAt DateTime @updatedAt
-}
-```
-
-### @ignore
-
-`@ignore` が付いたフィールドは型定義から完全に除外され、生成されるクライアント JS に ignore 設定が埋め込まれます。
-
-```prisma
-model User {
-  id       Int    @id
-  name     String
-  secret   String @ignore   // 型定義に含まれない
-}
-```
-
-### @map
-
-`@map("name")` でフィールド名のマッピングを定義できます。生成されるクライアント JS に map 設定が埋め込まれます。
-
-```prisma
-model User {
-  id        Int    @id
-  firstName String @map("名前")
-  lastName  String @map("名字")
-}
-```
-
-コード上は `firstName` / `lastName` で操作し、スプレッドシート上は「名前」「名字」カラムに対応します。
-
-### @@ignore
-
-モデルレベルの `@@ignore` でシート全体を除外できます。生成されるクライアント JS に ignoreSheets 設定が埋め込まれます。
-
-```prisma
-model Logs {
-  id      Int    @id
-  message String
-
-  @@ignore
-}
-```
-
-### @@map
-
-モデルレベルの `@@map("name")` でシート名をマッピングできます。
-
-```prisma
-model Users {
-  id   Int    @id
-  name String
-
-  @@map("ユーザー一覧")
-}
-```
-
-コード上は `Users` でアクセスし、スプレッドシート上は「ユーザー一覧」シートに対応します。
-
-## CLI コマンド
-
-### gassma generate
-
-型ファイルとクライアントコードを生成します。
-
-```
-$ npx gassma generate
-```
-
-デフォルトでは `./gassma` ディレクトリ内の `.prisma` ファイルが探索されます。`--schema` オプションで特定のスキーマファイルまたはディレクトリを指定できます（Prisma の `prisma generate --schema` に相当）。
-
-```
-$ npx gassma generate --schema gassma/user.prisma
-$ npx gassma generate --schema ./schemas
-```
-
-`--watch` オプションでスキーマファイルの変更を監視し、自動で再生成できます。
-
-```
-$ npx gassma generate --watch
-```
-
-`--schema` との併用も可能です。
-
-`--config` オプションで設定ファイルのパスを明示的に指定できます（Prisma の `--config` に相当）。
-
-```
-$ npx gassma generate --config configs/gassma.config.ts
-```
-
-指定したファイルが存在しない場合は `ConfigFileNotFoundError` になります。未指定時は従来どおりデフォルトの場所が探索されます（後述の「設定ファイルの探索規則」を参照）。
-
-### gassma init
-
-プロジェクトを初期化し、スキーマファイルと設定ファイルを自動生成します。
-
-```
-$ npx gassma init
-```
-
-以下のファイルが生成されます:
-
-- `gassma/schema.prisma` — 初期スキーマ
-- `gassma.config.ts` — 設定ファイル
-
-| オプション | 説明 |
-| --- | --- |
-| `--output <path>` | 生成先パスをカスタマイズ |
-| `--with-model` | サンプル User モデルを含むスキーマを生成 |
-
-既に `schema.prisma` が存在する場合はエラーで安全に停止します。
-
-### gassma validate
-
-スキーマファイルの構文チェック・整合性チェックを行います（Prisma の `prisma validate` に相当）。
-
-```
-$ npx gassma validate
-```
-
-```
-$ npx gassma validate --schema gassma/test.prisma
-```
-
-`--config` オプションで設定ファイルのパスを指定することもできます。
-
-チェック項目:
-
-- 構文エラー（パーサーエラー検出）
-- `generator` ブロックの存在チェック
-- `output` フィールドの必須チェック
-- モデルが 1 つ以上定義されていること
-
-成功時は以下のように出力されます:
-
-```
-The schema at /path/to/gassma/test.prisma is valid 🚀
-```
-
-### gassma format
-
-`.prisma` ファイルを Prisma 公式と同じフォーマットで整形します（`@prisma/internals` の `formatSchema` を使用）。
-
-```
-$ npx gassma format
-```
-
-| オプション | 説明 |
-| --- | --- |
-| `--schema <path>` | 特定ファイルのみ整形 |
-| `--config <path>` | 設定ファイルのパスを指定 |
-| `--check` | フォーマット済みかチェック（CI 用、未整形時は exit 1） |
-
-### gassma studio
-
-`datasource` に設定したスプレッドシートを、OS のデフォルトブラウザで開きます。
-
-```
-$ npx gassma studio
-```
-
-| オプション | 説明 |
-| --- | --- |
-| `--config <path>` | 設定ファイルのパスを指定 |
-
-URL は以下の順で解決されます。
-
-1. スキーマ内の `datasource` ブロックの `url`
-2. `gassma.config.ts` の `datasource.url`
-
-`url` にフル URL（`https://...`）を指定している場合はそのまま開き、スプレッドシート ID を指定している場合は `https://docs.google.com/spreadsheets/d/<id>/edit` を組み立てて開きます。どちらにも URL が設定されていない場合は `NoDatasourceUrlError` になります。
-
-### gassma version
-
-GASsma CLI のバージョンを表示します。
-
-```
-$ npx gassma version
-```
-
-`--version` / `-V` フラグでも確認できます。
-
-| オプション | 説明 |
-| --- | --- |
-| `--json` | バージョン情報を JSON で出力 |
-
-`--json` を付けると、バージョン情報を JSON 形式（`{"gassma":"<version>"}`）で出力します。
-
-```
-$ npx gassma version --json
-{"gassma":"1.2.3"}
-```
-
-### 生成されるファイル
-
-スキーマファイル名をもとに以下のファイルが生成されます。例えば `schema.prisma` の場合:
-
-| ファイル | 内容 |
-| --- | --- |
-| `schema.d.ts` | 型定義（モデル型、クエリ型、共通型） |
-| `schemaClient.js` | クライアント実装（リレーション定義の自動注入込み） |
-| `schemaClient.d.ts` | クライアントの型定義 |
-
-出力先は `generator` ブロックの `output` で指定したディレクトリです。
-
-## 生成されたクライアントの使い方
-
-生成されたクライアントファイルから `GassmaClient` をインポートしてそのまま使えます。リレーション定義は自動注入済みです。
-
-```ts
-import { GassmaClient } from "./generated/gassma/schemaClient";
-
-const gassma = new GassmaClient();
-
-// 型安全にシートへアクセス
-const users = gassma.User.findMany({
-  where: { age: { gte: 20 } },
-  select: { name: true, email: true },
-});
-```
-
-Prisma と同じパターンでインスタンス化できます。
-
-```ts
-// Prisma
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
-
-// GASsma（同じパターン）
-import { GassmaClient } from "./generated/gassma/schemaClient";
-const gassma = new GassmaClient();
-```
-
-### オプション付きの初期化
-
-```ts
-// スプレッドシートID指定
-const gassma = new GassmaClient("SPREAD_SHEET_ID");
-
-// オプションオブジェクト
-const gassma = new GassmaClient({
-  id: "SPREAD_SHEET_ID",
-  omit: {
-    User: { password: true },
-  },
-});
-```
-
-## 設定ファイル（gassma.config.ts）
-
-プロジェクトルートに `gassma.config.ts` を配置することで、CLI の設定を一元管理できます（Prisma の `prisma.config.ts` に相当）。TypeScript 以外の拡張子（`.js` / `.mjs` / `.cjs` / `.mts` / `.cts`）や `.config/` ディレクトリへの配置にも対応しています（後述の「設定ファイルの探索規則」を参照）。
-
-### 設定インターフェース
-
-設定ファイルの記述方法は 2 つあります。
-
-**1. `defineConfig` ヘルパーを使用（推奨）:**
-
-```ts
-import { defineConfig } from "gassma/config";
-
-export default defineConfig({
-  schema: "gassma/schema.prisma",
-  datasource: {
-    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-  },
-});
-```
-
-**2. `satisfies` 演算子を使用:**
-
-```ts
-import type { GassmaConfig } from "gassma";
-
-export default {
-  schema: "gassma/schema.prisma",
-  datasource: {
-    url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-  },
-} satisfies GassmaConfig;
-```
-
-`GassmaConfig` 型は `gassma` パッケージのルートから import できます。
-
-### 設定オプション
-
-| オプション | 型 | 必須 | 説明 |
-| --- | --- | --- | --- |
-| `schema` | `string` | いいえ | スキーマファイルまたはディレクトリのパス（デフォルト: `./gassma`） |
-| `datasource.url` | `string` | いいえ | スプレッドシートの URL または ID |
-
-### 設定ファイルの探索規則
-
-設定ファイルは以下の順序で探索され、**最初に見つかったファイル** が採用されます。
-
-1. `gassma.config.js`
-2. `gassma.config.ts`
-3. `gassma.config.mjs`
-4. `gassma.config.cjs`
-5. `gassma.config.mts`
-6. `gassma.config.cts`
-7. `.config/gassma.js`
-8. `.config/gassma.ts`
-9. `.config/gassma.mjs`
-10. `.config/gassma.cjs`
-11. `.config/gassma.mts`
-12. `.config/gassma.cts`
-
-プロジェクトルート直下の `gassma.config.*` が全拡張子ぶん先に探索され、その後 `.config/` ディレクトリ内の `gassma.*` が探索されます。`.js` が `.ts` より先に採用される点も含め、Prisma の設定ファイル探索と同じ順序です。
-
-### --config オプション
-
-`generate`（`--watch` 含む）/ `validate` / `format` / `studio` の各コマンドでは、`--config` オプションで設定ファイルのパスを明示的に指定できます（Prisma の `--config` に相当）。
-
-```
-$ npx gassma generate --config configs/gassma.config.ts
-```
-
-- 相対パスは実行時のカレントディレクトリ基準で解決されます。
-- 指定したファイルが存在しない場合は `ConfigFileNotFoundError` になります。
-- 未指定時は上記の探索規則に従ってデフォルトの場所が探索されます。
-
-### ロード時の挙動
-
-`gassma generate` 実行時、設定ファイルのロードに成功すると以下のように表示されます。
-
-```
-⚙️ Loaded config from gassma.config.ts
-```
-
-- 設定ファイルに構文エラー・実行時エラーがある場合や、既知のキー（`schema` / `datasource.url`）の型が不正な場合は `GassmaConfigLoadError` になります。
-- 未知のキーが含まれている場合は警告が表示され、そのキーは無視されます（エラーにはなりません）。
-
-```
-Warning: Unknown property `outut` in /path/to/gassma.config.ts. Known properties are: schema, datasource. It will be ignored.
-```
-
-### env() ヘルパー
-
-`env()` 関数を使うと、環境変数からスプレッドシート URL を取得できます（Prisma の `env()` に相当）。
-
-```ts
-import "dotenv/config";
-import { defineConfig, env } from "gassma/config";
-
-export default defineConfig({
-  schema: "gassma",
-  datasource: {
-    url: env("SPREADSHEET_URL"),
-  },
-});
-```
-
-`satisfies` パターンでも使用できます。
-
-```ts
-import "dotenv/config";
-import type { GassmaConfig } from "gassma";
-import { env } from "gassma/config";
-
-export default {
-  schema: "gassma",
-  datasource: {
-    url: env("SPREADSHEET_URL"),
-  },
-} satisfies GassmaConfig;
-```
-
-#### 型付きの env()
-
-型引数に環境変数のインターフェースを渡すと、`env()` に指定できる名前がそのキーに限定され、補完も効くようになります。
-
-```ts
-import "dotenv/config";
-import { defineConfig, env } from "gassma/config";
-
-interface Env {
-  SPREADSHEET_URL: string;
-}
-
-export default defineConfig({
-  schema: "gassma",
-  datasource: {
-    url: env<Env>("SPREADSHEET_URL"),
-  },
-});
-```
-
-指定できるのは値が `string`（または `string | undefined`）型のキーのみです。存在しないキーを指定するとコンパイルエラーになります。
-
-`env()` は環境変数が未設定または空文字の場合に `GassmaConfigEnvError` をスローします。オプショナルな環境変数には `process.env` を直接使用してください。
-
-### datasource.url
-
-`datasource.url` にスプレッドシートの URL または ID を指定すると、生成されるクライアント JS に `id` が自動埋め込みされます。これにより `new GassmaClient()` だけで対象スプレッドシートに接続できます。
-
-フル URL とスプレッドシート ID の両方に対応しています。
-
-```ts
-// フル URL
-datasource: {
-  url: "https://docs.google.com/spreadsheets/d/XXXXX/edit",
-}
-
-// ID 直接指定
-datasource: {
-  url: "XXXXX",
-}
-```
-
-### スキーマ内の datasource ブロック
-
-スキーマファイル内に `datasource` ブロックを記述することでも URL を指定できます。
-
-```prisma
-datasource db {
-  provider = "google-spreadsheet"
-  url      = "https://docs.google.com/spreadsheets/d/XXXXX/edit"
-}
-```
-
-#### URL 解決の優先順位
-
-1. スキーマ内の `datasource` ブロック（最優先）
-2. `gassma.config.ts` の `datasource.url`
-
-### スキーマ解決の優先順位
-
-1. `--schema` オプション（最優先）
-2. `gassma.config.ts` の `schema` 設定
-3. デフォルト `./gassma` ディレクトリ
-
-相対パスの解決基準はそれぞれ異なります。`--schema` オプションは実行時のカレントディレクトリ基準、設定ファイルの `schema` は **設定ファイルのある場所基準** で解決されます（Prisma と同じ）。
-
-`gassma init` を実行すると `gassma.config.ts` も自動生成されます。
-
-## マルチファイルスキーマ
-
-同じディレクトリ（およびサブディレクトリ）内に複数の `.prisma` ファイルを配置すると、自動的に **1 つのスキーマとして統合** されます。Prisma の [Multi-file schema](https://www.prisma.io/docs/orm/prisma-schema/overview/location#multi-file-prisma-schema) と同等の機能です。
-
-```
-gassma/
-├── schema.prisma        ← generator ブロックをここに記述
-├── models/
-│   ├── user.prisma      ← User, Profile モデル
-│   └── post.prisma      ← Post, Comment モデル
-```
-
-`generator` ブロックはいずれか 1 ファイルに記述すれば、全ファイルで共有されます。すべてのモデルが 1 つのクライアント出力にまとめられます。
-
-## 複数スキーマ（複数スプレッドシート）
-
-異なるスプレッドシートを扱う場合は、スキーマを別々のディレクトリに分けて個別に生成します。型名にはスキーマ名のプレフィックスが付与されるため、同名モデルがあっても衝突しません。
-
-```
-schemas/
-├── user/
-│   └── schema.prisma    → userClient.js, user.d.ts
-└── order/
-    └── schema.prisma    → orderClient.js, order.d.ts
-```
-
-```ts
-import { GassmaClient as UserClient } from "./generated/user/schemaClient";
-import { GassmaClient as OrderClient } from "./generated/order/schemaClient";
-
-const userGassma = new UserClient();
-const orderGassma = new OrderClient();
-```
-
-## 生成される型の概要
-
-生成される `.d.ts` には以下の型が含まれます。
-
-- **モデル型**: 各フィールドの型定義（`GassmaUserUse` 等）
-- **クエリ型**: `FindData`、`CreateData`、`UpdateData`、`DeleteData`、`UpsertData` 等
-- **Select / Omit 型**: フィールド選択・除外の型
-- **フィルタ型**: `WhereUse`、`FilterConditions`（`FieldRef` 対応含む）
-- **OrderBy 型**: ソート条件（リレーションソート、`_count` ソート、nulls 制御含む）
-- **Include 型**: リレーション取得の型（`_count` 含む）
-- **Nested Write 型**: リレーション先の作成・接続・更新・削除操作
-- **数値操作型**: `NumberOperation`（increment / decrement / multiply / divide）
-- **共通型**: `FieldRef`、`GassmaClientOptions`、エラークラス群
-- **設定型**: `DefaultsConfig`、`UpdatedAtConfig`、`IgnoreConfig`、`AutoincrementConfig`、`MapConfig` 等
-- **コントローラー型**: 全メソッドの引数・戻り値型
+`GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError` / `GassmaTransactionLockRequiredError` / `GassmaInvalidLockError` の詳細は[エラー一覧](/docs/reference/errors)を参照してください。
 
 # 書き込みの原子性と同時実行 (https://gassma.io/docs/reference/write-atomicity)
 
@@ -6996,299 +8329,133 @@ gassma.$transaction((tx) => {
 });
 ```
 
-`$transaction` はロックを取得するため、**GASsma を経由する書き込みどうしは直列化されます**。上の「読んでから書くまで」の割り込みが GASsma の書き込みによって起こることはなくなります。
+`$transaction` はロックを取得するため、**同じロックを使う書き込みどうしは直列化されます**。既定のロックは[あなたのスクリプトプロジェクトのもの](/docs/reference/transaction#ロック)なので、同じプロジェクトからの GASsma の書き込みが上の「読んでから書くまで」に割り込むことはなくなります。
 
-このロックが直列化するのは **GASsma を使う処理どうしだけ**です。以下には効きません。
+このロックが直列化するのは、**同じロックを共有する処理どうしだけ**です。以下には効きません。
 
 - **人がスプレッドシートを手で編集した場合**
 - **GASsma を使っていない別のスクリプトが書き込んだ場合**
+- **同じスプレッドシートを別の GAS プロジェクトが触った場合**（既定ではプロジェクトごとに別のロックになるため、互いを止めません）
 
-これらに対しては GASsma からは何もできません。操作中にシートが手編集される可能性がある場合は、**そもそも同時に触らない運用にする**、**編集を受け付けない時間帯に処理する**といった、設計側の対処が必要です。
+最初の 2 つに対しては GASsma からは何もできません。操作中にシートが手編集される可能性がある場合は、**そもそも同時に触らない運用にする**、**編集を受け付けない時間帯に処理する**といった、設計側の対処が必要です。3 つ目については、`GassmaClient` の [`lock`](/docs/reference/transaction#ロック) でロックの粒度を選べます。
 
-# bootstrap（ローカル開発環境のセットアップ） (https://gassma.io/docs/reference/bootstrap)
+# raw（数式の書き込み） (https://gassma.io/docs/reference/raw)
 
-npx gassma bootstrap で clasp + esbuild + TypeScript + GASsma のローカル開発環境を一発でセットアップする
+Gassma.raw で数式インジェクション対策の自動エスケープをセル単位で回避し、セルに数式をそのまま書き込む
 
-`npx gassma bootstrap` は、GAS のローカル開発環境（clasp + esbuild + TypeScript + GASsma ライブラリ）をコマンド一発で新規セットアップするコマンドです。
+`Gassma.raw(value)` は、そのセルに限って数式インジェクション対策の自動エスケープを回避し、値を**そのまま**シートに書き込むためのヘルパーです。`=` で始まる文字列を渡すと、セルには**本物のスプレッドシート数式**として書き込まれます。
 
-```
-$ npx gassma bootstrap my-app   # my-app/ を作成してその中に構築
-$ npx gassma bootstrap          # 最初に構築先ディレクトリを質問（デフォルト: gassma-project）
-$ npx gassma bootstrap .        # カレントディレクトリに構築
-```
+## 既定の保護（自動エスケープ）
 
-`npx` で実行できるため、事前のインストールは不要です。実行すると対話形式で質問が進み、構築先ディレクトリの作成・Apps Script プロジェクトの作成からビルド設定・スキーマファイルの生成・依存パッケージのインストールまでが完了します。
+GASsma は書き込み時、`=`・`+`・`-`・`@` のいずれかで始まる文字列の先頭に `'`（シングルクォート）を付けてエスケープします。これにより、フォーム入力などに紛れ込んだ `=IMPORTRANGE(...)` のような文字列が数式として実行されること（数式インジェクション）を防いでいます。
 
-構築先ディレクトリはコマンドが自動で作成するため、事前にディレクトリを用意する必要はありません。`.` を指定すれば既存のカレントディレクトリにも構築できます。既存ファイルがある場合は上書きせずスキップまたはマージされます（後述の「ディレクトリの扱い」「冪等性」を参照）。
+- エスケープの対象は**文字列のみ**です。数値・boolean・Date はそのまま書き込まれます。ただし `NaN` / `Infinity` / `-Infinity` や不正な Date（Invalid Date）は、エスケープ以前に書き込み自体が `GassmaInvalidValueError` で拒否されます。
+- `'` はスプレッドシート上の表示・読み取りには現れないため、エスケープされたセルを GASsma で読み直すと元の文字列（例: `"=1+2"`）がそのまま返ります。
 
-## 前提
+この保護は常時有効なため、集計用の数式を意図的に書き込みたい場合には邪魔になります。そのためのオプトアウトが `Gassma.raw` です。
 
-[clasp](https://github.com/google/clasp) がインストール済みで、ログインが済んでいる必要があります。
+## 基本的な使い方
 
-```
-$ npm install -g @google/clasp
-$ clasp login
-```
-
-また、[Apps Script API の設定ページ](https://script.google.com/home/usersettings) で Apps Script API を有効にしておいてください（clasp がプロジェクトを作成するために必要です）。
-
-clasp が見つからない場合は、以下のメッセージを表示して安全に終了します（ファイルは一切変更されません）。
-
-```
-clasp is required but was not found in your PATH.
-Install it with: npm install -g @google/clasp
-Then log in with: clasp login
-```
-
-## 対話フロー
-
-以下の順で質問されます（プロンプトは実際の文言です）。
-
-### 1. Project directory?
-
-プロジェクトを構築するディレクトリです。デフォルトは `gassma-project` で、`.` を入力するとカレントディレクトリに構築します。存在しないディレクトリは作成され、存在して空でない場合は続行確認が出ます（後述の「ディレクトリの扱い」を参照）。
-
-コマンド引数でディレクトリを指定した場合（`npx gassma bootstrap my-app` や `npx gassma bootstrap .`）、この質問はスキップされます。
-
-### 2. Project title?
-
-作成する Apps Script プロジェクトのタイトルです。デフォルトは構築先ディレクトリ名（引数または質問 1 で指定したディレクトリの名前）です。
-
-### 3. Create a new spreadsheet as well?
-
-**Yes**（デフォルト）にすると、新しいスプレッドシートを作成し、それに紐づくコンテナバインド型のスクリプトが作られます（`clasp create-script --type sheets`）。**No** の場合はスタンドアロン型（`--type standalone`）になります。
-
-このあと `clasp create-script` が実行され、`.clasp.json` が生成されます（`rootDir` は `./dist`）。続けて `dist/appsscript.json` に GASsma ライブラリ依存などが自動設定されます（後述の「生成されるもの」を参照）。
-
-既に `.clasp.json` が存在する場合、この質問と `clasp create-script` はスキップされます（`Found an existing .clasp.json. Skipping clasp create-script.`）。
-
-### 4. Function exposure style?
-
-GAS に関数を露出させるスタイルを選びます。選択肢の前に、それぞれのサンプルコードが表示されます。
-
-**export（推奨）** — `@gassma/gas-esbuild-plugin` を使い、`export` した関数がそのまま GAS のグローバル関数になります。
+`data` の値を `Gassma.raw()` で包むと、そのセルだけエスケープが行われません。主な用途は、数値カラムへの集計数式の書き込みです。
 
 ```ts
-export const main = () => console.log("Hello GAS!");
-```
+const gassma = new GassmaClient();
 
-**global**（esbuild-gas-plugin style） — `esbuild-gas-plugin` を使い、`global` オブジェクトへの代入で関数を露出します。
-
-```ts
-const main = () => console.log("Hello GAS!");
-
-interface Global {
-  main: typeof main;
-}
-
-declare const global: Global;
-
-global.main = main;
-```
-
-選んだスタイルに応じて、生成される `esbuild.mjs` のプラグインと `package.json` の devDependencies が切り替わります。
-
-### 5. Linter and formatter setup?
-
-リンタとフォーマッタの構成を選びます。
-
-| 選択肢 | 説明 |
-| --- | --- |
-| `oxlint + oxfmt` | recommended（デフォルト） |
-| `eslint + prettier` | ESLint（typescript-eslint）+ Prettier |
-| `none` | リンタもフォーマッタも導入しない |
-
-`--yes` 指定時はデフォルトの `oxlint + oxfmt` が選ばれます。選択に応じて `package.json` の devDependencies と `lint` / `lint:fix` / `format` / `format:check` スクリプト、生成される設定ファイルが変わります（後述の「リンタ / フォーマッタの選択」を参照）。
-
-### 6. Generate a sample src/index.ts?
-
-**Yes**（デフォルト）にすると、選んだスタイルのサンプルコードが `src/index.ts` として生成されます。
-
-### 7. Install dependencies now?
-
-**Yes**（デフォルト）にすると、検出されたパッケージマネージャで依存パッケージをインストールします（例: `Install dependencies now? (npm install)`）。`--skip-install` 指定時はこの質問自体が出ません。
-
-## 生成されるもの
-
-| ファイル | 内容 |
-| --- | --- |
-| `.clasp.json` | `clasp create-script` が生成（`rootDir: ./dist`） |
-| `dist/appsscript.json` | GASsma ライブラリ依存・`timeZone`・`exceptionLogging: STACKDRIVER`・`runtimeVersion: V8` を自動設定 |
-| `package.json` | `build` / `push` / `open` / `deploy` スクリプトと依存パッケージ（質問 5 の選択に応じて lint / format 系スクリプトも） |
-| `esbuild.mjs` | 選んだスタイルに応じたビルド設定 |
-| `tsconfig.json` | GAS 向けの TypeScript 設定（`@types/google-apps-script`） |
-| `.gitignore` | `.clasp.json` / `.clasprc.json` / `.env` / `node_modules/` / `dist/*`（`dist/appsscript.json` を除く） |
-| `.oxlintrc.json` | oxlint の設定（質問 5 で `oxlint + oxfmt` を選んだ場合のみ） |
-| `eslint.config.mjs` / `.prettierrc` | ESLint / Prettier の設定（質問 5 で `eslint + prettier` を選んだ場合のみ） |
-| `src/index.ts` | サンプルコード（質問 6 で Yes の場合のみ） |
-| `AGENTS.md` | コーディングエージェント向けのプロジェクト案内（コマンド・開発フロー・制約と GASsma リファレンスへの導線） |
-| `gassma/schema.prisma` / `gassma.config.ts` | `gassma init` 相当（サンプル User モデル入りのスキーマと設定ファイル） |
-
-### dist/appsscript.json
-
-`timeZone` は実行環境から自動判定されます（判定できない場合は `America/New_York`）。GASsma ライブラリは以下のエントリとして追加されます。
-
-```json
-{
-  "userSymbol": "Gassma",
-  "libraryId": "1ZVuWMUYs4hVKDCcP3nVw74AY48VqLm50wRceKIQLFKL0wf4Hyou-FIBH",
-  "version": "<実行時に解決された最新バージョン>",
-  "developmentMode": false
-}
-```
-
-既存のマニフェストに `exceptionLogging` や `runtimeVersion` が設定されている場合はその値が保持されます。
-
-### package.json のスクリプト
-
-| スクリプト | 内容 |
-| --- | --- |
-| `build` | `node esbuild.mjs`（`src/index.ts` を `dist/index.js` にバンドル） |
-| `push` | `clasp push` |
-| `open` | `clasp open-script` |
-| `deploy` | `npm run build && npm run push` |
-
-質問 5 で `oxlint + oxfmt` または `eslint + prettier` を選んだ場合は、これに加えて `lint` / `lint:fix` / `format` / `format:check` が追加されます（内容は次節を参照）。
-
-なお、新規生成される `package.json` の `devDependencies` はアルファベット順にソートされて書き出されます（フォーマッタのチェックがソート済みを前提とするため）。
-
-### リンタ / フォーマッタの選択
-
-質問 5 の選択によって、追加される devDependencies・npm スクリプト・設定ファイルが変わります。
-
-#### oxlint + oxfmt（推奨）
-
-devDependencies に `oxlint@^1.76.0` と `oxfmt@^0.61.0` が追加されます。
-
-| スクリプト | 内容 |
-| --- | --- |
-| `lint` | `oxlint` |
-| `lint:fix` | `oxlint --fix` |
-| `format` | `oxfmt` |
-| `format:check` | `oxfmt --check` |
-
-`.oxlintrc.json` が生成されます。
-
-```json
-{
-  "plugins": ["typescript"],
-  "categories": { "correctness": "error" },
-  "ignorePatterns": ["dist/**", "src/generated/**"]
-}
-```
-
-#### eslint + prettier
-
-devDependencies に `eslint@^10.8.0` / `eslint-config-prettier@^10.1.8` / `prettier@^3.9.6` / `typescript-eslint@^8.65.0` が追加されます。
-
-| スクリプト | 内容 |
-| --- | --- |
-| `lint` | `eslint .` |
-| `lint:fix` | `eslint . --fix` |
-| `format` | `prettier --write .` |
-| `format:check` | `prettier --check .` |
-
-`eslint.config.mjs` と `.prettierrc` が生成されます。
-
-```js
-import { defineConfig, globalIgnores } from "eslint/config";
-import prettier from "eslint-config-prettier/flat";
-import tseslint from "typescript-eslint";
-
-export default defineConfig([
-  globalIgnores(["dist/**", "src/generated/**"]),
-  {
-    files: ["**/*.ts"],
-    extends: [tseslint.configs.recommended, prettier],
+gassma.Report.create({
+  data: {
+    title: userInput, // 通常どおりエスケープされる
+    total: Gassma.raw("=SUM(B2:B10)"), // このセルだけ数式として書き込まれる
   },
-]);
+});
 ```
 
-```json
-{
-  "semi": true,
-  "singleQuote": false,
-  "trailingComma": "all"
+同じ書き込みの中でも、`Gassma.raw()` を使っていないカラム（上の `title`）は従来どおり保護されたままです。
+
+`create` 系・`update` 系のすべてのメソッド（`create` / `createMany` / `createManyAndReturn` / `update` / `updateMany` / `updateManyAndReturn` / `upsert`）と、nested write の `create` / `createMany` / `connectOrCreate` の `create` で使用できます。
+
+## 戻り値は計算結果ではない
+
+`create` / `update` などの戻り値は「**書き込んだ内容のエコー**」です。GASsma は書き込み後にシートを読み直さないため、数式の**計算結果は返りません**。数値カラムに数式を書き込んだ場合、戻り値は数式の**文字列**になります。
+
+```ts
+const created = gassma.FormulaCell.create({
+  data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
+});
+created.total; // "=C5*2"（数式文字列。計算結果ではない）
+```
+
+計算結果が必要な場合は、書き込み後に読み直してください。
+
+```ts
+const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+readBack.total; // 120（セル上で計算された結果が返る）
+```
+
+## raw の効果は渡したセルだけ
+
+`Gassma.raw()` の効果は、それを渡した**そのセルだけ**に限られます。
+
+- 同じ行の他のカラムは通常どおりエスケープされます。
+- nested write で子行に引き渡される FK 値など、raw セルを参照する他の書き込みが raw として扱われることもありません。
+
+```ts
+gassma.FormulaCell.create({
+  data: {
+    id: 4,
+    label: "=1+2", // エスケープされ、文字列 "=1+2" のまま
+    amount: 60,
+    total: Gassma.raw("=C5*2"), // 数式として書き込まれ、セル上で計算される
+  },
+});
+```
+
+## $transaction との組み合わせ
+
+[$transaction](/docs/reference/transaction) 内でも使用できます。raw の値はコミット時にまとめてシートへ書き込まれ、その時点で数式になります。
+
+コミット前の tx 内の読み取り（read-your-writes）では、まだシートに書き込まれていないため**数式文字列のまま**見えます。
+
+```ts
+gassma.$transaction((tx) => {
+  tx.FormulaCell.create({
+    data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
+  });
+
+  const buffered = tx.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+  buffered.total; // "=C5*2"（コミット前なので計算されていない）
+});
+
+// コミット後はセルに数式として書き込まれ、計算結果が読める
+const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
+readBack.total; // 120
+```
+
+## 型
+
+`Gassma.raw(value: string)` は `Gassma.RawValue` 型を返します。
+
+- 生成型では、`data` の**すべてのカラム**が `Gassma.RawValue` を受け付けます。数式はセル上で任意の型の値を返せるため、数値・boolean・Date のカラムにも渡せます。
+- `where` では使用できません。書き込み専用です。`where` の値に渡すと `GassmaInvalidValueError`（Expected a scalar value, but received a Gassma.raw value.）がスローされます。
+
+## 信頼できない入力には使わない
+
+`Gassma.raw()` に**ユーザー入力を渡してはいけません**。既定の保護を回避するため、数式インジェクションに対して脆弱になります。
+
+```ts
+// 危険: フォーム入力をそのまま raw に渡している
+function onFormSubmit(e) {
+  const gassma = new GassmaClient();
+  gassma.Answers.create({
+    data: {
+      // 悪意のあるユーザーが "=IMPORTRANGE(...)" を入力すると
+      // 数式として実行されてしまう
+      name: Gassma.raw(e.namedValues["名前"][0]),
+    },
+  });
 }
 ```
 
-#### none
-
-devDependencies・スクリプト・設定ファイルのいずれも追加されません。
-
-bootstrap が用意するのは上記までです。次のものは導入しません（必要な場合はプロジェクト側で追加してください）。
-
-- pre-commit フック（husky / lint-staged など）
-- oxlint の type-aware lint（`oxlint-tsgolint`）
-- oxfmt の設定ファイル（デフォルト設定のまま使います）
-
-### .gitignore について
-
-`.clasp.json` と `.clasprc.json` は clasp 公式の CI ガイドに従って gitignore されます（認証情報・スクリプト ID を含むため）。チームでプロジェクトを共有する場合は、チームのシークレットストアから復元してください。セットアップ完了時にも以下の案内が表示されます。
-
-```
-Note: .clasp.json is gitignored. Restore it from your team's secret store when sharing this project.
-```
-
-## 引数とオプション
-
-| 引数 | 説明 |
-| --- | --- |
-| `[directory]` | プロジェクトを構築するディレクトリ（`.` でカレントディレクトリ）。省略時は対話で質問されます |
-
-| オプション | 説明 |
-| --- | --- |
-| `--yes` | すべての質問にデフォルト値で回答（非対話モード）。引数なしの場合は `./gassma-project` を作成して構築し、非空ディレクトリの続行確認も自動で続行します |
-| `--skip-install` | 依存パッケージのインストールをスキップ |
-| `--dry-run` | ファイルの書き込み・ディレクトリの作成・コマンド実行を行わず、実行予定の内容のみ表示（ディレクトリ作成も `create directory my-app` のように plan として表示されます） |
-
-対話できないターミナル（CI など）では `--yes` が必須です。指定がない場合は
-`An interactive terminal is required. Run with --yes for non-interactive mode.`
-と表示して終了します。
-
-## 挙動の詳細
-
-### ディレクトリの扱い
-
-- 指定したディレクトリが存在しない場合は作成し、その中に構築します。
-- 存在して空でない場合は `Directory "my-app" is not empty. Continue?`（デフォルト **No**）と確認されます。No を選ぶと何も変更せず `Bootstrap cancelled.` と表示して安全に終了します。`--yes` 指定時は自動的に続行します。
-- このため、途中で中断したセットアップは同じコマンドをもう一度実行し、続行確認に Yes と答えるだけで再開できます（生成済みのファイルは後述の「冪等性」によりスキップ/マージされます）。
-- 同名の**ディレクトリでないファイル**が既に存在する場合は `"my-app" already exists and is not a directory.` というエラーで終了します。
-
-### 冪等性
-
-再実行しても安全なように設計されています。
-
-- `.clasp.json` が存在する場合、`clasp create-script` はスキップされます。
-- `esbuild.mjs` / `tsconfig.json` / `src/index.ts` / `gassma/schema.prisma` / `AGENTS.md` は、既に存在する場合スキップされます。
-- リンタ / フォーマッタの設定ファイル（`.oxlintrc.json` / `eslint.config.mjs` / `.prettierrc`、質問 5 で選んだ場合に生成）も、既に存在する場合スキップされます。
-- `package.json` が既に存在する場合は、bootstrap の設定が**マージ**されます（既存の値が優先されます）。
-- `.gitignore` が既に存在する場合は、不足しているエントリのみ追記されます。
-- `dist/appsscript.json` に GASsma ライブラリのエントリが既にある場合は、重複追加されません。
-
-### GASsma ライブラリバージョンの解決
-
-`dist/appsscript.json` に設定する GASsma ライブラリの最新バージョンは、実行時に自動解決されます。
-
-1. `clasp list-versions` でライブラリの最新バージョン番号を取得
-2. 失敗した場合は GitHub 上の GASsma の `package.json` から取得
-
-両方失敗した場合（オフライン時など）は、ライブラリのエントリ追加をスキップし、Apps Script エディタでの手動追加手順（スクリプト ID を含む）が案内されます。オンライン状態で `gassma bootstrap` を再実行すれば、エントリは自動追加されます。
-
-### パッケージマネージャの自動検出
-
-npm / pnpm / yarn / bun を自動検出し（検出できない場合は npm）、インストールコマンドや完了時の案内メッセージに反映されます。
-
-## セットアップ後の次の一歩
-
-セットアップが完了すると、次の手順が表示されます。
-
-1. `gassma/schema.prisma` を編集してモデルを定義する
-2. `npx gassma generate` で型付きクライアントを生成する
-3. `npm run deploy` でビルドして Apps Script に push する
-4. `npm run open` で Apps Script エディタを開く
-
-スキーマの書き方や `gassma generate` の詳細は [Prisma スキーマを利用したローカル開発](/docs/reference/type-generation) を参照してください。
+`Gassma.raw()` は、自分で書いた固定の数式など、**信頼できる値のみ**に使用してください。ユーザー入力は `Gassma.raw()` で包まずそのまま渡せば、既定の保護が適用されます。
 
 # fields（列同士の比較） (https://gassma.io/docs/reference/fields)
 
@@ -7301,7 +8468,7 @@ FieldRef を使って where 条件内で同じ行の列同士を比較する
 各シートコントローラーの `fields` プロパティから `FieldRef` を取得し、フィルタ条件の値として渡します。
 
 ```ts
-const gassma = new Gassma.GassmaClient();
+const gassma = new GassmaClient();
 const userSheet = gassma.Users;
 
 // firstName と lastName が同じ値のユーザーを検索
@@ -7397,283 +8564,6 @@ const result = userSheet.findMany({
 
 `FieldRef` で指定した列名がシートに存在しない場合、その条件はマッチしません（エラーにはなりません）。
 
-# migrate / db push（シートの同期） (https://gassma.io/docs/reference/migrate)
-
-npx gassma migrate / npx gassma db push で、スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成する
-
-`npx gassma migrate` と `npx gassma db push` は、Prisma スキーマに合わせてスプレッドシートのシートと列を同期する GAS 関数を生成するコマンドです（Prisma の `prisma migrate dev` / `prisma db push` に相当）。
-
-```
-$ npx gassma migrate                  # 証跡（migrations/）を記録して生成
-$ npx gassma migrate --name add_tags  # 証跡に名前を付ける
-$ npx gassma db push                  # 証跡を記録せずに生成
-```
-
-2 つのコマンドの違いは**証跡（`migrations/` ディレクトリ）を記録するかどうかだけ**です。`migrate` はスキーマが変わるたびに `migrations/` 配下へ `migration.js` を残し、`db push` は `migrations/` に一切触れません。生成される実行用スタブの内容はどちらも同一です。マイグレーション履歴が不要な場合は `db push` を使ってください。
-
-コマンド自体はスプレッドシートに直接アクセスしません。生成された `gassmaMigrate` 関数を Apps Script 側で 1 回実行した時点でシートが同期されます。`clasp push` も自動実行されません（後述の「生成後の手順」を参照）。
-
-## 生成されるもの
-
-出力ディレクトリに実行用スタブ `gassma-migration.js`（生の JS）が生成されます。中身は GASsma ライブラリの `migrateSheets` を呼ぶ `gassmaMigrate` 関数 1 つで、スキーマから抽出したシート名と列名が埋め込まれています。
-
-```prisma
-model User {
-  id    Int    @id
-  name  String
-  posts Post[]
-}
-
-model Post {
-  id       Int    @id
-  title    String
-  author   User   @relation(fields: [authorId], references: [id])
-  authorId Int
-}
-```
-
-上記のスキーマからは以下が生成されます。
-
-```js
-function gassmaMigrate() {
-  Gassma.migrateSheets({
-    spreadsheetId: "XXXXX",
-    models: [
-      { name: "User", columns: ["id", "name"] },
-      { name: "Post", columns: ["id", "title", "authorId"] }
-    ]
-  });
-}
-```
-
-- スプレッドシート ID は、スキーマ内の `datasource` ブロック → `gassma.config.ts` の `datasource.url` の順で解決されます。どちらにも設定が無い場合は埋め込まれず、実行時にスクリプトにバインドされたスプレッドシートが対象になります。
-- 実行には GAS プロジェクトに GASsma ライブラリが登録されている必要があります（[bootstrap](/docs/reference/bootstrap) でセットアップした環境ならそのまま動きます）。呼び出しシンボル（例の `Gassma.` の部分）は、出力ディレクトリの `appsscript.json` に登録されたライブラリの `userSymbol` から自動解決されます（見つからない場合は `Gassma`）。
-
-### 出力先の解決
-
-1. `--output <dir>`（最優先）
-2. カレントディレクトリの `.clasp.json` の `rootDir`
-
-どちらも無い場合は `MigrateOutputDirError` になります。
-
-### シートと列の抽出規則
-
-- モデルごとに 1 シートが対象になります。`@@map` / `@map` を付けている場合はマッピング後の物理名が使われます。
-- 列になるのはスカラーフィールドのみです。リレーションフィールド（上の例の `posts` / `author`）は列にならず、外部キー列（`authorId`）は列になります。
-- `@ignore` / `@@ignore` の付いたフィールド・モデルも**作成対象に含まれます**。Prisma と同じく、クライアントから除外されるだけでスプレッドシート上には実体が存在するためです。
-- [暗黙的 Many-to-Many](/docs/reference/type-generation#暗黙的-many-to-many) の中間シートも作成対象です（例: `_PostToTag`。列はモデル名のアルファベット順に `postId`, `tagId`）。
-
-## 生成後の手順
-
-コマンド成功時に表示される Next steps の 2 ステップを実行すると、シートが同期されます。
-
-```
-✅ Migration generated
-
-Next steps:
-  1. Run "clasp push" (or "npm run push") to upload gassma-migration.js
-  2. In the Apps Script editor, run the "gassmaMigrate" function once
-```
-
-push には `clasp push`（または `clasp push` を呼ぶだけの `npm run push`）を直接使ってください。クリーンを伴うフルビルド（bootstrap が生成する `npm run deploy` など）は、push 前に出力ディレクトリごと `gassma-migration.js` を消してしまうことがあります。
-
-## 同期の規則
-
-`gassmaMigrate`（`Gassma.migrateSheets`）による同期は冪等で、何度実行しても安全です。
-
-- スキーマにあってスプレッドシートに無いシートを作成し、1 行目にヘッダーを書き込みます。
-- 既存シートには足りない列だけをヘッダー行の右端に追記します。**既存列の並べ替えは行わず**、データ行への書き込みもありません。
-- スキーマに無い列・シートは、デフォルトでは削除されず警告ログを出してそのまま残されます。
-
-```
-Gassma.migrateSheets: column "legacy" on sheet "User" is not in the schema. It is left untouched.
-```
-
-## データ削除（--accept-data-loss）
-
-スキーマに無い列・シートを削除したい場合は `--accept-data-loss` を付けます。スタブに `acceptDataLoss: true` が埋め込まれ、`gassmaMigrate` の実行時に削除まで行われます。
-
-データが残っている列・シートは、残っている量（列は空でないセルの数、シートはデータ行数）を警告ログに出したうえで削除されます。空の場合は警告なしで削除されます。
-
-```
-Gassma.migrateSheets: You are about to drop the column "legacy" on the sheet "User", which still contains 12 non-empty values.
-```
-
-## 証跡（migrations/）
-
-`migrate` は、スキーマと同じディレクトリの `migrations/` 配下に `<UTC タイムスタンプ>[_名前]/migration.js` を作成します。中身は実行用スタブと同一です。
-
-```
-gassma/
-├── schema.prisma
-└── migrations/
-    ├── 20260801120000_init/
-    │   └── migration.js
-    └── 20260802093000_add_tags/
-        └── migration.js
-```
-
-- 直近の証跡と内容が同じ場合、新しい証跡は作られません（`Already in sync, no schema change or pending migration was found.` と表示されます）。実行用スタブ自体は毎回書き直されます。
-- `--name` で証跡に名前を付けられます。名前は camelCase の分解 → 小文字化 → 英数字以外の連続を `_` に置換、の規則でサニタイズされます（例: `--name "Add UserRole!"` → `20260801120000_add_user_role`）。
-
-## オプション
-
-### migrate
-
-| オプション | 説明 |
-| --- | --- |
-| `--name <name>` | マイグレーションの名前 |
-| `--output <dir>` | `gassma-migration.js` の出力先ディレクトリ（デフォルトは `.clasp.json` の `rootDir`） |
-| `--schema <path>` | マイグレーション対象の `.prisma` ファイルのパス |
-| `--config <path>` | GASsma config ファイルのカスタムパス |
-| `--accept-data-loss` | スキーマに無いシート・列を削除 |
-
-### db push
-
-| オプション | 説明 |
-| --- | --- |
-| `--output <dir>` | `gassma-migration.js` の出力先ディレクトリ（デフォルトは `.clasp.json` の `rootDir`） |
-| `--schema <path>` | 同期対象の `.prisma` ファイルのパス |
-| `--config <path>` | GASsma config ファイルのカスタムパス |
-| `--accept-data-loss` | スキーマに無いシート・列を削除 |
-
-## 制限事項
-
-- ヘッダー行は各シートの **1 行目・A 列開始**が前提です。[changeSettings](/docs/reference/settings/changeSettings) でヘッダー位置を変更している場合には対応していません。
-- スプレッドシートには最低 1 枚のシートが必要なため、`--accept-data-loss` を付けても最後の 1 枚は削除されず、警告のみになります。
-
-## Gassma.migrateSheets（ライブラリ API）
-
-スタブが呼んでいる `Gassma.migrateSheets` は GASsma の公開 API です。CLI を使わずに、同期したいシートと列を直接指定して呼ぶこともできます。
-
-```ts
-Gassma.migrateSheets({
-  spreadsheetId: "SPREAD_SHEET_ID", // 省略時はバインドされたスプレッドシート
-  models: [{ name: "User", columns: ["id", "name"] }],
-  acceptDataLoss: false,
-});
-```
-
-`models` は必須で、省略すると `GassmaMissingArgumentError` になります。同期の規則・制限事項は CLI 経由の場合と同じです。
-
-# raw（数式の書き込み） (https://gassma.io/docs/reference/raw)
-
-Gassma.raw で数式インジェクション対策の自動エスケープをセル単位で回避し、セルに数式をそのまま書き込む
-
-`Gassma.raw(value)` は、そのセルに限って数式インジェクション対策の自動エスケープを回避し、値を**そのまま**シートに書き込むためのヘルパーです。`=` で始まる文字列を渡すと、セルには**本物のスプレッドシート数式**として書き込まれます。
-
-## 既定の保護（自動エスケープ）
-
-GASsma は書き込み時、`=`・`+`・`-`・`@` のいずれかで始まる文字列の先頭に `'`（シングルクォート）を付けてエスケープします。これにより、フォーム入力などに紛れ込んだ `=IMPORTRANGE(...)` のような文字列が数式として実行されること（数式インジェクション）を防いでいます。
-
-- エスケープの対象は**文字列のみ**です。数値・boolean・Date はそのまま書き込まれます。ただし `NaN` / `Infinity` / `-Infinity` や不正な Date（Invalid Date）は、エスケープ以前に書き込み自体が `GassmaInvalidValueError` で拒否されます。
-- `'` はスプレッドシート上の表示・読み取りには現れないため、エスケープされたセルを GASsma で読み直すと元の文字列（例: `"=1+2"`）がそのまま返ります。
-
-この保護は常時有効なため、集計用の数式を意図的に書き込みたい場合には邪魔になります。そのためのオプトアウトが `Gassma.raw` です。
-
-## 基本的な使い方
-
-`data` の値を `Gassma.raw()` で包むと、そのセルだけエスケープが行われません。主な用途は、数値カラムへの集計数式の書き込みです。
-
-```ts
-const gassma = new Gassma.GassmaClient();
-
-gassma.Report.create({
-  data: {
-    title: userInput, // 通常どおりエスケープされる
-    total: Gassma.raw("=SUM(B2:B10)"), // このセルだけ数式として書き込まれる
-  },
-});
-```
-
-同じ書き込みの中でも、`Gassma.raw()` を使っていないカラム（上の `title`）は従来どおり保護されたままです。
-
-`create` 系・`update` 系のすべてのメソッド（`create` / `createMany` / `createManyAndReturn` / `update` / `updateMany` / `updateManyAndReturn` / `upsert`）と、nested write の `create` / `createMany` / `connectOrCreate` の `create` で使用できます。
-
-## 戻り値は計算結果ではない
-
-`create` / `update` などの戻り値は「**書き込んだ内容のエコー**」です。GASsma は書き込み後にシートを読み直さないため、数式の**計算結果は返りません**。数値カラムに数式を書き込んだ場合、戻り値は数式の**文字列**になります。
-
-```ts
-const created = gassma.FormulaCell.create({
-  data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
-});
-created.total; // "=C5*2"（数式文字列。計算結果ではない）
-```
-
-計算結果が必要な場合は、書き込み後に読み直してください。
-
-```ts
-const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-readBack.total; // 120（セル上で計算された結果が返る）
-```
-
-## raw の効果は渡したセルだけ
-
-`Gassma.raw()` の効果は、それを渡した**そのセルだけ**に限られます。
-
-- 同じ行の他のカラムは通常どおりエスケープされます。
-- nested write で子行に引き渡される FK 値など、raw セルを参照する他の書き込みが raw として扱われることもありません。
-
-```ts
-gassma.FormulaCell.create({
-  data: {
-    id: 4,
-    label: "=1+2", // エスケープされ、文字列 "=1+2" のまま
-    amount: 60,
-    total: Gassma.raw("=C5*2"), // 数式として書き込まれ、セル上で計算される
-  },
-});
-```
-
-## $transaction との組み合わせ
-
-[$transaction](/docs/reference/transaction) 内でも使用できます。raw の値はコミット時にまとめてシートへ書き込まれ、その時点で数式になります。
-
-コミット前の tx 内の読み取り（read-your-writes）では、まだシートに書き込まれていないため**数式文字列のまま**見えます。
-
-```ts
-gassma.$transaction((tx) => {
-  tx.FormulaCell.create({
-    data: { id: 4, label: "delta", amount: 60, total: Gassma.raw("=C5*2") },
-  });
-
-  const buffered = tx.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-  buffered.total; // "=C5*2"（コミット前なので計算されていない）
-});
-
-// コミット後はセルに数式として書き込まれ、計算結果が読める
-const readBack = gassma.FormulaCell.findFirstOrThrow({ where: { id: 4 } });
-readBack.total; // 120
-```
-
-## 型
-
-`Gassma.raw(value: string)` は `Gassma.RawValue` 型を返します。
-
-- 生成型では、`data` の**すべてのカラム**が `Gassma.RawValue` を受け付けます。数式はセル上で任意の型の値を返せるため、数値・boolean・Date のカラムにも渡せます。
-- `where` では使用できません。書き込み専用です。`where` の値に渡すと `GassmaInvalidValueError`（Expected a scalar value, but received a Gassma.raw value.）がスローされます。
-
-## 信頼できない入力には使わない
-
-`Gassma.raw()` に**ユーザー入力を渡してはいけません**。既定の保護を回避するため、数式インジェクションに対して脆弱になります。
-
-```ts
-// 危険: フォーム入力をそのまま raw に渡している
-function onFormSubmit(e) {
-  const gassma = new Gassma.GassmaClient();
-  gassma.Answers.create({
-    data: {
-      // 悪意のあるユーザーが "=IMPORTRANGE(...)" を入力すると
-      // 数式として実行されてしまう
-      name: Gassma.raw(e.namedValues["名前"][0]),
-    },
-  });
-}
-```
-
-`Gassma.raw()` は、自分で書いた固定の数式など、**信頼できる値のみ**に使用してください。ユーザー入力は `Gassma.raw()` で包まずそのまま渡せば、既定の保護が適用されます。
-
 # エラー一覧 (https://gassma.io/docs/reference/errors)
 
 GASsma が投げるエラークラスの一覧と発生条件
@@ -7684,7 +8574,19 @@ GASsma で発生するエラークラスの一覧です。
 
 GASsma のエラークラスは `Gassma` 名前空間から公開されています。`try` / `catch` で捕捉し、`instanceof` でエラーの種類を判定できます。
 
+`Gassma` の参照方法は使い方によって変わります。
+
+| | 書き方 |
+| --- | --- |
+| CLI（生成クライアント） | `import { Gassma } from "./generated/gassma/schemaClient";` |
+| [GAS エディタ](/docs/reference/gas-editor) | import せずに素の `Gassma` |
+
 ```ts
+// CLI を使う場合
+import { Gassma, GassmaClient } from "./generated/gassma/schemaClient";
+
+const gassma = new GassmaClient();
+
 try {
   gassma.sheet1.findFirst({ take: 5 });
 } catch (e) {
@@ -7694,7 +8596,20 @@ try {
 }
 ```
 
-公開されているエラークラスは 51 個で、これに `GassmaClient` / `GassmaController` / `FieldRef` / `skip` を加えた 55 個が `Gassma` 名前空間の公開実体です。
+```ts
+// GAS エディタだけで使う場合
+const gassma = new Gassma.GassmaClient();
+
+try {
+  gassma.sheet1.findFirst({ take: 5 });
+} catch (e) {
+  if (e instanceof Gassma.GassmaFindFirstTakeError) {
+    // findFirst の take が不正なときの処理
+  }
+}
+```
+
+公開されているエラークラスは 56 個で、これに `GassmaClient` / `GassmaController` / `FieldRef` / `skip` / `raw` / `migrateSheets` を加えた 62 個が `Gassma` 名前空間の公開実体です。
 
 `instanceof Date` のようなビルトイン型の判定はライブラリ境界を越えると `false` になります（[基本](/docs/reference/basic)を参照）。一方、GASsma のエラークラスは `Gassma` 名前空間（ライブラリの global）経由で参照するため、`instanceof` で正しく判定できます。
 
@@ -7744,12 +8659,25 @@ try {
 | エラー | メッセージ | 発生条件 |
 | --- | --- | --- |
 | `GassmaGroupByHavingDontWriteByError` | When using "having" other than "\_avg", "\_count", "\_max", "\_min", and "\_sum", column names can be used only if they are written in the "by" field. | `having` で `by` に含まれないカラムを使用 |
+| `GassmaGroupByOrderByRequiredError` | groupBy requires \`orderBy\` when using \{arguments\}. Specify \`orderBy\` with at least one field, or remove \{arguments\}. | `groupBy` で `take` を指定、または `skip` に 0 以外を指定したのに `orderBy` がない。空の `orderBy` は指定したことになりません。\{arguments\} には実際に使った引数名（`take` / `skip`、両方なら `take` and `skip`）が入ります |
 
 ## 設定系
 
 | エラー | メッセージ | 発生条件 |
 | --- | --- | --- |
 | `GassmaInValidColumnValueError` | startColumnValue and endColumnValue can only use number, \[a-z\] and \[A-Z\]. | `changeSettings` に無効な列値を指定 |
+| `GassmaInvalidLockError` | \`lock\` must be a Lock returned by LockService. LockService.getDocumentLock() returns null in a standalone script or a web app; use LockService.getScriptLock() instead. | `GassmaClient` の `lock` に Lock として使えない値を指定（`LockService.getDocumentLock()` はスタンドアロンスクリプトまたはウェブアプリから呼ぶと `null` を返します） |
+
+## autoincrement 系
+
+詳しくは [autoincrement](/docs/reference/config/autoincrement) を参照してください。
+
+| エラー | メッセージ | 発生条件 |
+| --- | --- | --- |
+| `GassmaAutoincrementNotConfiguredError` | Field \`\{field\}\` on \`\{sheetName\}\` is not configured with autoincrement. Autoincrement fields on \`\{sheetName\}\`: \{configuredFields\} | `$getAutoincrement` / `$setAutoincrement` / `$syncAutoincrement` に autoincrement を設定していないフィールドを指定 |
+| `GassmaAutoincrementInTransactionError` | \`\{methodName\}\` cannot be called inside $transaction. The autoincrement counter lives in ScriptProperties, so it is not rolled back when the transaction fails. Call it outside $transaction. | `$transaction` の中から `$setAutoincrement` / `$syncAutoincrement` を呼び出し（`$getAutoincrement` は読み取りのみなので呼べます） |
+
+`GassmaAutoincrementNotConfiguredError` の 2 文目は、そのシートに autoincrement フィールドが 1 つもない場合は <code>Sheet \`\{sheetName\}\` has no autoincrement fields.</code> になります。
 
 ## 引数系
 
@@ -7777,6 +8705,8 @@ try {
 | `select` に選択するフィールドが 1 つもない | `select` | at least one selected field |
 | `cursor` にカラムが 1 つもない | `cursor` | at least one column |
 | 単一行操作（`update` / `delete` / `upsert`）の `where` に条件が 1 つもない | `where` | at least one condition |
+| `$setAutoincrement` の `next` が 1 以上の整数でない（`NaN` / `Infinity` / 小数 / 0 以下 / 数値以外） | `next` | an integer greater than or equal to 1 |
+| `$syncAutoincrement` で、autoincrement を設定したフィールドの列がシートに存在しない | `field` | a column that exists on \`\{modelName\}\` |
 
 #### ページング（`take` / `skip` / `limit`）の異常値
 
@@ -7891,10 +8821,69 @@ try {
 
 | エラー | メッセージ | 発生条件 |
 | --- | --- | --- |
-| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | `$transaction` の開始時、`maxWait` 以内にスクリプトロックを取得できない |
+| `GassmaTransactionLockTimeoutError` | Transaction API error: Unable to start a transaction in the given time. The maxWait for this transaction was \{maxWaitMs\} ms. | `$transaction` の開始時、`maxWait` 以内にクライアントの `lock` を取得できない |
+| `GassmaTransactionLockRequiredError` | $transaction requires a lock. Pass \`lock\` when constructing GassmaClient, for example \`new GassmaClient(\{ lock: LockService.getScriptLock() \})\`. The client generated by \`npx gassma generate\` does this for you. | `lock` を持たないクライアントで `$transaction` を呼び出し |
 | `GassmaTransactionTimeoutError` | Transaction API error: A \{phase\} cannot be executed on an expired transaction. The timeout for this transaction was \{timeoutMs\} ms, however \{elapsedMs\} ms passed since the start of the transaction. Consider increasing the transaction timeout or doing less work in the transaction. | トランザクション開始からの経過時間が `timeout` を超過（tx 操作の呼び出し時またはコミット直前に検知） |
 | `GassmaNestedTransactionError` | Transaction API error: Nested transactions are not supported. Do not call $transaction inside an active transaction. | トランザクション内で `$transaction` を呼び出し |
 | `GassmaTransactionRollbackError` | Transaction API error: The transaction failed during commit and automatic rollback also failed. The affected sheets may be in an inconsistent state. Backup sheets are preserved for manual recovery: \{backupSheetNames\} | コミット中の書き込み失敗後、バックアップからの自動復元にも失敗（`backupSheetNames` プロパティに残されたバックアップシート名の一覧） |
+
+## CLI スキーマ系
+
+CLI がスキーマを読むときに発生するエラーです。本体のエラーと違い `Gassma` 名前空間からは公開されておらず、ターミナルに表示されるメッセージで判断します。
+
+| エラー | 発生条件 |
+| --- | --- |
+| `NoModelsError` | スキーマにモデルが 1 つも定義されていない（`generate` / `migrate dev` / `db push`） |
+| `UnsupportedAttributeError` | [使えない属性](/docs/reference/schema#使えない属性)（`@@id` / `@@index` / `@@fulltext` / ネイティブ型）を指定（`generate` / `validate`） |
+| `CompositeRelationError` | `@relation` の `fields` / `references` に 2 列以上を指定（`generate` / `validate`。[複合外部キー](/docs/reference/schema#複合外部キー)を参照） |
+| `IgnoredRelationColumnError` | `@relation` が `@ignore` の付いたフィールドを参照している |
+| `ThroughSheetConflictError` | 暗黙的 Many-to-Many の中間シート名が、2 組のモデルで衝突している |
+
+メッセージは以下のとおりです（`{...}` の部分には実際の値が入ります）。
+
+**NoModelsError**
+
+```
+GASsmaNoModelsError: You don't have any models defined in {schemaLocation}, so nothing will be generated.
+You can define a model like this:
+
+model User {
+  id   Int    @id
+  name String
+}
+```
+
+**UnsupportedAttributeError**（属性ごとにまとめて報告されます）
+
+```
+GASsmaUnsupportedAttributeError: `@@index` on User (name) is not supported.
+GASsma cannot create an index on a spreadsheet.
+Remove it; every query reads the whole sheet either way.
+```
+
+**CompositeRelationError**
+
+```
+GASsmaCompositeRelationError: `@relation` over more than one column is not supported yet.
+  - B.a (fields: [r1, r2], references: [k1, k2])
+GASsma matches a relation on a single column for now, so the columns after the first are dropped and rows that agree on the first column alone would match.
+Please narrow the relation to one column until composite keys are supported.
+```
+
+**IgnoredRelationColumnError**
+
+```
+GASsmaIgnoredRelationColumnError: @relation uses a column marked @ignore.
+  - The relation "{relationName}" runs on the column "{column}" of model "{model}", which is marked @ignore. GASsma drops @ignore columns from query conditions, so relation actions (onDelete / onUpdate) and nested writes lose the filter that narrows target rows and can rewrite or delete every row of the related sheet. Remove @ignore from "{model}.{column}", or remove the relation from the schema.
+```
+
+**ThroughSheetConflictError**
+
+```
+GASsmaThroughSheetConflictError: the through sheet "{sheetName}" would be shared by two different model pairs: {firstPair} and {secondPair}.
+An implicit many-to-many relation needs a through sheet of its own, so the two pairs would overwrite each other.
+Please give one of them a different relation name, e.g. @relation("OtherName") on both sides.
+```
 
 ## CLI 設定ファイル系
 
@@ -7905,3 +8894,67 @@ CLI コマンド（`gassma generate` 等）の実行時に発生するエラー�
 | `ConfigFileNotFoundError` | GASsmaConfigFileNotFoundError: config file not found at \{configPath\} | `--config` で指定した設定ファイルが存在しない |
 | `GassmaConfigLoadError` | GASsmaConfigLoadError: Failed to load config file at \{configPath\}. \{detail\} | 設定ファイルの構文エラー・実行時エラー、既知キー（`schema` / `datasource.url`）の型不正、config オブジェクト以外のエクスポート |
 | `GassmaConfigEnvError` | Cannot resolve environment variable: \{name\}. | `env()` で参照した環境変数が未設定または空文字 |
+
+## CLI migrate 系
+
+詳しくは [migrate / db push](/docs/reference/migrate) を参照してください。
+
+| エラー | 発生条件 |
+| --- | --- |
+| `MigrateOutputDirError` | `--output` も `.clasp.json` の `rootDir` も無く、出力先が決まらない |
+| `MigrateConfirmationRequiredError` | 非対話環境で `migrate dev` を実行し、削除の[確認](/docs/reference/migrate#削除の確認migrate-dev)が必要になった |
+| `NoMigrationTrailError` | `migrate deploy` を実行したが、証跡が 1 つも記録されていない |
+
+メッセージは以下のとおりです（`{...}` の部分には実際の値が入ります）。
+
+**MigrateOutputDirError**
+
+```
+GASsmaMigrateOutputDirError: could not determine where to write gassma-migration.js.
+Pass --output <dir> (e.g. npx gassma migrate dev --output ./dist), or run in a project whose .clasp.json has "rootDir".
+```
+
+**MigrateConfirmationRequiredError**
+
+```
+GASsmaMigrateConfirmationRequiredError: this migration deletes sheets or columns, which has to be confirmed in an interactive terminal.
+Run "gassma migrate dev" in a terminal to answer the confirmation, or run "gassma migrate deploy" to generate the latest recorded migration as it is.
+```
+
+**NoMigrationTrailError**
+
+```
+GASsmaNoMigrationTrailError: no recorded migration was found in {migrationsDir}.
+Run "gassma migrate dev" first to record one.
+```
+
+## CLI studio 系
+
+`gassma studio` が開くスプレッドシートを解決するときに発生するエラーです。詳しくは [gassma studio](/docs/reference/cli/commands#gassma-studio) を参照してください。
+
+| エラー | 発生条件 |
+| --- | --- |
+| `NoDatasourceUrlError` | スキーマの `datasource`・`gassma.config.ts` の `datasource.url`・`.clasp.json` の `parentId` のいずれにも URL が無い |
+| `InvalidClaspJsonError` | `.clasp.json` が存在するのに、JSON オブジェクトとして読めない |
+
+メッセージは以下のとおりです（`{...}` の部分には実際の値が入ります）。
+
+**NoDatasourceUrlError**
+
+```
+GASsmaNoDatasourceUrlError: datasource url is not set.
+Looked at the datasource block in your schema, datasource.url in gassma.config.ts, and "parentId" in .clasp.json, but none of them had one.
+Please set datasource.url in gassma.config.ts or add a url to the datasource block in your schema.
+Example:
+  datasource db {
+    provider = "gassma"
+    url      = "https://docs.google.com/spreadsheets/d/XXXX/edit"
+  }
+```
+
+**InvalidClaspJsonError**
+
+```
+GASsmaInvalidClaspJsonError: .clasp.json at {claspJsonPath} is not a valid JSON object.
+Please fix its contents, or remove the file if you are not using clasp.
+```

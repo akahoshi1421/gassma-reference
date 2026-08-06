@@ -9,8 +9,20 @@ The links below point to the Markdown version of each page (page URL + `.md`); r
 ## Getting Started
 
 - [What is GASsma](https://gassma.io/en/docs/intro.md): Overview and motivation: why plain GAS spreadsheet code is hard to maintain (getRange counting mistakes, formula injection) and how GASsma solves it
-- [Installation](https://gassma.io/en/docs/installation.md): How to install GASsma in the GAS script editor or via npm for local development
-- [Basic](https://gassma.io/en/docs/reference/basic.md): Initializing GassmaClient, accessing sheets, constructor options, and the common query options (where, select, omit, orderBy, take, skip)
+- [Quickstart](https://gassma.io/en/docs/quickstart.md): Start from npx gassma bootstrap and go all the way through defining a schema, generating the client, syncing sheets, and deploying
+- [Installation](https://gassma.io/en/docs/installation.md): The two ways to install GASsma: via the CLI (npm) for local development, or by adding the library in the GAS script editor
+- [Basic](https://gassma.io/en/docs/reference/basic.md): Initializing the generated GassmaClient, accessing sheets, constructor options, and the common query options (where, select, omit, orderBy, take, skip)
+
+## Schema
+
+- [Schema (schema.prisma)](https://gassma.io/en/docs/reference/schema.md): Define models, fields, relations, and enums in schema.prisma. Type mapping, @default / @updatedAt / @ignore / @map, previewFeatures, and multi-file schemas
+
+## CLI
+
+- [bootstrap (Local Development Environment Setup)](https://gassma.io/en/docs/reference/bootstrap.md): Set up a local development environment with clasp + esbuild + TypeScript + GASsma in one shot with npx gassma bootstrap
+- [CLI Commands](https://gassma.io/en/docs/reference/cli/commands.md): The gassma CLI commands (generate / init / validate / format / studio / version) and an overview of the generated files and types
+- [migrate / db push (Syncing Sheets)](https://gassma.io/en/docs/reference/migrate.md): Generate a GAS function that syncs your spreadsheet's sheets and columns with the schema using npx gassma migrate dev / migrate deploy / db push
+- [Config File (gassma.config.ts)](https://gassma.io/en/docs/reference/cli/config.md): Centrally manage CLI settings (schema / datasource.url) in gassma.config.ts, with defineConfig, env(), search rules, and the --config option
 
 ## Reading Data
 
@@ -57,17 +69,18 @@ The links below point to the Markdown version of each page (page URL + `.md`); r
 - [autoincrement](https://gassma.io/en/docs/reference/config/autoincrement.md): Auto-increment fields using LockService + PropertiesService (GAS only)
 - [strictUndefinedChecks / Gassma.skip](https://gassma.io/en/docs/reference/config/strict-undefined-checks.md): This feature corresponds to Prisma's strictUndefinedChecks (Preview feature) and Prisma.skip. It detects unintended undefined values that slip into query inputs as runtime errors, and lets you explicitly omit a field with Gassma.skip.
 
+## GAS Editor
+
+- [Using the GAS Editor](https://gassma.io/en/docs/reference/gas-editor.md): Using GASsma from the GAS script editor alone, without the CLI: initializing Gassma.GassmaClient and the full list of constructor options
+
 ## Advanced
 
-- [$extends (query)](https://gassma.io/en/docs/reference/client-extensions/query.md): The query component of $extends lets you register query hooks that intercept the execution of each operation. It corresponds to Prisma's client extensions (the query component of $extends). Inside a hook you can rewrite args, transform the result, or short-circuit without running the actual operation.
-- [$extends (result)](https://gassma.io/en/docs/reference/client-extensions/result.md): The result component of $extends lets you add computed fields to the records in query results. It corresponds to Prisma's client extensions (the result component of $extends). You can compute new fields from existing scalar fields and include them in the result.
+- [$extends (query)](https://gassma.io/en/docs/reference/client-extensions/query.md): Register query hooks on each operation with the query component of $extends to rewrite args, transform results, or short-circuit execution
+- [$extends (result)](https://gassma.io/en/docs/reference/client-extensions/result.md): Add computed fields derived from existing scalar fields with the result component of $extends
 - [$transaction (Transactions)](https://gassma.io/en/docs/reference/transaction.md): Commit all writes inside a callback at once with $transaction. On error, not a single cell is written. maxWait / timeout / rollback options
-- [Local Development with Prisma Schema](https://gassma.io/en/docs/reference/type-generation.md): Generate a type-safe client from a Prisma-format schema with the gassma CLI (generate/init/validate/format) and gassma.config.ts
 - [Write Atomicity and Concurrency](https://gassma.io/en/docs/reference/write-atomicity.md): Nested writes and cascades buffer their writes across multiple sheets; on error, not a single row is written. Cases this guarantee does not cover (API failures, concurrent edits) and how $transaction helps
-- [bootstrap (Local Development Environment Setup)](https://gassma.io/en/docs/reference/bootstrap.md): Set up a local development environment with clasp + esbuild + TypeScript + GASsma in one shot with npx gassma bootstrap
-- [fields (Column Comparison)](https://gassma.io/en/docs/reference/fields.md): Compare columns within the same row in where filters using FieldRef
-- [migrate / db push (Syncing Sheets)](https://gassma.io/en/docs/reference/migrate.md): Generate a GAS function that syncs your spreadsheet's sheets and columns with the schema using npx gassma migrate / npx gassma db push
 - [raw (Writing Formulas)](https://gassma.io/en/docs/reference/raw.md): Use Gassma.raw to opt out of formula-injection escaping per cell and write a formula as-is
+- [fields (Column Comparison)](https://gassma.io/en/docs/reference/fields.md): Compare columns within the same row in where filters using FieldRef
 - [Error List](https://gassma.io/en/docs/reference/errors.md): List of error classes thrown by GASsma and when they occur
 
 ## Optional

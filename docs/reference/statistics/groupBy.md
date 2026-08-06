@@ -11,15 +11,17 @@
 | orderBy | ソート設定                     | 可   | 指定する列が 1 つの場合、配列の省略が可能です |
 | take    | 取得数の設定                   | 可   |
 | skip    | スキップ数の設定               | 可   |
-| \_avg   | 平均表示の設定                 | 可   |
-| \_count | ヒット数表示の設定             | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
-| \_max   | 最大値表示の設定               | 可   |
-| \_min   | 最小値表示の設定               | 可   |
-| \_sum   | 合計表示の設定                 | 可   |
+| \_avg   | 平均表示の設定                 | 可   | 数値の列のみ指定できます |
+| \_count | ヒット数表示の設定             | 可   | すべての列を指定できます。`_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
+| \_max   | 最大値表示の設定               | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます |
+| \_min   | 最小値表示の設定               | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます |
+| \_sum   | 合計表示の設定                 | 可   | 数値の列のみ指定できます |
 | by      | グループ化条件の指定           | 不可 |
 | having  | グループ化した後の取得条件指定 | 可   | 書かない場合は全てのデータを取得します        |
 
 `by` は必須です。省略すると `GassmaMissingArgumentError`（メッセージ: Argument `by` is missing.）がスローされます。
+
+`take` を指定した場合、または `skip` に 0 以外を指定した場合は `orderBy` が必須です。`orderBy` がないと `GassmaGroupByOrderByRequiredError`（メッセージ: groupBy requires `orderBy` when using `take`. Specify `orderBy` with at least one field, or remove `take`.）がスローされます。空の `orderBy` は指定したことになりません。
 
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
 
@@ -203,6 +205,8 @@ const result = gassma.sheet1.groupBy({
 ```
 
 `_avg` / `_sum` / `_max` / `_min` および列名指定の `_count` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。`_count: { _all: true }` はこれらの行も数えます。
+
+集計キーごとに指定できる列の型は aggregate と同じです。詳細は [aggregate の集計キーが指定できる列](/docs/reference/statistics/aggregate#集計キーが指定できる列)を参照してください。
 
 ### _count
 

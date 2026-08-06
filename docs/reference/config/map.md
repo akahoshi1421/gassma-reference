@@ -3,6 +3,27 @@
 
 Prisma の `@map("name")`（フィールドレベル）と `@@map("name")`（モデルレベル）に相当する機能です。コード上の名前とスプレッドシート上の名前をマッピングします。
 
+## スキーマ版とコンストラクタ版
+
+CLI を使う場合、この設定は `schema.prisma` に書きます。GAS エディタだけで使う場合は `GassmaClient` のコンストラクタに渡します（このページの以降の例はコンストラクタ版です）。
+
+| | 書き方 |
+| --- | --- |
+| スキーマ（CLI） | `@map("名前")` / `@@map("ユーザー一覧")` |
+| コンストラクタ（[GAS エディタ](/docs/reference/gas-editor)） | `map: { ... }` / `mapSheets: { ... }` |
+
+```prisma
+model Users {
+  id        Int    @id
+  firstName String @map("名前")
+  lastName  String @map("名字")
+
+  @@map("ユーザー一覧")
+}
+```
+
+スキーマでの書き方は[スキーマ](/docs/reference/schema)にまとめています。
+
 ## map（フィールドレベル）
 
 コード上のフィールド名とスプレッドシートのヘッダー名を異なる名前でマッピングします。

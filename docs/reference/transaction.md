@@ -77,6 +77,48 @@ gassma.$transaction((tx) => {
 });
 ```
 
+## ロック
+
+`$transaction` は、`GassmaClient` に渡された `lock` を取得してから開始します。
+
+`npx gassma generate` が生成するクライアントは、この `lock` に `LockService.getScriptLock()` を既定値として埋めます。この `LockService.getScriptLock()` は**あなたのプロジェクトで評価される**ため、取得されるのは**あなたのスクリプトプロジェクトのロック**です。CLI を使う場合、書き方は今までと変わりません。
+
+```ts
+const gassma = new GassmaClient(); // lock は自動で埋まる
+```
+
+この `lock` は [autoincrement](/docs/reference/config/autoincrement) の採番にも使われます。
+
+### ロックの粒度
+
+コンストラクタで `lock` を明示すると、既定値を上書きできます。
+
+```ts
+const gassma = new GassmaClient({
+  lock: LockService.getDocumentLock(),
+});
+```
+
+| 渡す値 | 直列化される範囲 |
+| --- | --- |
+| `LockService.getScriptLock()`（既定） | 同じスクリプトプロジェクトの実行どうし |
+| `LockService.getDocumentLock()` | 同じドキュメント（バインド先のスプレッドシート）の実行どうし |
+| `LockService.getUserLock()` | 同じユーザーの実行どうし |
+
+`$transaction` の第 2 引数に `lock` はありません。粒度はクライアントを生成する時点で決まります。
+
+`LockService.getDocumentLock()` は、**スタンドアロンスクリプトまたはウェブアプリから呼ぶと `null` を返します**（例外にはなりません）。スプレッドシートにバインドされたスクリプトでも、ウェブアプリ経由の実行では `null` になります。`null` を `lock` に渡すと `GassmaInvalidLockError` が throw されます。
+
+### lock を渡していない場合
+
+`lock` を持たないクライアントで `$transaction` を呼ぶと、`GassmaTransactionLockRequiredError` が throw されます。GAS エディタだけで使う場合は自分で渡してください（[GAS エディタでの利用](/docs/reference/gas-editor)）。
+
+```ts
+const gassma = new Gassma.GassmaClient({
+  lock: LockService.getScriptLock(),
+});
+```
+
 ## オプション
 
 第 2 引数でオプションを指定できます。
@@ -98,7 +140,7 @@ gassma.$transaction(
 
 ### maxWait
 
-トランザクションはスクリプトロックを取得してから開始されます。別の実行が同じロックを保持している場合（別の `$transaction` の実行中など）、最大 `maxWait` ミリ秒までロックの解放を待ち、それでも取得できなければ `GassmaTransactionLockTimeoutError` を throw します。
+トランザクションは、クライアントの [`lock`](#ロック) を取得してから開始されます。別の実行が同じロックを保持している場合（別の `$transaction` の実行中など）、最大 `maxWait` ミリ秒までロックの解放を待ち、それでも取得できなければ `GassmaTransactionLockTimeoutError` を throw します。
 
 ### timeout
 
@@ -123,13 +165,14 @@ gassma.$transaction(
 ## 制限事項
 
 - ロックが直列化するのは、GASsma を経由する処理同士だけです。スプレッドシートの手動編集や、GASsma を使わない別スクリプトからの変更は止められません。同時実行で何が起こりうるかは[書き込みの原子性と同時実行](/docs/reference/write-atomicity)を参照してください。
-- **ロックは GASsma ライブラリのものです。** GASsma はライブラリとして動くため、`$transaction` が取るロックは**あなたのスクリプトプロジェクトのものではなく、GASsma 自身のもの**です。同じライブラリを使う**他のスクリプトプロジェクトとも共有**されるため、別のプロジェクトのトランザクションが実行中であれば、そちらの完了を待つことがあります。
+- **直列化される範囲は `lock` に渡したロックで決まります。** 既定の `LockService.getScriptLock()` で直列化されるのは、**同じスクリプトプロジェクトの実行どうしだけ**です。同じスプレッドシートを**別の GAS プロジェクトから触る場合、互いのトランザクションは直列化されません**。粒度の選び方は[ロック](#ロック)を参照してください。
 - 実行が強制終了された場合（GAS の 6 分実行制限など）は、バックアップシートが残ることがあります。次回の `$transaction` 実行時に警告ログが出力されます。残った `_gassma_tx_...` シートは、中身を確認のうえ手動で削除して構いません。
 - 復元されるのはセルの値と数式のみです（書式などは対象外）。
 - [changeSettings](/docs/reference/settings/changeSettings) で実行時に変更した設定は、トランザクション内に引き継がれません。
+- [autoincrement](/docs/reference/config/autoincrement) のカウンターを書き換える `$setAutoincrement` / `$syncAutoincrement` はトランザクション内から呼べません（`GassmaAutoincrementInTransactionError`）。カウンターは `PropertiesService` にあってロールバックの対象外のためです。読み取りの `$getAutoincrement` は呼べます。
 - 操作の配列を渡す形（Prisma の sequential operations）は非対応です。コールバック形のみ使えます。
 - `isolationLevel` は非対応です（常にロックによる直列実行）。
 
 ## 関連エラー
 
-`GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError` の詳細は[エラー一覧](/docs/reference/errors)を参照してください。
+`GassmaTransactionLockTimeoutError` / `GassmaTransactionTimeoutError` / `GassmaNestedTransactionError` / `GassmaTransactionRollbackError` / `GassmaTransactionLockRequiredError` / `GassmaInvalidLockError` の詳細は[エラー一覧](/docs/reference/errors)を参照してください。
