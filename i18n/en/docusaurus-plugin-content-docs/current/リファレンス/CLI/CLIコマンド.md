@@ -17,7 +17,7 @@ $ npm i gassma
 | [`bootstrap`](/docs/reference/bootstrap) | Set up a local development environment (clasp + esbuild + TypeScript + GASsma) in one shot |
 | [`init`](#gassma-init) | Generate a schema file and a config file |
 | [`generate`](#gassma-generate) | Generate type files and client code from the schema |
-| [`migrate` / `db push`](/docs/reference/migrate) | Generate a GAS function that syncs sheets and columns with the schema |
+| [`migrate dev` / `migrate deploy` / `db push`](/docs/reference/migrate) | Generate a GAS function that syncs sheets and columns with the schema |
 | [`validate`](#gassma-validate) | Check the schema file's syntax and consistency |
 | [`format`](#gassma-format) | Format `.prisma` files |
 | [`studio`](#gassma-studio) | Open the target spreadsheet in your browser |
@@ -165,8 +165,23 @@ The URL is resolved in the following order:
 
 1. The `url` of the `datasource` block in the schema
 2. `datasource.url` in `gassma.config.ts`
+3. `parentId` in `.clasp.json` in the current directory
 
-If `url` is a full URL (`https://...`), it is opened as-is; if it is a spreadsheet ID, `https://docs.google.com/spreadsheets/d/<id>/edit` is constructed and opened. If neither has a URL set, a `NoDatasourceUrlError` occurs.
+A full URL (`https://...`) is opened as-is; a spreadsheet ID is turned into `https://docs.google.com/spreadsheets/d/<id>/edit` and opened. If none of them has a URL, a `NoDatasourceUrlError` occurs.
+
+`parentId` in `.clasp.json` is the ID of the spreadsheet the GAS project is bound to. It may be either a string or an array; the first element is used for an array.
+
+```json
+{
+  "scriptId": "XXXXX",
+  "rootDir": "dist",
+  "parentId": ["SPREAD_SHEET_ID"]
+}
+```
+
+:::note
+`.clasp.json` is read only when neither the schema nor `gassma.config.ts` has a URL. If `.clasp.json` exists at that point but cannot be read as a JSON object, an `InvalidClaspJsonError` occurs.
+:::
 
 ## gassma version
 
