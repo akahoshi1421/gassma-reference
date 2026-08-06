@@ -23,10 +23,6 @@ $ npx gassma db push                      # 証跡を記録せずに生成
 
 引数なしの `npx gassma migrate` はヘルプを表示します。
 
-:::caution
-**破壊的変更**: 以前の `npx gassma migrate` は `npx gassma migrate dev` になりました。あわせて `migrate` から `--accept-data-loss` は廃止されています（`db push` には残っています）。`migrate` での削除は、`dev` の[確認](#削除の確認migrate-dev)で判断する形に変わりました。
-:::
-
 :::note
 コマンド自体はスプレッドシートに直接アクセスしません。生成された `gassmaMigrate` 関数を Apps Script 側で 1 回実行した時点でシートが同期されます。`clasp push` も自動実行されません（後述の「生成後の手順」を参照）。
 :::
@@ -145,9 +141,22 @@ model Memo {
 
 列も同じで、`@ignore` を付けたフィールドは作成対象に残ります。モデル名に日本語は使えないため、シート名が日本語の場合は上の例のように `@@map` でマッピングしてください（[map](/docs/reference/config/map)）。
 
-:::caution
-フィールドを 1 つも書かないモデル（`model Memo { @@ignore }` だけ）も Prisma のスキーマとしては有効ですが、GASsma からは**列が 0 個のシート**に見えます。`--accept-data-loss` を付けると、そのシートの既存の列がすべて「スキーマに無い列」として削除されます（シート自体は残ります）。中身も守りたい場合は、上の例のようにフィールドを書いたまま残してください。
-:::
+上の例のようにフィールドを書いた場合、そのシートの列も同期対象になります。スキーマに書いていない列は `--accept-data-loss` で削除されるため、守られるのはシートと、スキーマに書いた列です。
+
+列も丸ごと守りたい場合は、フィールドを 1 つも書かないモデルにしてください。Prisma のスキーマとしては有効で、GASsma はそのシートの列を 1 つも管理しなくなります。`--accept-data-loss` を付けても列の追加・削除は行われず、「スキーマに無い列」の警告も出ません。
+
+```prisma
+model Memo {
+  @@map("メモ")
+  @@ignore
+}
+```
+
+```
+Gassma.migrateSheets: model "メモ" declares no columns. The columns of sheet "メモ" are left untouched.
+```
+
+シートがまだ無い場合は、フィールドを書いた場合と同じように作成されます（列が 0 個なのでヘッダー行は書き込まれません）。
 
 :::note
 逆にモデルごとスキーマから消すと、そのシートは「スキーマに無いシート」になります。`--accept-data-loss` を付けていなければ警告が出るだけで残りますが、付けていれば削除されます。
