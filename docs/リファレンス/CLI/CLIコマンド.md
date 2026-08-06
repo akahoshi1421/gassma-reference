@@ -17,7 +17,7 @@ $ npm i gassma
 | [`bootstrap`](/docs/reference/bootstrap) | ローカル開発環境（clasp + esbuild + TypeScript + GASsma）を一発でセットアップ |
 | [`init`](#gassma-init) | スキーマファイルと設定ファイルを生成 |
 | [`generate`](#gassma-generate) | スキーマから型ファイルとクライアントコードを生成 |
-| [`migrate` / `db push`](/docs/reference/migrate) | スキーマに合わせてシートと列を同期する GAS 関数を生成 |
+| [`migrate dev` / `migrate deploy` / `db push`](/docs/reference/migrate) | スキーマに合わせてシートと列を同期する GAS 関数を生成 |
 | [`validate`](#gassma-validate) | スキーマファイルの構文・整合性チェック |
 | [`format`](#gassma-format) | `.prisma` ファイルを整形 |
 | [`studio`](#gassma-studio) | 対象のスプレッドシートをブラウザで開く |
@@ -165,8 +165,23 @@ URL は以下の順で解決されます。
 
 1. スキーマ内の `datasource` ブロックの `url`
 2. `gassma.config.ts` の `datasource.url`
+3. カレントディレクトリの `.clasp.json` の `parentId`
 
-`url` にフル URL（`https://...`）を指定している場合はそのまま開き、スプレッドシート ID を指定している場合は `https://docs.google.com/spreadsheets/d/<id>/edit` を組み立てて開きます。どちらにも URL が設定されていない場合は `NoDatasourceUrlError` になります。
+フル URL（`https://...`）ならそのまま開き、スプレッドシート ID なら `https://docs.google.com/spreadsheets/d/<id>/edit` を組み立てて開きます。どこにも URL が無い場合は `NoDatasourceUrlError` になります。
+
+`.clasp.json` の `parentId` は、GAS プロジェクトがバインドされているスプレッドシートの ID です。文字列でも配列でもよく、配列の場合は先頭の要素を使います。
+
+```json
+{
+  "scriptId": "XXXXX",
+  "rootDir": "dist",
+  "parentId": ["SPREAD_SHEET_ID"]
+}
+```
+
+:::note
+`.clasp.json` を読むのは、スキーマにも `gassma.config.ts` にも URL が無かった場合だけです。そのとき `.clasp.json` が存在するのに JSON オブジェクトとして読めない場合は `InvalidClaspJsonError` になります。
+:::
 
 ## gassma version
 

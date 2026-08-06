@@ -17,11 +17,11 @@ Use this when you want to perform statistical calculations such as averages and 
 | take     | Set the number of records to retrieve | Yes |                                                                               |
 | skip     | Set the number of records to skip    | Yes |                                                                               |
 | cursor   | Cursor-based pagination          | Yes      | See [findMany cursor](/docs/reference/crud/read/findMany#cursor) for details  |
-| \_avg    | Average display settings         | Yes      |                                                                               |
-| \_count  | Hit count display settings       | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
-| \_max    | Maximum value display settings   | Yes      |                                                                               |
-| \_min    | Minimum value display settings   | Yes      |                                                                               |
-| \_sum    | Sum display settings             | Yes      |                                                                               |
+| \_avg    | Average display settings         | Yes      | Only numeric columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_count  | Hit count display settings       | Yes      | Any column can be specified. `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
+| \_max    | Maximum value display settings   | Yes      | Number / string / boolean / date columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_min    | Minimum value display settings   | Yes      | Number / string / boolean / date columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
+| \_sum    | Sum display settings             | Yes      | Only numeric columns can be specified. See [Columns Each Aggregation Key Accepts](#columns-each-aggregation-key-accepts) for details |
 
 :::tip
 In `where`, you can also use [relation filters](/docs/reference/relation/where-relation-filter) (`some` / `every` / `none` / `is` / `isNot`).
@@ -68,6 +68,57 @@ The return value is in the following format.
 
 :::note
 In `_avg` / `_sum` / `_max` / `_min`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null.
+:::
+
+## Columns Each Aggregation Key Accepts
+
+The column types you can specify differ per aggregation key.
+
+| Aggregation Key | Accepted Column Types |
+| --- | --- |
+| \_avg | Number |
+| \_sum | Number |
+| \_max | Number / string / boolean / date |
+| \_min | Number / string / boolean / date |
+| \_count | Any column (it only counts rows, so the type does not matter) |
+
+When using the CLI, `_avg` / `_sum` accept only columns whose TypeScript type is `number` (`Int` / `Float` / `Decimal` / `BigInt`); writing any other column is a type error. `_max` / `_min` / `_count` accept every column (see [Type Mapping](/docs/reference/schema#type-mapping)).
+
+The result of `_max` / `_min` depends on the column type.
+
+- Number: the largest / smallest number
+- String: the largest / smallest string in lexicographic order
+- Date: the newest / oldest date
+- Boolean: the maximum is `true` if at least one value is `true`; the minimum is `true` only when every value is `true`
+
+:::caution
+Types are checked at runtime against the values in the sheet. When using the GAS editor alone, or when the sheet holds values of a type other than the declared one, the following errors are thrown.
+
+- A non-numeric column specified in `_avg` / `_sum`: `GassmaAggregateAvgTypeError` / `GassmaAggregateSumTypeError`
+- A column of a type other than the four above specified in `_max` / `_min`: `GassmaAggregateTypeError`
+- Values of multiple types mixed in a single column: `GassmaAggregateAvgError` / `GassmaAggregateSumError` / `GassmaAggregateMaxError` / `GassmaAggregateMinError`
+
+See the [error list](/docs/reference/errors) for details.
+:::
+
+### Aggregations Cannot Cross Relations
+
+An aggregation key accepts **only the columns of the model itself**. Columns of a related model cannot be specified (the same behavior as Prisma). The same applies to `by` in `groupBy`.
+
+To aggregate values of a related model, fetch them with [include](/docs/reference/relation/include) and aggregate them in your own code.
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+:::tip
+`where` does accept [relation filters](/docs/reference/relation/where-relation-filter), so you can narrow the rows by a condition on a related model and then aggregate your own columns.
 :::
 
 ## _count

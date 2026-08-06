@@ -17,11 +17,11 @@ description: "_avg、_sum、_min、_max、_count などの集計を行う"
 | take    | 取得数の設定             | 可   |
 | skip    | スキップ数の設定         | 可   |
 | cursor  | カーソルベースページネーション | 可   | 詳細は [findMany の cursor](/docs/reference/crud/read/findMany#cursor) を参照 |
-| \_avg   | 平均表示の設定     | 可   |
-| \_count | ヒット数表示の設定 | 可   | `_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
-| \_max   | 最大値表示の設定   | 可   |
-| \_min   | 最小値表示の設定   | 可   |
-| \_sum   | 合計表示の設定     | 可   |
+| \_avg   | 平均表示の設定     | 可   | 数値の列のみ指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_count | ヒット数表示の設定 | 可   | すべての列を指定できます。`_all` や `true` 省略形も指定可能です。詳細は [\_count](#_count) を参照 |
+| \_max   | 最大値表示の設定   | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_min   | 最小値表示の設定   | 可   | 数値 / 文字列 / 真偽値 / 日付の列を指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
+| \_sum   | 合計表示の設定     | 可   | 数値の列のみ指定できます。詳細は [集計キーが指定できる列](#集計キーが指定できる列) を参照 |
 
 :::tip
 `where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)（`some` / `every` / `none` / `is` / `isNot`）も利用可能です。
@@ -68,6 +68,57 @@ const result = gassma.sheet1.aggregate({
 
 :::note
 `_avg` / `_sum` / `_max` / `_min` では、null に加えて `NaN` / 不正な Date（Invalid Date）も欠損値として集計から除外されます。集計対象の値がすべて欠損値の場合、結果は null になります。
+:::
+
+## 集計キーが指定できる列
+
+集計キーごとに、指定できる列の型が異なります。
+
+| 集計キー | 指定できる列の型 |
+| --- | --- |
+| \_avg | 数値 |
+| \_sum | 数値 |
+| \_max | 数値 / 文字列 / 真偽値 / 日付 |
+| \_min | 数値 / 文字列 / 真偽値 / 日付 |
+| \_count | すべての列（行数を数えるだけのため型を問いません） |
+
+CLI を使う場合、`_avg` / `_sum` に指定できるのは TypeScript 型が `number` になる列（`Int` / `Float` / `Decimal` / `BigInt`）だけで、それ以外の列を書くと型エラーになります。`_max` / `_min` / `_count` はすべての列を指定できます（[型マッピング](/docs/reference/schema#型マッピング)を参照）。
+
+`_max` / `_min` の結果は列の型ごとに次のようになります。
+
+- 数値: 最大 / 最小の数値
+- 文字列: 辞書順で最大 / 最小の文字列
+- 日付: 最も新しい / 最も古い日付
+- 真偽値: 最大は 1 つでも `true` があれば `true`、最小はすべて `true` のときだけ `true`
+
+:::caution
+型のチェックは実行時にシートの値に対して行われます。GAS エディタだけで使う場合や、シートに宣言と違う型の値が入っている場合は、以下のエラーがスローされます。
+
+- `_avg` / `_sum` に数値以外の列を指定した場合: `GassmaAggregateAvgTypeError` / `GassmaAggregateSumTypeError`
+- `_max` / `_min` に上記 4 つ以外の型の列を指定した場合: `GassmaAggregateTypeError`
+- 1 つの列に複数の型の値が混ざっている場合: `GassmaAggregateAvgError` / `GassmaAggregateSumError` / `GassmaAggregateMaxError` / `GassmaAggregateMinError`
+
+詳細は[エラー一覧](/docs/reference/errors)を参照してください。
+:::
+
+### リレーションは跨げません
+
+集計キーに指定できるのは**自分のモデルの列だけ**です。リレーション先の列は指定できません（Prisma と同じ挙動です）。`groupBy` の `by` も同様です。
+
+リレーション先の値を集計したい場合は、[include](/docs/reference/relation/include) で取得してコード側で集計してください。
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+:::tip
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)が使えるため、「リレーション先の条件で行を絞ってから自分の列を集計する」ことはできます。
 :::
 
 ## _count

@@ -16,11 +16,11 @@ Use this when you want to group data.
 | orderBy  | Sort settings                                 | Yes      | If specifying only one column, the array can be omitted                       |
 | take     | Set the number of records to retrieve         | Yes      |                                                                               |
 | skip     | Set the number of records to skip             | Yes      |                                                                               |
-| \_avg    | Average display settings                      | Yes      |                                                                               |
-| \_count  | Hit count display settings                    | Yes      | `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
-| \_max    | Maximum value display settings                | Yes      |                                                                               |
-| \_min    | Minimum value display settings                | Yes      |                                                                               |
-| \_sum    | Sum display settings                          | Yes      |                                                                               |
+| \_avg    | Average display settings                      | Yes      | Only numeric columns can be specified                                         |
+| \_count  | Hit count display settings                    | Yes      | Any column can be specified. `_all` and the `true` shorthand are also available. See [\_count](#_count) for details |
+| \_max    | Maximum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_min    | Minimum value display settings                | Yes      | Number / string / boolean / date columns can be specified                     |
+| \_sum    | Sum display settings                          | Yes      | Only numeric columns can be specified                                         |
 | by       | Specify grouping conditions                   | No       |                                                                               |
 | having   | Specify conditions after grouping             | Yes      | If omitted, all data is retrieved                                             |
 
@@ -219,6 +219,10 @@ The return value is in the following format.
 
 :::note
 In `_avg` / `_sum` / `_max` / `_min` and column-specified `_count`, `NaN` / invalid Dates (Invalid Date) are excluded from aggregation as missing values, just like null. If every aggregated value is missing, the result is null. `_count: { _all: true }` still counts those rows.
+:::
+
+:::note
+The column types each aggregation key accepts are the same as in aggregate. See [Columns Each Aggregation Key Accepts in aggregate](/docs/reference/statistics/aggregate#columns-each-aggregation-key-accepts) for details.
 :::
 
 ### _count
