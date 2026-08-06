@@ -135,6 +135,10 @@ gassma.Users.$getAutoincrement("id");
 
 Use `$setAutoincrement` when you want to decide the value yourself. If you only want to match the existing data, use `$syncAutoincrement`.
 
+:::note
+With the CLI, the type of `field` on all three methods is narrowed to **the fields of that model that have autoincrement configured**. Writing a field name that is not configured is a type error, and on a model with no autoincrement field at all the type of `field` is `never`, so the methods cannot be called.
+:::
+
 ### What $syncAutoincrement Looks At
 
 - It reads only the column of the target field (not the whole sheet)

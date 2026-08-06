@@ -135,6 +135,10 @@ gassma.Users.$getAutoincrement("id");
 
 `$setAutoincrement` は値を自分で決めたいときに使います。既存データに合わせたいだけなら `$syncAutoincrement` を使ってください。
 
+:::note
+CLI を使う場合、3 つのメソッドの `field` の型は**そのモデルで autoincrement を設定したフィールドだけ**に絞られます。設定していないフィールド名を書くと型エラーになり、autoincrement を 1 つも持たないモデルでは `field` の型が `never` になるため、そもそも呼び出せません。
+:::
+
 ### $syncAutoincrement が見る値
 
 - 対象フィールドの列だけを読みます（シート全体は読みません）
