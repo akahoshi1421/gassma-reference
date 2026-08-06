@@ -693,7 +693,7 @@ gassma.sheet1.findMany({ skip: null });
 | `undefined` | 指定しなかった扱いになり無視されます |
 
 :::note
-`skip: -Infinity` は以前 `GassmaSkipNegativeError` でしたが、有限かどうかの判定が先に行われるようになったため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
+`skip: -Infinity` は、有限かどうかの判定が先に行われるため `GassmaInvalidValueError` になります。`GassmaSkipNegativeError` は**有限の**負数に対してのみスローされます。
 :::
 
 同じ検証は `count` / `aggregate` / `groupBy` の `take` / `skip` にも適用されます。`findFirst` の `take` は[別の制限](./findFirst#take)があります。

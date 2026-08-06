@@ -92,7 +92,7 @@ gassma.sheet1.updateMany({ data: { age: 1 }, limit: null });
 // => Invalid value for argument `limit`. Expected a number, but received null.
 ```
 
-`limit: -Infinity` used to throw `GassmaLimitNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `undefined` is still ignored (no upper bound).
+The finiteness check runs first, so `limit: -Infinity` throws `GassmaInvalidValueError` rather than `GassmaLimitNegativeError`. `undefined` is ignored (no upper bound).
 :::
 
 ## Atomic Number Operations

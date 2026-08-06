@@ -23,10 +23,6 @@ $ npx gassma db push                      # generate without recording a trail
 
 `npx gassma migrate` with no arguments prints the help.
 
-:::caution
-**Breaking change**: the former `npx gassma migrate` is now `npx gassma migrate dev`, and `--accept-data-loss` has been dropped from `migrate` (it remains on `db push`). Deletions in `migrate` are now decided through the [confirmation](#drop-confirmation-migrate-dev) in `dev`.
-:::
-
 :::note
 The commands themselves do not access the spreadsheet. The sheets are synced the moment you run the generated `gassmaMigrate` function once on the Apps Script side. `clasp push` is not run automatically either (see "After Generating" below).
 :::
@@ -145,9 +141,22 @@ model Memo {
 
 Columns work the same way: a field marked `@ignore` stays on the list of targets. A model name cannot contain non-ASCII characters, so map a non-ASCII sheet name with `@@map` as in the example above (see [map](/docs/reference/config/map)).
 
-:::caution
-A model with no fields at all (just `model Memo { @@ignore }`) is still a valid Prisma schema, but GASsma sees it as **a sheet with zero columns**. With `--accept-data-loss`, every existing column of that sheet is deleted as "a column that is not in the schema" (the sheet itself survives). To protect the contents as well, keep the fields as in the example above.
-:::
+When you write fields as in the example above, the columns of that sheet are synced too. Columns that are not in the schema are deleted with `--accept-data-loss`, so what is protected is the sheet plus the columns you wrote in the schema.
+
+To protect every column as well, write a model with no fields at all. It is a valid Prisma schema, and GASsma then manages none of that sheet's columns: no column is added or deleted even with `--accept-data-loss`, and no "a column that is not in the schema" warning is logged.
+
+```prisma
+model Memo {
+  @@map("メモ")
+  @@ignore
+}
+```
+
+```
+Gassma.migrateSheets: model "メモ" declares no columns. The columns of sheet "メモ" are left untouched.
+```
+
+If the sheet does not exist yet, it is created just as it is for a model with fields (with no header row, since there are zero columns).
 
 :::note
 Removing the model from the schema instead makes the sheet "a sheet that is not in the schema". Without `--accept-data-loss` it survives with a warning, but with it the sheet is deleted.

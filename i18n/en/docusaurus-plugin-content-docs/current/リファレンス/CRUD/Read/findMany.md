@@ -693,7 +693,7 @@ gassma.sheet1.findMany({ skip: null });
 | `undefined` | Treated as "not specified" and ignored |
 
 :::note
-`skip: -Infinity` used to throw `GassmaSkipNegativeError`, but the finiteness check now runs first, so it throws `GassmaInvalidValueError`. `GassmaSkipNegativeError` is thrown only for **finite** negative numbers.
+The finiteness check runs first, so `skip: -Infinity` throws `GassmaInvalidValueError`. `GassmaSkipNegativeError` is thrown only for **finite** negative numbers.
 :::
 
 The same validation applies to `take` / `skip` in `count` / `aggregate` / `groupBy`. The `take` of `findFirst` has [a different restriction](./findFirst#take).
