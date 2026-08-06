@@ -101,6 +101,26 @@ Types are checked at runtime against the values in the sheet. When using the GAS
 See the [error list](/docs/reference/errors) for details.
 :::
 
+### Aggregations Cannot Cross Relations
+
+An aggregation key accepts **only the columns of the model itself**. Columns of a related model cannot be specified (the same behavior as Prisma). The same applies to `by` in `groupBy`.
+
+To aggregate values of a related model, fetch them with [include](/docs/reference/relation/include) and aggregate them in your own code.
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+:::tip
+`where` does accept [relation filters](/docs/reference/relation/where-relation-filter), so you can narrow the rows by a condition on a related model and then aggregate your own columns.
+:::
+
 ## _count
 
 Use this when you want to get the number of matching rows.

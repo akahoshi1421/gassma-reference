@@ -101,6 +101,26 @@ CLI を使う場合、`_avg` / `_sum` に指定できるのは TypeScript 型が
 詳細は[エラー一覧](/docs/reference/errors)を参照してください。
 :::
 
+### リレーションは跨げません
+
+集計キーに指定できるのは**自分のモデルの列だけ**です。リレーション先の列は指定できません（Prisma と同じ挙動です）。`groupBy` の `by` も同様です。
+
+リレーション先の値を集計したい場合は、[include](/docs/reference/relation/include) で取得してコード側で集計してください。
+
+```ts
+const users = gassma.Users.findMany({
+  include: {
+    posts: true,
+  },
+});
+
+const totalPosts = users.reduce((sum, user) => sum + user.posts.length, 0);
+```
+
+:::tip
+`where` では[リレーションフィルタ](/docs/reference/relation/where-relation-filter)が使えるため、「リレーション先の条件で行を絞ってから自分の列を集計する」ことはできます。
+:::
+
 ## _count
 
 ヒット数を求めたい場合に利用します。
