@@ -134,10 +134,10 @@ Consider inserting data submitted from a Google Form into a spreadsheet. For exa
 function myFunction(e) {
   // Get values submitted from Google Form
   const values = e.namedValues;
-  const newValues = [values["名前"], values["年齢"], values["都道府県"], values["郵便番号"]];
+  const newValues = [values["Name"], values["Age"], values["Prefecture"], values["Postal Code"]];
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const hogeSheet = sheet.getSheetByName("シート名");
+  const hogeSheet = sheet.getSheetByName("sheet1");
   const newRow = hogeSheet.getLastRow() + 1;
 
   // Insert into sheet
