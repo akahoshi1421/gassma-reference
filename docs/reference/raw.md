@@ -107,7 +107,7 @@ function onFormSubmit(e) {
     data: {
       // 悪意のあるユーザーが "=IMPORTRANGE(...)" を入力すると
       // 数式として実行されてしまう
-      name: Gassma.raw(e.namedValues["名前"][0]),
+      name: Gassma.raw(e.namedValues["Name"][0]),
     },
   });
 }

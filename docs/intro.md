@@ -131,10 +131,10 @@ GoogleFormから提出されたデータをスプレッドシートに挿入す�
 function myFunction(e) {
   // Google Formから提出された値を取得
   const values = e.namedValues;
-  const newValues = [values["名前"], values["年齢"], values["都道府県"], values["郵便番号"]];
+  const newValues = [values["Name"], values["Age"], values["Prefecture"], values["Postal Code"]];
 
   const sheet = SpreadsheetApp.getActiveSpreadsheet();
-  const hogeSheet = sheet.getSheetByName("シート名");
+  const hogeSheet = sheet.getSheetByName("sheet1");
   const newRow = hogeSheet.getLastRow() + 1;
 
   // シート挿入

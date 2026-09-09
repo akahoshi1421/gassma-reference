@@ -58,7 +58,7 @@ const gassma = new GassmaClient();
 const result = gassma.sheet1.findMany({
   where: {
     pref: "Tokyo",
-    年齢: 31,
+    age: 31,
   },
 });
 ```

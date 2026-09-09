@@ -107,7 +107,7 @@ function onFormSubmit(e) {
     data: {
       // If a malicious user enters "=IMPORTRANGE(...)",
       // it will be executed as a formula
-      name: Gassma.raw(e.namedValues["名前"][0]),
+      name: Gassma.raw(e.namedValues["Name"][0]),
     },
   });
 }
